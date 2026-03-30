@@ -1,8 +1,7 @@
 /**
- * Notification Service — Email (Nodemailer) + Web Push.
+ * Notification Service — Email only (Nodemailer).
  */
 const transporter = require('../config/mailer');
-const webpush = require('../config/webpush');
 const config = require('../config/env');
 const db = require('../db');
 
@@ -46,34 +45,7 @@ async function sendEmailAlert(toEmail, report, vehicle) {
 }
 
 /**
- * Send a Web Push notification.
- *
- * @param {Object} subscription  PushSubscription JSON from the browser
- * @param {Object} report
- */
-async function sendPushNotification(subscription, report) {
-  if (!subscription || !config.vapid.publicKey) return;
-
-  const payload = JSON.stringify({
-    title: `🚗 Engine Alert — ${report.urgency.toUpperCase()}`,
-    body: `Codes: ${report.dtc_codes.join(', ')}. Tap to view diagnosis.`,
-    data: { reportId: report.id },
-  });
-
-  try {
-    await webpush.sendNotification(subscription, payload);
-    console.log('[NOTIFY] Web Push sent');
-  } catch (err) {
-    console.error('[NOTIFY] Web Push failed:', err.message);
-    // If subscription expired (410), remove it
-    if (err.statusCode === 410) {
-      console.log('[NOTIFY] Removing expired push subscription');
-    }
-  }
-}
-
-/**
- * Notify the vehicle's owner via all channels.
+ * Notify the vehicle's owner via email.
  *
  * @param {string} vehicleId
  * @param {Object} report   Saved diagnostic_reports row
@@ -83,7 +55,7 @@ async function notifyOwner(vehicleId, report, vehicle) {
   try {
     // Find the user who owns this vehicle
     const { rows } = await db.query(
-      'SELECT email, push_subscription FROM users WHERE id = $1',
+      'SELECT email FROM users WHERE id = $1',
       [vehicle.user_id]
     );
 
@@ -94,14 +66,10 @@ async function notifyOwner(vehicleId, report, vehicle) {
 
     const user = rows[0];
 
-    // Fire both in parallel
-    await Promise.allSettled([
-      sendEmailAlert(user.email, report, vehicle),
-      sendPushNotification(user.push_subscription, report),
-    ]);
+    await sendEmailAlert(user.email, report, vehicle);
   } catch (err) {
     console.error('[NOTIFY] notifyOwner error:', err.message);
   }
 }
 
-module.exports = { sendEmailAlert, sendPushNotification, notifyOwner };
+module.exports = { sendEmailAlert, notifyOwner };

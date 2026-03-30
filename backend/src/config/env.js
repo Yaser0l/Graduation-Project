@@ -52,10 +52,4 @@ module.exports = {
     pass: process.env.SMTP_PASS || '',
     from: process.env.EMAIL_FROM || 'CarBrain <noreply@carbrain.app>',
   },
-
-  vapid: {
-    publicKey: process.env.VAPID_PUBLIC_KEY || '',
-    privateKey: process.env.VAPID_PRIVATE_KEY || '',
-    mailto: process.env.VAPID_MAILTO || '',
-  },
 };

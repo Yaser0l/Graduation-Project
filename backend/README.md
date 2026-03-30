@@ -63,7 +63,7 @@ The server starts at `http://localhost:4000`.
 |--------|----------|------|-------------|
 | POST | `/api/auth/register` | `{ name, email, password }` | Create account → returns JWT |
 | POST | `/api/auth/login` | `{ email, password }` | Login → returns JWT |
-| POST | `/api/auth/push-subscribe` | `{ subscription }` | Save WebPush subscription (auth required) |
+
 
 ### Vehicles (Auth Required)
 
@@ -138,7 +138,7 @@ Full DDL: [`src/db/schema.sql`](src/db/schema.sql)
 ```
 backend/
 ├── src/
-│   ├── config/           # env, db pool, mqtt, mailer, webpush
+│   ├── config/           # env, db pool, mqtt, mailer
 │   ├── db/               # schema.sql + query helpers
 │   ├── mqtt/             # MQTT subscriber
 │   ├── services/         # LLM, notification, diagnostic orchestration

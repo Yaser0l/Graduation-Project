@@ -79,29 +79,4 @@ router.post('/login', async (req, res, next) => {
   }
 });
 
-// ─────────────────────────────────────────────────────────────
-// POST /api/auth/push-subscribe
-// Save the browser's PushSubscription object for the logged-in user
-// ─────────────────────────────────────────────────────────────
-const authenticate = require('../middleware/auth');
-
-router.post('/push-subscribe', authenticate, async (req, res, next) => {
-  try {
-    const { subscription } = req.body;
-
-    if (!subscription || !subscription.endpoint) {
-      return res.status(400).json({ error: 'Valid push subscription required' });
-    }
-
-    await db.query('UPDATE users SET push_subscription = $1 WHERE id = $2', [
-      JSON.stringify(subscription),
-      req.user.id,
-    ]);
-
-    res.json({ message: 'Push subscription saved' });
-  } catch (err) {
-    next(err);
-  }
-});
-
 module.exports = router;

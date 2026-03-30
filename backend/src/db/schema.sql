@@ -14,7 +14,6 @@ CREATE TABLE IF NOT EXISTS users (
     name            VARCHAR(120)  NOT NULL,
     email           VARCHAR(255)  NOT NULL UNIQUE,
     password_hash   VARCHAR(255)  NOT NULL,
-    push_subscription JSONB       DEFAULT NULL,   -- Web Push subscription object
     created_at      TIMESTAMPTZ   NOT NULL DEFAULT NOW()
 );
 
