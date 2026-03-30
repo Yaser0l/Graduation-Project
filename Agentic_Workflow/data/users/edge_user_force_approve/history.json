@@ -1,0 +1,18 @@
+[
+  {
+    "type": "obd2_analysis",
+    "summary": "OBD2 diagnostic analysis completed",
+    "analysis": "DRAFT ANALYSIS",
+    "codes": [
+      "C0750"
+    ],
+    "timestamp": "2025-11-20T19:43:45.223159"
+  },
+  {
+    "type": "final_report",
+    "summary": "Complete diagnostic report generated",
+    "report_preview": "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n\ud83d\ude97 DIAGNOSTIC REPORT\n\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n\nVehicle: 2023 Edge Car Mock\nReport Date: [current date]\n\n\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n\ud83d\udccb WHAT WE FOUND\n\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n\nWe found some issues with your car's spark plugs, ignition coils,...",
+    "has_products": true,
+    "timestamp": "2025-11-20T19:44:31.595018"
+  }
+]

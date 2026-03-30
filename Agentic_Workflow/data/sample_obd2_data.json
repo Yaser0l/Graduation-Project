@@ -1,0 +1,43 @@
+{
+  "user_id": "user_001",
+  "car_metadata": {
+    "car_name": "Toyota Camry",
+    "car_model": "SE",
+    "year": 2020,
+    "mileage": 45000,
+    "vin": "1HGBH41JXMN109186"
+  },
+  "obd2_data": {
+    "diagnostic_codes": [
+      {
+        "code": "C0561",
+        "description": "System Disabled Information Stored",
+        "system": "Chassis"
+      },
+      {
+        "code": "C0750",
+        "description": "Tire Pressure Monitor Sensor Battery Low",
+        "system": "Chassis"
+      }
+    ],
+    "sensor_readings": {
+      "tire_pressure": {
+        "front_left": 28,
+        "front_right": 29,
+        "rear_left": 27,
+        "rear_right": 28,
+        "unit": "PSI",
+        "recommended": 35
+      },
+      "engine_temp": 195,
+      "oil_pressure": 40,
+      "battery_voltage": 12.6
+    },
+    "freeze_frame_data": {
+      "vehicle_speed": 45,
+      "engine_rpm": 2100,
+      "fuel_level": 65
+    }
+  }
+}
+

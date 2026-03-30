@@ -1,0 +1,7 @@
+{
+  "car_model": "Test Model",
+  "car_name": "Test Car",
+  "mileage": 10000,
+  "year": 2022,
+  "vin": "TEST123456789"
+}
