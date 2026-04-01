@@ -8,7 +8,12 @@
     "start": "node src/app.js",
     "db:init": "psql -f src/db/schema.sql"
   },
-  "keywords": ["obd2", "diagnostics", "mqtt", "car"],
+  "keywords": [
+    "obd2",
+    "diagnostics",
+    "mqtt",
+    "car"
+  ],
   "license": "MIT",
   "dependencies": {
     "express": "^4.21.0",
@@ -17,7 +22,7 @@
     "jsonwebtoken": "^9.0.2",
     "bcryptjs": "^2.4.3",
     "nodemailer": "^6.9.15",
-    "axios": "^1.7.7",
+    "axios": "1.7.7",
     "dotenv": "^16.4.5",
     "cors": "^2.8.5",
     "uuid": "^10.0.0",
