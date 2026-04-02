@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 # Ensure project root is on sys.path when running this file directly
 sys.path.insert(0, str(Path(__file__).parent.parent))
+from langchain_openai import ChatOpenAI
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_core.messages import HumanMessage, SystemMessage
 import config
@@ -70,7 +71,7 @@ def ask_question(question: str) -> bool:
     print(f"ASK: {question}")
     print("=" * 60)
     llm_kwargs = {
-        "model": config.AGENT_MODELS["obd2_writer"]["model"],
+        "model": "deepseek-chat",
         "temperature": 0.2,
         "api_key": config.OPENAI_API_KEY,
     }
