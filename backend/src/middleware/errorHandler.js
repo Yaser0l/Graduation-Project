@@ -15,9 +15,9 @@ function errorHandler(err, req, res, _next) {
   }
 
   const status = err.statusCode || err.status || 500;
-  const message = err.expose ? err.message : 'Internal server error';
+  const message = err.message || 'Internal server error'; // Always expose for debugging
 
-  res.status(status).json({ error: message });
+  res.status(status).json({ error: message, stack: err.stack });
 }
 
 module.exports = errorHandler;
