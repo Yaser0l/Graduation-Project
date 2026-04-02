@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from typing import List, Optional
 from pydantic import BaseModel
+from uuid import UUID
 from app.db.session import get_db
 from app.core.deps import get_current_user
 from app.schemas.auth import UserOut
@@ -14,7 +15,7 @@ class ChatMessageRequest(BaseModel):
     message: str
 
 class ChatSessionResponse(BaseModel):
-    sessionId: int
+    sessionId: UUID
     reply: str
 
 class ChatMessageOut(BaseModel):
@@ -24,7 +25,7 @@ class ChatMessageOut(BaseModel):
 
 @router.post("/{report_id}", response_model=ChatSessionResponse)
 async def chat_with_mechanic(
-    report_id: int,
+    report_id: UUID,
     chat_req: ChatMessageRequest,
     db: AsyncSession = Depends(get_db),
     current_user: UserOut = Depends(get_current_user)
@@ -87,11 +88,7 @@ async def chat_with_mechanic(
         user_message=message
     )
 
-    # 6. Save assistant reply
-    await db.execute(insert_msg, {"session_id": session_id, "content": assistant_reply})
-    # Update to 'assistant' role
-    update_role = text("UPDATE chat_messages SET role = 'assistant' WHERE session_id = :session_id AND content = :content")
-    # Actually I should insert with role correctly the first time
+    # 6. Save assistant reply (correctly as 'assistant' role)
     insert_assistant_msg = text("INSERT INTO chat_messages (session_id, role, content) VALUES (:session_id, 'assistant', :content)")
     await db.execute(insert_assistant_msg, {"session_id": session_id, "content": assistant_reply})
     await db.commit()
@@ -100,7 +97,7 @@ async def chat_with_mechanic(
 
 @router.get("/{report_id}/history")
 async def get_chat_history(
-    report_id: int,
+    report_id: UUID,
     db: AsyncSession = Depends(get_db),
     current_user: UserOut = Depends(get_current_user)
 ):

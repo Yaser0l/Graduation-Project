@@ -1,4 +1,5 @@
 import aiosmtplib
+from uuid import UUID
 from email.message import EmailMessage
 from app.core.config import settings
 
@@ -48,7 +49,7 @@ async def send_email_alert(to_email: str, report: dict, vehicle: dict):
     except Exception as e:
         print(f"[NOTIFY] Failed to send email: {e}")
 
-async def notify_owner(db, vehicle_id: int, report: dict, vehicle: dict):
+async def notify_owner(db, vehicle_id: UUID, report: dict, vehicle: dict):
     from sqlalchemy import text
     try:
         query = text("SELECT email FROM users WHERE id = :id")

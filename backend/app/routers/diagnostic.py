@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from typing import List, Optional
+from uuid import UUID
 from app.db.session import get_db
 from app.core.deps import get_current_user
 from app.schemas.auth import UserOut
@@ -35,7 +36,7 @@ async def get_diagnostics(
 
 @router.get("/{report_id}", response_model=DiagnosticReportOut)
 async def get_diagnostic(
-    report_id: int,
+    report_id: UUID,
     db: AsyncSession = Depends(get_db),
     current_user: UserOut = Depends(get_current_user)
 ):
@@ -53,7 +54,7 @@ async def get_diagnostic(
 
 @router.patch("/{report_id}/resolve", response_model=DiagnosticReportOut)
 async def resolve_diagnostic(
-    report_id: int,
+    report_id: UUID,
     db: AsyncSession = Depends(get_db),
     current_user: UserOut = Depends(get_current_user)
 ):
@@ -73,7 +74,7 @@ async def resolve_diagnostic(
 
 @router.get("/vehicle/{vehicle_id}", response_model=List[DiagnosticReportOut])
 async def get_vehicle_diagnostics(
-    vehicle_id: int,
+    vehicle_id: UUID,
     db: AsyncSession = Depends(get_db),
     current_user: UserOut = Depends(get_current_user)
 ):

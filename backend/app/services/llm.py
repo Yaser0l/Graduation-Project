@@ -12,6 +12,9 @@ class LlmService:
         }
         if self.api_key:
             self.headers["Authorization"] = f"Bearer {self.api_key}"
+        
+        # Add internal secret for the "Secret Handshake"
+        self.headers["X-Internal-Secret"] = settings.INTERNAL_API_SECRET
 
     async def analyze(self, dtc_codes: List[str], vehicle: Dict[str, Any]) -> Dict[str, Any]:
         async with httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout, headers=self.headers) as client:

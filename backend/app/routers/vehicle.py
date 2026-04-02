@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from typing import List
+from uuid import UUID
 from app.db.session import get_db
 from app.core.deps import get_current_user
 from app.schemas.auth import UserOut
@@ -47,7 +48,7 @@ async def create_vehicle(
 
 @router.get("/{vehicle_id}", response_model=VehicleOut)
 async def get_vehicle(
-    vehicle_id: int,
+    vehicle_id: UUID,
     db: AsyncSession = Depends(get_db),
     current_user: UserOut = Depends(get_current_user)
 ):
