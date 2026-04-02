@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     LLM_API_KEY: Optional[str] = None
     LLM_ANALYZE_PATH: str = "/api/llm/analyze"
     LLM_CHAT_PATH: str = "/api/llm/chat"
+    INTERNAL_API_SECRET: str = ""
 
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=True, extra="ignore")
 

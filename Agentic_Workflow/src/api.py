@@ -17,6 +17,18 @@ import config
 
 app = FastAPI(title="CarBrain AI Backend")
 
+from fastapi import FastAPI, HTTPException, Header, Depends
+
+# -----------------
+# Security (Internal Handshake)
+# -----------------
+INTERNAL_API_SECRET = os.getenv("INTERNAL_API_SECRET")
+
+async def verify_internal_secret(x_internal_secret: str = Header(None)):
+    if x_internal_secret != INTERNAL_API_SECRET:
+        raise HTTPException(status_code=401, detail="Unauthorized: Invalid Internal Secret")
+    return x_internal_secret
+
 # -----------------
 # Pydantic Models
 # -----------------
@@ -51,7 +63,7 @@ class ChatRequest(BaseModel):
 # -----------------
 # Endpoints
 # -----------------
-@app.post("/api/llm/analyze")
+@app.post("/api/llm/analyze", dependencies=[Depends(verify_internal_secret)])
 async def analyze_dtc(request: AnalyzeRequest):
     """Generates a lightning-fast brief explanation of the DTCs."""
     try:
@@ -79,7 +91,7 @@ async def analyze_dtc(request: AnalyzeRequest):
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/api/llm/full-report")
+@app.post("/api/llm/full-report", dependencies=[Depends(verify_internal_secret)])
 async def full_report(request: AnalyzeRequest):
     """Generates the full comprehensive diagnostic report using the Multi-Agent Workflow."""
     try:
@@ -118,7 +130,7 @@ async def full_report(request: AnalyzeRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/api/llm/chat")
+@app.post("/api/llm/chat", dependencies=[Depends(verify_internal_secret)])
 async def chat_with_mechanic(request: ChatRequest):
     """Handles continuous conversation regarding a previous diagnostic report."""
     try:
