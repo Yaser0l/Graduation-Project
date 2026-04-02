@@ -133,8 +133,8 @@ server.listen(config.port, () => {
   console.log('');
   console.log('  ╔══════════════════════════════════════════════╗');
   console.log('  ║   🚗  CarBrain Backend — Running             ║');
-  console.log(`  ║   📡  Port: ${config.port}                           ║`);
-  console.log(`  ║   🌍  Env:  ${config.nodeEnv.padEnd(26)}║`);
+  console.log(`  ║   📡  Port: ${config.port}                             ║`);
+  console.log(`  ║   🌍  Env:  ${config.nodeEnv.padEnd(26)}       ║`);
   console.log('  ║                                              ║');
   console.log('  ║   Endpoints:                                 ║');
   console.log(`  ║     POST /api/auth/register                  ║`);

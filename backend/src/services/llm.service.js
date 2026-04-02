@@ -10,7 +10,7 @@ const config = require('../config/env');
 
 const llmClient = axios.create({
   baseURL: config.llm.baseUrl,
-  timeout: 30000, // LLM can be slow
+  timeout: 240000, // Multi-agent workflow can take over a minute
   headers: {
     'Content-Type': 'application/json',
     ...(config.llm.apiKey ? { Authorization: `Bearer ${config.llm.apiKey}` } : {}),
