@@ -8,6 +8,7 @@ from src.main import prepare_input
 from src.graph.main_graph import main_workflow
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
+import config
 
 app = FastAPI(title="CarBrain AI Backend")
 
@@ -47,7 +48,35 @@ class ChatRequest(BaseModel):
 # -----------------
 @app.post("/api/llm/analyze")
 async def analyze_dtc(request: AnalyzeRequest):
-    """Generates the full diagnostic report using the Multi-Agent Workflow."""
+    """Generates a lightning-fast brief explanation of the DTCs."""
+    try:
+        # Fast single LLM call for immediate database saving
+        llm_kwargs = {"api_key": config.LLM_API_KEY}
+        if config.base_url:
+            llm_kwargs["base_url"] = config.base_url
+            
+        llm = ChatOpenAI(model="deepseek-chat", temperature=0.7, **llm_kwargs)
+        
+        car_info = f"{request.vehicle.year} {request.vehicle.make} {request.vehicle.model}"
+        dtcs = ", ".join(request.dtc_codes)
+        
+        prompt = f"You are a quick automotive diagnostic assistant. Provide a highly concise, 2-3 sentence brief explanation for the provided DTC codes. Be simple and to the point. Vehicle: {car_info}. Codes: {dtcs}."
+        
+        messages = [HumanMessage(content=prompt)]
+        response = llm.invoke(messages)
+        
+        return {
+            "explanation": response.content,
+            "urgency": "medium"
+        }
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/llm/full-report")
+async def full_report(request: AnalyzeRequest):
+    """Generates the full comprehensive diagnostic report using the Multi-Agent Workflow."""
     try:
         # 1. Format the request to match the expected state of our LangGraph workflow
         obd_codes = [{"code": code, "description": "Unknown", "system": "Unknown"} for code in request.dtc_codes]
@@ -55,9 +84,9 @@ async def analyze_dtc(request: AnalyzeRequest):
         input_data = {
             "user_id": "api_user",
             "car_metadata": {
-                "car_name": request.vehicle.make,
-                "car_model": request.vehicle.model,
-                "year": request.vehicle.year,
+                "car_name": request.vehicle.make or "Unknown",
+                "car_model": request.vehicle.model or "Unknown",
+                "year": request.vehicle.year or 2000,
                 "mileage": request.vehicle.mileage,
                 "vin": ""
             },
@@ -66,20 +95,21 @@ async def analyze_dtc(request: AnalyzeRequest):
             }
         }
         
-        # 2. Run the LangGraph Workflow
+        # 2. Run the LangGraph Workflow (this takes ~60-240 seconds)
         state = prepare_input(input_data)
         result = main_workflow.invoke(state)
         
         final_report = result.get("final_report", "Analysis could not be completed.")
         
-        # 3. Return the report in the exact format your Node.js backend expects
         return {
             "explanation": final_report,
-            "urgency": "medium", # Could use an agent to determine this
-            "estimated_cost_min": 100, # Could use an agent to scrape exact costs
+            "urgency": "medium",
+            "estimated_cost_min": 100, 
             "estimated_cost_max": 500
         }
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -89,7 +119,10 @@ async def chat_with_mechanic(request: ChatRequest):
     try:
         # A lightweight ChatOpenAI tool to answer conversational questions
         # Using the actual generated report as the System Context.
-        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.7)
+        llm_kwargs = {"api_key": config.LLM_API_KEY}
+        if config.base_url:
+            llm_kwargs["base_url"] = config.base_url
+        llm = ChatOpenAI(model="deepseek-chat", temperature=0.7, **llm_kwargs)
         
         system_prompt = f"""You are a helpful, professional automotive mechanic assisting a customer.
 You have already provided them with the following diagnostic report:
