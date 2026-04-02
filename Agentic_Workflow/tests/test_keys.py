@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 # Ensure project root is on sys.path when running this file directly
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_core.messages import HumanMessage, SystemMessage
 import config
 
@@ -19,14 +19,14 @@ def mask_key(key: str) -> str:
 
 def test_openai_chat() -> bool:
     print("=" * 60)
-    print("TEST: OpenAI Chat connectivity")
+    print("TEST: DeepSeek Chat connectivity (via OpenAI key)")
     print("=" * 60)
 
     print(f"OPENAI_API_KEY: {mask_key(config.OPENAI_API_KEY)}")
     print(f"BASE_URL used: {config.base_url or '<default>'}")
 
     llm_kwargs = {
-        "model": config.AGENT_MODELS["obd2_writer"]["model"],
+        "model": "deepseek-chat",
         "temperature": 0.0,
         "api_key": config.OPENAI_API_KEY,
     }
@@ -48,17 +48,13 @@ def test_openai_chat() -> bool:
         return False
 
 
-def test_openai_embeddings() -> bool:
+def test_hf_embeddings() -> bool:
     print("\n" + "=" * 60)
-    print("TEST: OpenAI Embeddings connectivity")
+    print("TEST: HuggingFace Embeddings (Local)")
     print("=" * 60)
 
     try:
-        # Match the parameter names used in the app's knowledge base
-        kwargs = {"openai_api_key": config.OPENAI_API_KEY}
-        if config.base_url:
-            kwargs["openai_api_base"] = config.base_url
-        emb = OpenAIEmbeddings(**kwargs)
+        emb = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
         vec = emb.embed_query("test")
         ok = isinstance(vec, list) and len(vec) > 0
         print(f"Embedding length: {len(vec) if isinstance(vec, list) else 'N/A'}")
@@ -101,7 +97,7 @@ def main():
         sys.exit(0 if ok else 1)
     else:
         chat_ok = test_openai_chat()
-        emb_ok = test_openai_embeddings()
+        emb_ok = test_hf_embeddings()
         all_ok = chat_ok and emb_ok
         print("\n" + "=" * 60)
         print(f"KEY TEST SUMMARY: {'ALL OK' if all_ok else 'FAILURES'}")

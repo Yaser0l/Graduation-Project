@@ -42,7 +42,7 @@ module.exports = {
     baseUrl: process.env.LLM_BASE_URL || 'http://localhost:5000',
     analyzePath: process.env.LLM_ANALYZE_PATH || '/api/llm/analyze',
     chatPath: process.env.LLM_CHAT_PATH || '/api/llm/chat',
-    apiKey: process.env.LLM_API_KEY || '',
+    apiKey: process.env.OPENAI_API_KEY || '',
   },
 
   smtp: {

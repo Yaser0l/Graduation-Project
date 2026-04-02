@@ -51,7 +51,7 @@ async def analyze_dtc(request: AnalyzeRequest):
     """Generates a lightning-fast brief explanation of the DTCs."""
     try:
         # Fast single LLM call for immediate database saving
-        llm_kwargs = {"api_key": config.LLM_API_KEY}
+        llm_kwargs = {"api_key": config.OPENAI_API_KEY}
         if config.base_url:
             llm_kwargs["base_url"] = config.base_url
             
@@ -119,7 +119,7 @@ async def chat_with_mechanic(request: ChatRequest):
     try:
         # A lightweight ChatOpenAI tool to answer conversational questions
         # Using the actual generated report as the System Context.
-        llm_kwargs = {"api_key": config.LLM_API_KEY}
+        llm_kwargs = {"api_key": config.OPENAI_API_KEY}
         if config.base_url:
             llm_kwargs["base_url"] = config.base_url
         llm = ChatOpenAI(model="deepseek-chat", temperature=0.7, **llm_kwargs)
