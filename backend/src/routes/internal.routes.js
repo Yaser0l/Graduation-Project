@@ -24,7 +24,7 @@ router.post('/simulate-dtc', async (req, res, next) => {
   }
 
   try {
-    const { vin, dtc_list, mileage } = req.body;
+    const { vin, dtc_list, mileage, make, model, year } = req.body;
 
     if (!vin || !Array.isArray(dtc_list) || dtc_list.length === 0) {
       return res.status(400).json({ error: 'vin and dtc_list (non-empty array) are required' });
@@ -34,11 +34,16 @@ router.post('/simulate-dtc', async (req, res, next) => {
       vin,
       dtc_list,
       mileage: mileage || 0,
+      make: make || null,
+      model: model || null,
+      year: year || null,
       timestamp: new Date().toISOString(),
     });
 
-    if (report) {
+    if (report && report.id) {
       res.status(201).json({ message: 'Simulated DTC processed — new report created', report });
+    } else if (report && report.error === 'Vehicle unregistered') {
+      res.status(401).json({ error: 'VIN not registered. Go to /api/vehicles to add your car first.' });
     } else {
       res.json({ message: 'DTC already known (deduplicated) — no new report' });
     }

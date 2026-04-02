@@ -23,29 +23,21 @@ const notifyService = require('./notify.service');
  * @param {Function} [onReportCreated]  Optional callback (used by WebSocket to emit events)
  * @returns {Promise<Object|null>}      The new report, or null if deduplicated
  */
-async function processDtcEvent({ vin, dtc_list, mileage, timestamp }, onReportCreated) {
+async function processDtcEvent({ vin, dtc_list, mileage, make, model, year, timestamp }, onReportCreated) {
   console.log(`[DIAG] Processing DTC event: VIN=${vin}, codes=${dtc_list.join(',')}, mileage=${mileage}`);
 
-  // ── Step 1: Find or create the vehicle ──────────────────────
-  let vehicle;
+  // ── Step 1: Find the vehicle ────────────────────────────────
   const vehicleResult = await db.query('SELECT * FROM vehicles WHERE vin = $1', [vin]);
 
-  if (vehicleResult.rows.length) {
-    vehicle = vehicleResult.rows[0];
-    // Always update mileage to the latest reading
-    await db.query('UPDATE vehicles SET mileage = $1 WHERE id = $2', [mileage, vehicle.id]);
-    vehicle.mileage = mileage;
-  } else {
-    // Vehicle unknown — create a placeholder; user can fill in make/model later
-    const insertResult = await db.query(
-      `INSERT INTO vehicles (vin, mileage, user_id)
-       VALUES ($1, $2, (SELECT id FROM users LIMIT 1))
-       RETURNING *`,
-      [vin, mileage]
-    );
-    vehicle = insertResult.rows[0];
-    console.log(`[DIAG] Created new vehicle record for VIN ${vin}`);
+  if (!vehicleResult.rows.length) {
+    console.error(`[DIAG] Rejected! VIN ${vin} is not registered in the database. Contact support or add vehicle first.`);
+    return { error: 'Vehicle unregistered' };
   }
+
+  const vehicle = vehicleResult.rows[0];
+  // Always update mileage to the latest reading
+  await db.query('UPDATE vehicles SET mileage = $1 WHERE id = $2', [mileage, vehicle.id]);
+  vehicle.mileage = mileage;
 
   // ── Step 2: Deduplication ───────────────────────────────────
   // Check if there's already an OPEN (unresolved) report for this vehicle
