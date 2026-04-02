@@ -1,3 +1,8 @@
+import os
+import sys
+# Add parent directory of 'src' to path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 """FastAPI Microservice for Multi-Agent Mechanic Workflow."""
 import uvicorn
 from fastapi import FastAPI, HTTPException
@@ -157,4 +162,4 @@ Answer their questions specifically based on this report. Keep answers clear and
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
-    uvicorn.run("src.api:app", host="0.0.0.0", port=5000, reload=True)
+    uvicorn.run("src.api:app", host="0.0.0.0", port=8000, reload=True)
