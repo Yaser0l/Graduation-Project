@@ -36,6 +36,11 @@ export default function ScannerOverlay() {
     }
     
     if (step === 'scanning') {
+      /* ==============================================================
+       * [BACKEND INTEGRATION: SIMULATE DTC]
+       * Endpoint: POST /api/internal/simulate-dtc
+       * Action: Fire this request while the scanner radar plays to simulate realistic data pull.
+       * ============================================================== */
       const interval = setInterval(() => {
         setPhase(p => {
           if (p >= phases.length - 1) {

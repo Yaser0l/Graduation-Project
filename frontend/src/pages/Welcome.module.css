@@ -1,0 +1,19 @@
+.container { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; position: relative; overflow: hidden; }
+.hero { text-align: center; margin-bottom: 48px; z-index: 10; }
+.logo { font-size: 3rem; font-weight: 800; letter-spacing: -2px; background: linear-gradient(135deg, #fff 0%, #a1a1aa 100%); -webkit-background-clip: text; color: transparent; margin-bottom: 12px; }
+.subtitle { color: var(--text-secondary); font-size: 1rem; line-height: 1.6; max-width: 320px; margin: 0 auto; font-family: inherit; }
+
+.authBox { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 24px; padding: 32px 24px; width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: 24px; z-index: 10; box-shadow: 0 16px 40px rgba(0,0,0,0.8); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
+.authTabs { display: flex; background: rgba(0,0,0,0.4); border-radius: 12px; padding: 4px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.5); }
+.tab { flex: 1; padding: 12px; text-align: center; font-weight: 600; font-size: 0.95rem; color: var(--text-secondary); border-radius: 8px; transition: all 0.2s; cursor: pointer; }
+.tab.active { background: var(--bg-app); color: var(--text-primary); box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
+
+.form { display: flex; flex-direction: column; gap: 16px; }
+.inputGroup { display: flex; align-items: center; background: rgba(0,0,0,0.4); border: 1px solid var(--border-color); border-radius: 16px; padding: 0 16px; transition: border 0.3s; }
+.inputGroup:focus-within { border-color: var(--accent-primary); box-shadow: 0 0 0 2px rgba(37,99,235,0.1); }
+.icon { color: var(--text-tertiary); }
+.input { flex: 1; background: transparent; border: none; outline: none; padding: 18px 12px; color: var(--text-primary); font-size: 1rem; font-family: inherit; }
+
+.submitBtn { background: var(--accent-primary); color: var(--bg-app); font-weight: 700; font-size: 1rem; padding: 18px; border-radius: 16px; outline: none; border: none; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; margin-top: 8px; display: flex; align-items: center; justify-content: center; gap: 8px; font-family: inherit; letter-spacing: 0.5px; }
+.submitBtn:hover { transform: translateY(-2px); box-shadow: 0 8px 24px var(--accent-glow); }
+.submitBtn:active { transform: translateY(0); }

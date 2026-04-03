@@ -2,7 +2,7 @@ import React, { useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AppContext } from '../store/AppContext';
-import { Scan, Settings2, Car, Calendar, GaugeCircle } from 'lucide-react';
+import { Scan, Settings2, Car, Calendar, GaugeCircle, Fingerprint } from 'lucide-react';
 import styles from './Onboarding.module.css';
 
 export default function Onboarding() {
@@ -16,6 +16,7 @@ export default function Onboarding() {
   const [make, setMake] = useState('');
   const [model, setModel] = useState('');
   const [year, setYear] = useState('');
+  const [vin, setVin] = useState('');
   const [mileage, setMileage] = useState('');
 
   const startAutoScan = () => {
@@ -26,12 +27,22 @@ export default function Onboarding() {
       setScanProgress(p);
       if (p >= 100) {
         clearInterval(interval);
+        /* ==============================================================
+         * [BACKEND INTEGRATION: GET VEHICLE VIA BLUETOOTH]
+         * If Auto-Detect succeeds, parse the OBD-II response to POST /api/vehicle/
+         * ============================================================== */
         setTimeout(() => navigate('/dashboard'), 600);
       }
     }, 40);
   };
 
   const manualFinish = () => {
+    /* ==============================================================
+     * [BACKEND INTEGRATION: CREATE VEHICLE]
+     * Endpoint: POST /api/vehicle/
+     * Payload: { vin, make, model, year, mileage }
+     * Action: Create vehicle and set the active context returned.
+     * ============================================================== */
     navigate('/dashboard');
   };
 
@@ -111,6 +122,22 @@ export default function Onboarding() {
              )}
 
              {step === 4 && (
+               <motion.div initial={{opacity: 0, x: 20}} animate={{opacity: 1, x: 0}} className={styles.stepBlock}>
+                 <label><Fingerprint size={18}/> {language === 'ar' ? 'رقم الهيكل (VIN)' : 'Vehicle ID Number (VIN)'}</label>
+                 <input 
+                   type="text" 
+                   className={styles.inputField} 
+                   placeholder="e.g. 1HGCM82633A..." 
+                   value={vin} 
+                   onChange={e => setVin(e.target.value.toUpperCase())} 
+                 />
+                 <button className="btn-primary" style={{ width: '100%', marginTop: 24 }} onClick={() => setStep(5)}>
+                   {language === 'ar' ? 'التالي' : 'Next'}
+                 </button>
+               </motion.div>
+             )}
+
+             {step === 5 && (
                <motion.div initial={{opacity: 0, x: 20}} animate={{opacity: 1, x: 0}} className={styles.stepBlock}>
                  <label><GaugeCircle size={18}/> {language === 'ar' ? 'الممشى الحالي (كم)' : 'Current Mileage (km)'}</label>
                  <input 
