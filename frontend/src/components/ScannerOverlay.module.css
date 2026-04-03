@@ -1,0 +1,34 @@
+.overlay { position: fixed; inset: 0; background: rgba(9, 9, 11, 0.95); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 48px; padding: 24px; }
+.closeBtn { position: absolute; top: 24px; right: 24px; width: 44px; height: 44px; border-radius: 50%; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: var(--text-secondary); display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 100; font-size: 1.2rem; transition: all 0.2s; }
+.closeBtn:hover { background: rgba(255,255,255,0.1); color: var(--text-primary); transform: scale(1.05); }
+
+/* Prompt Box */
+.promptBox { background: var(--bg-card); border: 1px solid rgba(255,255,255,0.1); border-radius: 24px; padding: 40px 24px; display: flex; flex-direction: column; align-items: center; text-align: center; max-width: 360px; box-shadow: 0 16px 64px rgba(0,0,0,0.8); }
+.promptIconBlock { width: 80px; height: 80px; background: rgba(37, 99, 235, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 24px; box-shadow: inset 0 0 20px rgba(37,99,235,0.2); }
+.usbIcon { color: var(--accent-primary); }
+.promptBox h2 { font-size: 1.3rem; font-weight: 700; margin-bottom: 12px; color: var(--text-primary); }
+.promptBox p { font-size: 0.95rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: 32px; }
+.actionBtn { width: 100%; display: flex; align-items: center; justify-content: center; gap: 12px; border-radius: 16px; padding: 18px 24px; font-size: 1rem; }
+
+/* Pairing Box */
+.pairingBox { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 32px; }
+.pairingIconWrapper { position: relative; width: 140px; height: 140px; display: flex; align-items: center; justify-content: center; }
+.pairingRing { position: absolute; inset: 0; border-radius: 50%; border: 3px dashed rgba(37, 99, 235, 0.5); opacity: 0.8; }
+.btIcon { color: var(--accent-primary); animation: pulseIcon 1.5s infinite; z-index: 2; }
+.pairingBox h3 { font-size: 1.1rem; color: var(--text-primary); font-weight: 600; letter-spacing: 1px; }
+
+/* Scanning Radar */
+.scanningWrap { display: flex; flex-direction: column; align-items: center; gap: 48px; width: 100%; }
+.scanBox { position: relative; width: 160px; height: 160px; display: flex; align-items: center; justify-content: center; }
+.radar { position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(transparent 70%, var(--accent-primary) 100%); mask-image: radial-gradient(transparent 55%, black 56%); -webkit-mask-image: radial-gradient(transparent 55%, black 56%); }
+.radarCore { position: relative; z-index: 2; width: 100px; height: 100px; border-radius: 50%; background: var(--bg-card); border: 1px solid var(--border-color); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 32px rgba(37, 99, 235, 0.1); }
+.radarIcon { color: var(--accent-primary); animation: pulseIcon 1.5s ease-in-out infinite; }
+@keyframes pulseIcon { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.1); opacity: 0.6; } }
+
+.statusList { display: flex; flex-direction: column; gap: 16px; width: 100%; max-width: 320px; }
+.statusItem { display: flex; align-items: center; gap: 16px; font-size: 1rem; font-weight: 600; color: var(--text-primary); transition: all 0.3s ease; }
+.dot { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--border-color); background: transparent; transition: all 0.3s ease; }
+.statusItem.active .dot { border-color: var(--accent-primary); background: var(--accent-primary); box-shadow: 0 0 12px var(--accent-glow); transform: scale(1.2); }
+.statusItem.completed .dot { border-color: var(--status-green); background: var(--status-green); box-shadow: 0 0 12px rgba(16, 185, 129, 0.4); }
+.statusItem.completed span { color: var(--text-secondary); }
+.statusItem.active span { color: var(--accent-primary); text-shadow: 0 0 8px rgba(255,255,255,0.2); }

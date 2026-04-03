@@ -1,0 +1,27 @@
+.container { display: flex; flex-direction: column; height: calc(100vh - 60px - var(--nav-height) - 16px); }
+.chatArea { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; padding: 16px 8px; scrollbar-width: none; }
+.messageWrapper { display: flex; gap: 12px; width: 100%; }
+.userWrap { justify-content: flex-end; }
+.aiWrap { justify-content: flex-start; align-items: flex-end; }
+
+.aiAvatar { width: 32px; height: 32px; border-radius: 50%; background: rgba(228,228,231,0.1); display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 0 12px rgba(228,228,231,0.2); }
+.glowIcon { color: var(--accent-primary); }
+
+.bubble { max-width: 80%; padding: 14px 18px; font-size: 0.95rem; line-height: 1.5; }
+.ai { background: rgba(24, 24, 27, 0.8); border: 1px solid var(--border-color); border-radius: 16px 16px 16px 4px; color: var(--text-primary); backdrop-filter: blur(8px); }
+html[dir='rtl'] .ai { border-radius: 16px 16px 4px 16px; }
+
+.user { background: var(--text-primary); color: var(--bg-app); border-radius: 16px 16px 4px 16px; font-weight: 600; }
+html[dir='rtl'] .user { border-radius: 16px 16px 16px 4px; }
+
+.interactionZone { display: flex; flex-direction: column; gap: 12px; padding-top: 16px; }
+.chipsContainer { display: flex; overflow-x: auto; gap: 8px; padding-bottom: 4px; scrollbar-width: none; }
+.chip { background: rgba(24, 24, 27, 0.8); border: 1px solid rgba(255,255,255,0.1); padding: 10px 18px; border-radius: 20px; font-size: 0.85rem; white-space: nowrap; transition: all 0.2s ease; cursor: pointer; color: var(--text-secondary); backdrop-filter: blur(8px); }
+.chip:hover { border-color: var(--accent-primary); color: var(--accent-primary); background: rgba(228, 228, 231, 0.05); }
+
+.inputStack { display: flex; gap: 12px; align-items: center; }
+.input { flex: 1; background: rgba(0,0,0,0.5); border: 1px solid var(--border-color); color: var(--text-primary); padding: 16px 20px; border-radius: 24px; font-size: 1rem; outline: none; transition: border 0.2s; font-family: inherit; }
+.input:focus { border-color: var(--accent-primary); box-shadow: 0 0 0 1px rgba(228, 228, 231, 0.2); }
+.sendBtn { width: 52px; height: 52px; border-radius: 50%; background: var(--accent-primary); color: var(--bg-app); display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: transform 0.2s, box-shadow 0.2s; cursor: pointer; border: none; box-shadow: 0 0 16px var(--accent-glow); }
+.sendBtn:hover { transform: scale(1.05); }
+.sendBtn:active { transform: scale(0.95); }
