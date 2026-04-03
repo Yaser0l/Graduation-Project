@@ -2,14 +2,17 @@ import React, { useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AppContext } from '../store/AppContext';
+import { api } from '../services/api';
 import { Scan, Settings2, Car, Calendar, GaugeCircle, Fingerprint } from 'lucide-react';
 import styles from './Onboarding.module.css';
 
 export default function Onboarding() {
   const navigate = useNavigate();
-  const { mockData, language } = useContext(AppContext);
+  const { mockData, language, setActiveVehicle, fetchAppData } = useContext(AppContext);
   const [mode, setMode] = useState(null); // 'auto' or 'manual'
   const [scanProgress, setScanProgress] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const [localError, setLocalError] = useState(null);
 
   // Manual Cascade State
   const [step, setStep] = useState(1);
@@ -27,23 +30,35 @@ export default function Onboarding() {
       setScanProgress(p);
       if (p >= 100) {
         clearInterval(interval);
-        /* ==============================================================
-         * [BACKEND INTEGRATION: GET VEHICLE VIA BLUETOOTH]
-         * If Auto-Detect succeeds, parse the OBD-II response to POST /api/vehicle/
-         * ============================================================== */
+        // In a real OBD-II scan, we'd get the VIN/Make/Model here
+        // For now, we simulate success and move to dashboard
         setTimeout(() => navigate('/dashboard'), 600);
       }
     }, 40);
   };
 
-  const manualFinish = () => {
-    /* ==============================================================
-     * [BACKEND INTEGRATION: CREATE VEHICLE]
-     * Endpoint: POST /api/vehicle/
-     * Payload: { vin, make, model, year, mileage }
-     * Action: Create vehicle and set the active context returned.
-     * ============================================================== */
-    navigate('/dashboard');
+  const manualFinish = async () => {
+    setIsLoading(true);
+    setLocalError(null);
+    try {
+      const vehicleData = {
+        vin: vin || `SIM-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
+        make,
+        model,
+        year: parseInt(year),
+        mileage: parseInt(mileage) || 0
+      };
+      
+      const newVehicle = await api.vehicles.create(vehicleData);
+      setActiveVehicle(newVehicle);
+      await fetchAppData(); // Refresh all data
+      navigate('/dashboard');
+    } catch (err) {
+      console.error("Failed to create vehicle:", err);
+      setLocalError(err.message || "Failed to save vehicle details");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -56,6 +71,8 @@ export default function Onboarding() {
       </div>
 
       <AnimatePresence mode="wait">
+        {localError && <div className={styles.errorBanner}>{localError}</div>}
+
         {!mode && (
           <motion.div key="intro" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, y: 20 }} className={styles.options}>
             <button className={`glass-panel ${styles.bigBtn}`} onClick={startAutoScan}>
@@ -147,8 +164,8 @@ export default function Onboarding() {
                    value={mileage} 
                    onChange={e => setMileage(e.target.value)} 
                  />
-                 <button className="btn-primary" style={{ width: '100%', marginTop: 24 }} onClick={manualFinish}>
-                   {language === 'ar' ? 'إتمام التحليل' : 'Analyze Vehicle Details'}
+                 <button className="btn-primary" style={{ width: '100%', marginTop: 24 }} onClick={manualFinish} disabled={isLoading}>
+                   {isLoading ? (language === 'ar' ? 'جاري الحفظ...' : 'Saving Details...') : (language === 'ar' ? 'إتمام التحليل' : 'Analyze Vehicle Details')}
                  </button>
                </motion.div>
              )}
