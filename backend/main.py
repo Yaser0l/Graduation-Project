@@ -14,9 +14,13 @@ from app.core.config import settings
 from app.routers import auth, vehicle, diagnostic, chat, internal
 from app.core.mqtt import MqttService
 from app.core.sse import on_report_created, sse_service
+from app.db.init_db import init_db_schema
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Startup: Ensure database schema exists
+    await init_db_schema()
+
     # Startup: Initialize MQTT
     mqtt_svc = MqttService(on_report_created_cb=on_report_created)
     try:
