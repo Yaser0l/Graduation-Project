@@ -5,15 +5,42 @@ from app.services.llm import llm_service
 from app.services.notify import notify_owner
 
 async def process_dtc_event(db, payload: dict, on_report_created=None):
+    # Support multiple formats (real hardware vs simulation)
     vin = payload.get("vin")
-    dtc_list = payload.get("dtc_list", [])
-    mileage = payload.get("mileage", 0)
+    vehicle_id = payload.get("vehicleId") or payload.get("vehicle_id")
     
-    print(f"[DIAG] Processing DTC event: VIN={vin}, codes={','.join(dtc_list)}, mileage={mileage}")
+    # Try to extract from nested 'report' if present
+    if not vin and not vehicle_id and "report" in payload:
+        inner = payload["report"]
+        vin = inner.get("vin")
+        vehicle_id = inner.get("vehicleId") or inner.get("vehicle_id")
+        
+    dtc_list = payload.get("dtc_list") or payload.get("codes")
+    if not dtc_list and "report" in payload:
+        dtc_list = payload["report"].get("dtc_list") or payload["report"].get("dtc")
+    
+    # If it's a single string, convert to list
+    if isinstance(dtc_list, str):
+        dtc_list = [dtc_list]
+    dtc_list = dtc_list or []
+    
+    mileage = payload.get("mileage") or payload.get("odometer") or 0
+    if not mileage and "report" in payload:
+        mileage = payload["report"].get("mileage") or 0
+    
+    # Identify vehicle
+    if vin:
+        print(f"[DIAG] Processing DTC event for VIN: {vin}")
+        vehicle_query = text("SELECT * FROM vehicles WHERE vin = :vin")
+        result = await db.execute(vehicle_query, {"vin": vin})
+    elif vehicle_id:
+        print(f"[DIAG] Processing DTC event for Vehicle ID: {vehicle_id}")
+        vehicle_query = text("SELECT * FROM vehicles WHERE id = :v_id")
+        result = await db.execute(vehicle_query, {"v_id": vehicle_id})
+    else:
+        print("[DIAG] Rejected! No VIN or Vehicle ID provided.")
+        return {"error": "Missing identification"}
 
-    # 1. Find vehicle
-    vehicle_query = text("SELECT * FROM vehicles WHERE vin = :vin")
-    result = await db.execute(vehicle_query, {"vin": vin})
     vehicle = result.first()
 
     if not vehicle:
@@ -54,9 +81,8 @@ async def process_dtc_event(db, payload: dict, on_report_created=None):
             "make": vehicle_data.get("make"),
             "model": vehicle_data.get("model"),
             "year": vehicle_data.get("year"),
-            "mileage": vehicle_data.get("mileage"),
-            "last_oil_change_km": vehicle_data.get("last_oil_change_km"),
-        }
+            "mileage": vehicle_data.get("mileage")
+            }
     )
 
     # 4. Store Report

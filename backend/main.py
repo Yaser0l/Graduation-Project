@@ -1,8 +1,7 @@
 import uvicorn
-import asyncio
 import logging
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Depends, Query, HTTPException, status
+from fastapi import FastAPI, Query, HTTPException, status
 
 # Silence the (trapped) bcrypt error from passlib
 logging.getLogger("passlib").setLevel(logging.ERROR)
@@ -11,7 +10,7 @@ from sse_starlette.sse import EventSourceResponse
 from jose import jwt, JWTError
 
 from app.core.config import settings
-from app.routers import auth, vehicle, diagnostic, chat, internal
+from app.routers import auth, vehicle, diagnostic, chat, internal, maintenance
 from app.core.mqtt import MqttService
 from app.core.sse import on_report_created, sse_service
 
@@ -40,7 +39,7 @@ app = FastAPI(
 # CORS Middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -69,6 +68,7 @@ app.include_router(vehicle.router)
 app.include_router(diagnostic.router)
 app.include_router(chat.router)
 app.include_router(internal.router)
+app.include_router(maintenance.router)
 
 @app.get("/")
 async def root():

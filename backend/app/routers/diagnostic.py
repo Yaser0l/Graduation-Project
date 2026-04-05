@@ -7,6 +7,7 @@ from app.db.session import get_db
 from app.core.deps import get_current_user
 from app.schemas.auth import UserOut
 from app.schemas.diagnostic import DiagnosticReportOut
+from app.services.llm import llm_service
 
 router = APIRouter(prefix="/api/diagnostics", tags=["diagnostics"])
 
@@ -87,3 +88,32 @@ async def get_vehicle_diagnostics(
     """
     result = await db.execute(text(sql), {"vehicle_id": vehicle_id, "user_id": current_user.id})
     return result.all()
+
+@router.post("/{report_id}/full-report")
+async def generate_full_report(
+    report_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserOut = Depends(get_current_user)
+):
+    """Triggers the full multi-agent diagnostic analysis for a report."""
+    sql = """
+        SELECT dr.*, v.make, v.model, v.year, v.mileage, v.vin
+        FROM diagnostic_reports dr
+        JOIN vehicles v ON dr.vehicle_id = v.id
+        WHERE dr.id = :report_id AND v.user_id = :user_id
+    """
+    result = await db.execute(text(sql), {"report_id": report_id, "user_id": current_user.id})
+    report = result.first()
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+
+    dtc_codes = report.dtc_codes if report.dtc_codes else []
+    vehicle = {
+        "make": report.make,
+        "model": report.model,
+        "year": report.year,
+        "mileage": report.mileage,
+    }
+
+    full_result = await llm_service.full_report(dtc_codes=dtc_codes, vehicle=vehicle)
+    return full_result

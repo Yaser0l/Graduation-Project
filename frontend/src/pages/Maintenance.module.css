@@ -2,6 +2,63 @@
 .header { margin-bottom: 8px; }
 .title { font-size: 2rem; font-weight: 700; letter-spacing: -1px; }
 
+.oilPlanPanel {
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.02);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.oilPlanHeader {
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.oilToggleGroup {
+  display: inline-flex;
+  width: fit-content;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+}
+
+.oilToggleBtn {
+  border: none;
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--text-secondary);
+  padding: 9px 14px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.oilToggleBtn + .oilToggleBtn {
+  border-left: 1px solid var(--border-color);
+}
+
+html[dir='rtl'] .oilToggleBtn + .oilToggleBtn {
+  border-left: none;
+  border-right: 1px solid var(--border-color);
+}
+
+.oilToggleBtn.active {
+  background: rgba(245, 158, 11, 0.2);
+  color: var(--status-yellow);
+}
+
+.oilPlanHint {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
 .timeline { display: flex; flex-direction: column; padding-left: 8px; }
 html[dir='rtl'] .timeline { padding-left: 0; padding-right: 8px; }
 
@@ -17,6 +74,8 @@ html[dir='rtl'] .timeline { padding-left: 0; padding-right: 8px; }
 .itemContent { flex: 1; padding: 20px; display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px; border: 1px solid rgba(255,255,255,0.05); }
 .itemContent:hover { background: rgba(24, 24, 27, 0.9); }
 .itemTop { display: flex; justify-content: space-between; align-items: center; }
+.dueBadges { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+html[dir='rtl'] .dueBadges { justify-content: flex-start; }
 .catLabel { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-tertiary); font-weight: 700; }
 .statusPill { font-size: 0.75rem; font-family: monospace; font-weight: 700; padding: 4px 10px; border-radius: 12px; background: rgba(0,0,0,0.4); }
 .statusPill.overdue { color: var(--status-red); }
@@ -29,3 +88,45 @@ html[dir='rtl'] .timeline { padding-left: 0; padding-right: 8px; }
 .progressBar.healthy { background: linear-gradient(90deg, #059669, #10b981); }
 .progressBar.due-soon { background: linear-gradient(90deg, #d97706, #f59e0b); }
 .progressBar.overdue { background: linear-gradient(90deg, #dc2626, #ef4444); }
+
+.itemActions { display: flex; justify-content: flex-end; margin-top: 4px; }
+html[dir='rtl'] .itemActions { justify-content: flex-start; }
+
+.resolveBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 10px;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  background: rgba(16, 185, 129, 0.12);
+  color: var(--status-green);
+  padding: 10px 14px;
+  font-size: 0.84rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.2s ease, background 0.2s ease;
+  font-family: inherit;
+}
+
+.resolveBtn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background: rgba(16, 185, 129, 0.22);
+}
+
+.resolveBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 64px 24px;
+  text-align: center;
+  color: var(--text-secondary);
+}
+.emptyState h2 { font-size: 1.3rem; font-weight: 700; color: var(--text-primary); margin: 0; }
+.emptyState p { font-size: 0.95rem; margin: 0; color: var(--text-secondary); }

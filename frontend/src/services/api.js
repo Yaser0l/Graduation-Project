@@ -1,4 +1,6 @@
-const BASE_URL = 'http://localhost:5000/api';
+const RAW_API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api').replace(/\/+$/, '');
+const BASE_URL = RAW_API_BASE_URL.endsWith('/api') ? RAW_API_BASE_URL : `${RAW_API_BASE_URL}/api`;
+export const EVENTS_BASE_URL = BASE_URL.replace(/\/api$/, '');
 
 const getHeaders = (isFormData = false) => {
   const token = localStorage.getItem('token');
@@ -61,6 +63,14 @@ export const api = {
       });
       return handleResponse(response);
     },
+    update: async (vehicleId, updateData) => {
+      const response = await fetch(`${BASE_URL}/vehicles/${vehicleId}`, {
+        method: 'PATCH',
+        headers: getHeaders(),
+        body: JSON.stringify(updateData),
+      });
+      return handleResponse(response);
+    },
   },
 
   diagnostics: {
@@ -71,10 +81,49 @@ export const api = {
       });
       return handleResponse(response);
     },
+    listByVehicle: async (vehicleId) => {
+      const response = await fetch(`${BASE_URL}/diagnostics/vehicle/${vehicleId}`, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+      return handleResponse(response);
+    },
     get: async (reportId) => {
       const response = await fetch(`${BASE_URL}/diagnostics/${reportId}`, {
         method: 'GET',
         headers: getHeaders(),
+      });
+      return handleResponse(response);
+    },
+    resolve: async (reportId) => {
+      const response = await fetch(`${BASE_URL}/diagnostics/${reportId}/resolve`, {
+        method: 'PATCH',
+        headers: getHeaders(),
+      });
+      return handleResponse(response);
+    },
+    fullReport: async (reportId) => {
+      const response = await fetch(`${BASE_URL}/diagnostics/${reportId}/full-report`, {
+        method: 'POST',
+        headers: getHeaders(),
+      });
+      return handleResponse(response);
+    },
+  },
+
+  maintenance: {
+    listByVehicle: async (vehicleId, oilProgramKm) => {
+      const response = await fetch(`${BASE_URL}/maintenance/vehicle/${vehicleId}?oil_program_km=${oilProgramKm}`, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+      return handleResponse(response);
+    },
+    completeTask: async (vehicleId, taskId, notes = null) => {
+      const response = await fetch(`${BASE_URL}/maintenance/vehicle/${vehicleId}/tasks/${taskId}/complete`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({ notes }),
       });
       return handleResponse(response);
     },

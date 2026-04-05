@@ -2,12 +2,13 @@ import React, { useContext, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AppContext } from '../store/AppContext';
 import { useNavigate } from 'react-router-dom';
-import { Tag, ChevronDown, MessageSquareText, Calendar, AlertCircle } from 'lucide-react';
+import { Tag, ChevronDown, MessageSquareText, Calendar, AlertCircle, CheckCircle2 } from 'lucide-react';
 import styles from './Diagnostics.module.css';
 
 export default function Diagnostics() {
-  const { diagnostics, language } = useContext(AppContext);
+  const { diagnostics, language, resolveDiagnostic } = useContext(AppContext);
   const [expandedReport, setExpandedReport] = useState(diagnostics?.[0]?.id || null);
+  const [resolvingReportId, setResolvingReportId] = useState(null);
   const navigate = useNavigate();
 
   const containerVars = { 
@@ -28,6 +29,18 @@ export default function Diagnostics() {
       </div>
     );
   }
+
+  const handleResolve = async (reportId) => {
+    if (resolvingReportId) return;
+    setResolvingReportId(reportId);
+    try {
+      await resolveDiagnostic(reportId);
+    } catch (err) {
+      console.error('Failed to resolve diagnostic:', err);
+    } finally {
+      setResolvingReportId(null);
+    }
+  };
 
   return (
     <motion.div className={styles.container} variants={containerVars} initial="hidden" animate="show" exit={{ opacity: 0 }}>
@@ -60,12 +73,32 @@ export default function Diagnostics() {
                   <div className={styles.issueTop}>
                     <div className={styles.dtcChips}>
                       {report.dtc_codes.map(code => (
-                        <span key={code} className={styles.codeTag}>{code}</span>
+                        <div key={code} className={styles.dtcChipItem}>
+                          <span className={styles.codeTag}>{code}</span>
+                          {!report.resolved && (
+                            <button
+                              type="button"
+                              className={styles.resolveChipBtn}
+                              onClick={() => handleResolve(report.id)}
+                              disabled={resolvingReportId === report.id}
+                            >
+                              {resolvingReportId === report.id
+                                ? (language === 'ar' ? 'جارٍ...' : '...')
+                                : (language === 'ar' ? 'حل' : 'Resolve')}
+                            </button>
+                          )}
+                        </div>
                       ))}
                     </div>
-                    <span className={`${styles.severityTag} ${styles[report.urgency?.toLowerCase() || 'medium']}`}>
-                      {report.urgency || 'Medium'}
-                    </span>
+                    {report.resolved ? (
+                      <span className={`${styles.severityTag} ${styles.resolvedTag}`}>
+                        {language === 'ar' ? 'تم الحل' : 'Resolved'}
+                      </span>
+                    ) : (
+                      <span className={`${styles.severityTag} ${styles[report.urgency?.toLowerCase() || 'medium']}`}>
+                        {report.urgency || 'Medium'}
+                      </span>
+                    )}
                   </div>
 
                   <div className={styles.plainBox}>
@@ -84,10 +117,27 @@ export default function Diagnostics() {
                       </div>
                     </div>
 
-                    <button className={styles.askAiBtn} onClick={() => navigate(`/chat?reportId=${report.id}`)}>
-                       <MessageSquareText size={16}/>
-                       <span>{language === 'ar' ? 'مناقشة هذا التقرير' : 'Discuss Report'}</span>
-                    </button>
+                    <div className={styles.actionsRow}>
+                      {!report.resolved && (
+                        <button
+                          type="button"
+                          className={styles.resolveBtn}
+                          onClick={() => handleResolve(report.id)}
+                          disabled={resolvingReportId === report.id}
+                        >
+                          <CheckCircle2 size={16} />
+                          <span>
+                            {resolvingReportId === report.id
+                              ? (language === 'ar' ? 'جارٍ الإغلاق...' : 'Resolving...')
+                              : (language === 'ar' ? 'إغلاق المشكلة' : 'Resolve Issue')}
+                          </span>
+                        </button>
+                      )}
+                      <button className={styles.askAiBtn} onClick={() => navigate(`/chat?reportId=${report.id}`)}>
+                        <MessageSquareText size={16}/>
+                        <span>{language === 'ar' ? 'مناقشة هذا التقرير' : 'Discuss Report'}</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               </motion.div>

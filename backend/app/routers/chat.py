@@ -110,4 +110,12 @@ async def get_chat_history(
 
     history_query = text("SELECT role, content, created_at FROM chat_messages WHERE session_id = :session_id ORDER BY created_at ASC")
     result = await db.execute(history_query, {"session_id": session.id})
-    return {"sessionId": session.id, "messages": result.all()}
+    messages = [
+        {
+            "role": row.role,
+            "content": row.content,
+            "created_at": row.created_at.isoformat() if row.created_at else None,
+        }
+        for row in result.all()
+    ]
+    return {"sessionId": session.id, "messages": messages}

@@ -58,3 +58,38 @@ async def get_vehicle(
     if not vehicle:
         raise HTTPException(status_code=404, detail="Vehicle not found")
     return vehicle
+
+@router.patch("/{vehicle_id}", response_model=VehicleOut)
+async def update_vehicle(
+    vehicle_id: UUID,
+    vehicle_in: VehicleUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserOut = Depends(get_current_user)
+):
+    if vehicle_in.mileage is None:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    if vehicle_in.mileage < 0:
+        raise HTTPException(status_code=400, detail="Mileage cannot be negative")
+
+    query = text(
+        """
+        UPDATE vehicles
+        SET mileage = :mileage
+        WHERE id = :id AND user_id = :user_id
+        RETURNING *
+        """
+    )
+    result = await db.execute(
+        query,
+        {
+            "id": vehicle_id,
+            "user_id": current_user.id,
+            "mileage": vehicle_in.mileage,
+        }
+    )
+    vehicle = result.first()
+    if not vehicle:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+
+    await db.commit()
+    return vehicle

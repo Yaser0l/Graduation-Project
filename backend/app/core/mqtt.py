@@ -16,17 +16,24 @@ class MqttService:
         print(f"[MQTT] Message received on {topic}: {payload.decode()}")
         try:
             data = json.loads(payload.decode())
-            # Logic to process DTC and create report
-            # In a real app, you'd save to DB here and then call the callback
-            # For now, we simulate the callback trigger
-            if self.on_report_created_cb:
-                # Assuming data contains userId and report
-                user_id = data.get("userId")
-                report = data.get("report")
-                if user_id and report:
-                    asyncio.create_task(self.on_report_created_cb(user_id, report))
+            # Run processing in a background task
+            asyncio.create_task(self.handle_event(data))
         except Exception as e:
-            print(f"[MQTT] Error processing message: {e}")
+            print(f"[MQTT] Error decoding message: {e}")
+
+    async def handle_event(self, data: dict):
+        from app.db.session import SessionLocal
+        from app.services.diagnostic import process_dtc_event
+        
+        async with SessionLocal() as db:
+            try:
+                await process_dtc_event(
+                    db, 
+                    data, 
+                    on_report_created=self.on_report_created_cb
+                )
+            except Exception as e:
+                print(f"[MQTT] handle_event failed: {e}")
 
     async def connect(self):
         self.client.on_connect = self.on_connect

@@ -1,6 +1,5 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import Optional, List, Dict, Any
-import os
+from typing import Optional, List
 
 class Settings(BaseSettings):
     # App Settings
@@ -36,7 +35,11 @@ class Settings(BaseSettings):
     LLM_API_KEY: Optional[str] = None
     LLM_ANALYZE_PATH: str = "/api/llm/analyze"
     LLM_CHAT_PATH: str = "/api/llm/chat"
+    LLM_FULL_REPORT_PATH: str = "/api/llm/full-report"
     INTERNAL_API_SECRET: str = ""
+
+    # CORS allowlist; keep permissive default for local development compatibility.
+    ALLOWED_ORIGINS: List[str] = ["*"]
 
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=True, extra="ignore")
 

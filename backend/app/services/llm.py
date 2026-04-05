@@ -1,5 +1,5 @@
 import httpx
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 from app.core.config import settings
 
 class LlmService:
@@ -64,5 +64,28 @@ class LlmService:
             except Exception as e:
                 print(f"[LLM] chat() failed: {e}")
                 return "Sorry, the AI mechanic is temporarily unavailable. Please try again in a moment."
+
+    async def full_report(self, dtc_codes: list, vehicle: dict) -> dict:
+        async with httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout, headers=self.headers) as client:
+            try:
+                response = await client.post(settings.LLM_FULL_REPORT_PATH, json={
+                    "dtc_codes": dtc_codes,
+                    "vehicle": vehicle
+                })
+                data = response.json()
+                return {
+                    "explanation": data.get("explanation") or data.get("message") or str(data),
+                    "urgency": data.get("urgency", "medium"),
+                    "estimated_cost_min": data.get("estimated_cost_min"),
+                    "estimated_cost_max": data.get("estimated_cost_max"),
+                }
+            except Exception as e:
+                print(f"[LLM] full_report() failed: {e}")
+                return {
+                    "explanation": f"Full report generation failed. Please try again later.",
+                    "urgency": "medium",
+                    "estimated_cost_min": None,
+                    "estimated_cost_max": None,
+                }
 
 llm_service = LlmService()
