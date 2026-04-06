@@ -16,8 +16,6 @@ from app.core.config import settings
 from app.routers import auth, vehicle, diagnostic, chat, internal, maintenance
 from app.core.mqtt import MqttService
 from app.core.sse import on_report_created, sse_service
-from app.db.session import SessionLocal
-from app.routers.maintenance import ensure_default_tasks
 
 # For rate limiting
 RATE_LIMIT = 60
@@ -26,14 +24,6 @@ request_counts = defaultdict(list)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: Ensure default maintenance tasks exist
-    async with SessionLocal() as db:
-        try:
-            await ensure_default_tasks(db)
-            print("[LIFESPAN] Default maintenance tasks ensured")
-        except Exception as e:
-            print(f"[LIFESPAN] Failed to ensure maintenance tasks: {e}")
-
     # Startup: Initialize MQTT
     mqtt_svc = MqttService(on_report_created_cb=on_report_created)
     app.state.mqtt_svc = mqtt_svc

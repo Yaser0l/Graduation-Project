@@ -9,6 +9,7 @@ class VehicleBase(BaseModel):
     model: str
     year: int
     mileage: int
+    oil_program_km: int = Field(default=10000, ge=5000, le=10000)
 
 class VehicleCreate(VehicleBase):
     initialize_maintenance_baseline: bool = True

@@ -87,8 +87,10 @@ async def send_maintenance_alert(to_email: str, vehicle: dict, task: dict):
     try:
         await _send_email_message(message)
         print(f"[NOTIFY] Maintenance email sent to {to_email}")
+        return True
     except Exception as e:
         print(f"[NOTIFY] Failed to send maintenance email: {e}")
+        return False
 
 async def notify_owner(db, vehicle_id: UUID, report: dict, vehicle: dict):
     from sqlalchemy import text
@@ -106,7 +108,7 @@ async def notify_owner(db, vehicle_id: UUID, report: dict, vehicle: dict):
         print(f"[NOTIFY] notify_owner error: {e}")
 
 
-async def notify_maintenance_alerts(db, vehicle: dict, tasks: list[dict]):
+async def notify_maintenance_alerts(db, vehicle: dict, tasks: list[dict], oil_program_km: int = 10000):
     from sqlalchemy import text
 
     try:
@@ -131,16 +133,39 @@ async def notify_maintenance_alerts(db, vehicle: dict, tasks: list[dict]):
             if status not in ("due-soon", "overdue"):
                 continue
 
+            # Engine oil alerts depend on selected program (5000 vs 10000),
+            # so include it in dedup key to avoid cross-plan suppression.
+            alert_type_key = status
+            if task.get("code") == "engine_oil":
+                plan_km = 5000 if int(oil_program_km or 10000) == 5000 else 10000
+                alert_type_key = f"{status}-{plan_km}"
+
             inserted = await db.execute(
                 insert_notification,
                 {
                     "vehicle_id": vehicle.get("id"),
                     "task_id": task.get("task_id"),
-                    "alert_type": status,
+                    "alert_type": alert_type_key,
                 },
             )
             if inserted.first():
-                await send_maintenance_alert(user.email, vehicle, task)
+                sent = await send_maintenance_alert(user.email, vehicle, task)
+                if not sent:
+                    await db.execute(
+                        text(
+                            """
+                            DELETE FROM maintenance_alert_notifications
+                            WHERE vehicle_id = :vehicle_id
+                              AND task_id = :task_id
+                              AND alert_type = :alert_type
+                            """
+                        ),
+                        {
+                            "vehicle_id": vehicle.get("id"),
+                            "task_id": task.get("task_id"),
+                            "alert_type": alert_type_key,
+                        },
+                    )
 
         await db.commit()
     except Exception as e:

@@ -26,11 +26,12 @@ async def create_vehicle(
 ):
     query = text(
         """
-        INSERT INTO vehicles (user_id, vin, make, model, year, mileage) 
-        VALUES (:user_id, :vin, :make, :model, :year, :mileage) 
+        INSERT INTO vehicles (user_id, vin, make, model, year, mileage, oil_program_km) 
+        VALUES (:user_id, :vin, :make, :model, :year, :mileage, :oil_program_km) 
         RETURNING *
         """
     )
+    oil_program_km = 5000 if vehicle_in.oil_program_km == 5000 else 10000
     result = await db.execute(
         query,
         {
@@ -39,7 +40,8 @@ async def create_vehicle(
             "make": vehicle_in.make,
             "model": vehicle_in.model,
             "year": vehicle_in.year,
-            "mileage": vehicle_in.mileage
+            "mileage": vehicle_in.mileage,
+            "oil_program_km": oil_program_km,
         }
     )
     vehicle = result.first()

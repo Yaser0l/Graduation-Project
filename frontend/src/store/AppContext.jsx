@@ -16,10 +16,6 @@ export const AppProvider = ({ children }) => {
   const [diagnostics, setDiagnostics] = useState([]);
   const [maintenance, setMaintenance] = useState([]);
   const [maintenanceError, setMaintenanceError] = useState(null);
-  const [oilChangeProgramKm, setOilChangeProgramKm] = useState(() => {
-    const saved = localStorage.getItem('oilChangeProgramKm');
-    return saved === '5000' ? '5000' : '10000';
-  });
 
   const [isScanning, setIsScanning] = useState(false);
   const [error, setError] = useState(null);
@@ -32,25 +28,18 @@ export const AppProvider = ({ children }) => {
       return;
     }
     try {
-      const programKm = oilChangeProgramKm === '5000' ? 5000 : 10000;
-      const list = await api.maintenance.listByVehicle(vehicle.id, programKm);
+      const list = await api.maintenance.listByVehicle(vehicle.id);
       setMaintenance(list);
       setMaintenanceError(null);
     } catch (err) {
       console.error('Failed to fetch maintenance for vehicle:', err);
       setMaintenanceError(err.message || 'Failed to load maintenance data');
     }
-  }, [token, oilChangeProgramKm]);
+  }, [token]);
 
   useEffect(() => {
     fetchMaintenanceForVehicle(activeVehicle);
   }, [activeVehicle, fetchMaintenanceForVehicle]);
-
-  const setOilChangeProgram = useCallback((programKm) => {
-    const next = programKm === '5000' ? '5000' : '10000';
-    setOilChangeProgramKm(next);
-    localStorage.setItem('oilChangeProgramKm', next);
-  }, []);
 
   const completeMaintenanceTask = useCallback((taskId) => {
     if (!activeVehicle || !taskId) return Promise.resolve();
@@ -294,8 +283,6 @@ export const AppProvider = ({ children }) => {
       maintenance,
       maintenanceError,
       completeMaintenanceTask,
-      oilChangeProgramKm,
-      setOilChangeProgram,
       // data refresh
       fetchAppData, isLoadingData,
       // scanning

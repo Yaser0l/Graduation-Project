@@ -5,8 +5,9 @@ import { CheckCircle2, AlertCircle, Clock, Wrench } from 'lucide-react';
 import styles from './Maintenance.module.css';
 
 export default function Maintenance() {
-  const { maintenance, maintenanceError, activeVehicle, language, completeMaintenanceTask, oilChangeProgramKm, setOilChangeProgram } = useContext(AppContext);
+  const { maintenance, maintenanceError, activeVehicle, language, completeMaintenanceTask } = useContext(AppContext);
   const [resolvingId, setResolvingId] = React.useState(null);
+  const oilProgramKm = activeVehicle?.oil_program_km === 5000 ? 5000 : 10000;
 
   const containerVars = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.1 } } };
   const itemVars = { hidden: { x: -20, opacity: 0 }, show: { x: 0, opacity: 1 } };
@@ -31,26 +32,10 @@ export default function Maintenance() {
           <div className={styles.oilPlanHeader}>
             <span>{language === 'ar' ? 'خطة تغيير زيت المحرك' : 'Engine Oil Program'}</span>
           </div>
-          <div className={styles.oilToggleGroup}>
-            <button
-              type="button"
-              className={`${styles.oilToggleBtn} ${oilChangeProgramKm === '5000' ? styles.active : ''}`}
-              onClick={() => setOilChangeProgram('5000')}
-            >
-              5,000 km
-            </button>
-            <button
-              type="button"
-              className={`${styles.oilToggleBtn} ${oilChangeProgramKm === '10000' ? styles.active : ''}`}
-              onClick={() => setOilChangeProgram('10000')}
-            >
-              10,000 km
-            </button>
-          </div>
           <p className={styles.oilPlanHint}>
-            {oilChangeProgramKm === '5000'
-              ? (language === 'ar' ? 'التغيير الفعلي كل 5,000 كم (تنبيه 500)' : 'Effective change every 5,000 km (alert 500)')
-              : (language === 'ar' ? 'التغيير الفعلي كل 10,000 كم (تنبيه 900)' : 'Effective change every 10,000 km (alert 900)')}
+            {language === 'ar'
+              ? `خطة ثابتة عند التسجيل: كل ${oilProgramKm.toLocaleString()} كم`
+              : `Fixed at registration: every ${oilProgramKm.toLocaleString()} km`}
           </p>
         </div>
       </motion.div>

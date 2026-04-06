@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from typing import List
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,111 +16,15 @@ from app.services.notify import notify_maintenance_alerts
 router = APIRouter(prefix="/api/maintenance", tags=["maintenance"])
 
 
-DEFAULT_TASKS = [
-    {
-        "code": "engine_oil",
-        "title_en": "Engine Oil Change",
-        "title_ar": "تغيير زيت المحرك",
-        "category": "Engine",
-        "interval_km": 10000,
-        "interval_days": 365,
-        "alert_window_km": 900,
-        "alert_window_days": 45,
-    },
-    {
-        "code": "oil_filter",
-        "title_en": "Oil Filter Replacement",
-        "title_ar": "تغيير فلتر الزيت",
-        "category": "Engine",
-        "interval_km": 10000,
-        "interval_days": 365,
-        "alert_window_km": 1500,
-        "alert_window_days": 45,
-    },
-    {
-        "code": "air_filter",
-        "title_en": "Air Filter Replacement",
-        "title_ar": "تغيير فلتر الهواء",
-        "category": "Intake",
-        "interval_km": 15000,
-        "interval_days": 365,
-        "alert_window_km": 2000,
-        "alert_window_days": 45,
-    },
-    {
-        "code": "coolant_service",
-        "title_en": "Coolant Check / Replacement",
-        "title_ar": "فحص / تغيير سائل التبريد",
-        "category": "Cooling",
-        "interval_km": 40000,
-        "interval_days": 1825,
-        "alert_window_km": 5000,
-        "alert_window_days": 120,
-    },
-    {
-        "code": "gear_oil",
-        "title_en": "Gear Oil Change",
-        "title_ar": "تغيير زيت القير",
-        "category": "Transmission",
-        "interval_km": 50000,
-        "interval_days": 1095,
-        "alert_window_km": 6000,
-        "alert_window_days": 90,
-    },
-]
-
-
-async def ensure_default_tasks(db: AsyncSession) -> None:
-    ensure_notifications_table = text(
-        """
-        CREATE TABLE IF NOT EXISTS maintenance_alert_notifications (
-            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            vehicle_id UUID NOT NULL REFERENCES vehicles(id) ON DELETE CASCADE,
-            task_id UUID NOT NULL REFERENCES maintenance_tasks(id) ON DELETE CASCADE,
-            alert_type VARCHAR(20) NOT NULL,
-            notified_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-            UNIQUE (vehicle_id, task_id, alert_type)
-        )
-        """
-    )
-    await db.execute(ensure_notifications_table)
-
-    upsert = text(
-        """
-        INSERT INTO maintenance_tasks
-            (code, title_en, title_ar, category, interval_km, interval_days, alert_window_km, alert_window_days, is_active)
-        VALUES
-            (:code, :title_en, :title_ar, :category, :interval_km, :interval_days, :alert_window_km, :alert_window_days, TRUE)
-        ON CONFLICT (code)
-        DO UPDATE SET
-            title_en = EXCLUDED.title_en,
-            title_ar = EXCLUDED.title_ar,
-            category = EXCLUDED.category,
-            interval_km = EXCLUDED.interval_km,
-            interval_days = EXCLUDED.interval_days,
-            alert_window_km = EXCLUDED.alert_window_km,
-            alert_window_days = EXCLUDED.alert_window_days,
-            is_active = TRUE
-        """
-    )
-    for task in DEFAULT_TASKS:
-        await db.execute(upsert, task)
-    await db.commit()
-
-
 @router.get("/vehicle/{vehicle_id}", response_model=List[MaintenanceTaskOut])
 async def list_vehicle_maintenance(
     vehicle_id: UUID,
-    oil_program_km: int = Query(default=10000),
     db: AsyncSession = Depends(get_db),
     current_user: UserOut = Depends(get_current_user),
 ):
-    if oil_program_km not in (5000, 10000):
-        oil_program_km = 10000
-
     vehicle_query = text(
         """
-        SELECT id, user_id, vin, make, model, year, mileage, created_at
+        SELECT id, user_id, vin, make, model, year, mileage, oil_program_km, created_at
         FROM vehicles
         WHERE id = :vehicle_id AND user_id = :user_id
         """
@@ -132,6 +36,7 @@ async def list_vehicle_maintenance(
 
     now = datetime.now(timezone.utc)
     vehicle_mileage = int(vehicle.mileage or 0)
+    oil_program_km = 5000 if int(vehicle.oil_program_km or 10000) == 5000 else 10000
     fallback_completed_at = vehicle.created_at if vehicle.created_at else now
 
     query = text(
@@ -156,10 +61,6 @@ async def list_vehicle_maintenance(
         """
     )
     rows = (await db.execute(query, {"vehicle_id": vehicle_id})).all()
-    if not rows:
-        # Self-heal in case default catalog seeding was skipped at startup.
-        await ensure_default_tasks(db)
-        rows = (await db.execute(query, {"vehicle_id": vehicle_id})).all()
 
     items: List[MaintenanceTaskOut] = []
     alert_candidates = []
@@ -244,7 +145,7 @@ async def list_vehicle_maintenance(
         "model": vehicle.model,
         "year": vehicle.year,
     }
-    await notify_maintenance_alerts(db, vehicle_data, alert_candidates)
+    await notify_maintenance_alerts(db, vehicle_data, alert_candidates, oil_program_km)
 
     def sort_key(item: MaintenanceTaskOut):
         km_rank = item.dueInKm if item.dueInKm is not None else 10**9

@@ -14,6 +14,7 @@ export default function Onboarding() {
   const [year, setYear]       = useState('');
   const [vin, setVin]         = useState('');
   const [mileage, setMileage] = useState('');
+  const [oilProgramKm, setOilProgramKm] = useState('10000');
   const [initializeMaintenanceBaseline, setInitializeMaintenanceBaseline] = useState(true);
   const [lastServiceKm, setLastServiceKm] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -36,6 +37,7 @@ export default function Onboarding() {
         model:   model.trim(),
         year:    parseInt(year, 10),
         mileage: parseInt(mileage, 10) || 0,
+        oil_program_km: oilProgramKm === '5000' ? 5000 : 10000,
         initialize_maintenance_baseline: initializeMaintenanceBaseline,
         last_service_km: initializeMaintenanceBaseline
           ? (lastServiceKm.trim() === '' ? null : (parseInt(lastServiceKm, 10) || 0))
@@ -164,6 +166,35 @@ export default function Onboarding() {
             maxLength={17}
             required
           />
+        </div>
+
+        <div className={styles.field}>
+          <label className={styles.label}>
+            {ar ? 'خطة تغيير زيت المحرك' : 'Engine Oil Program'}
+            <span className={styles.required}>*</span>
+          </label>
+          <div className={styles.radioGroup}>
+            <label className={styles.radioOption}>
+              <input
+                type="radio"
+                name="oilProgram"
+                value="5000"
+                checked={oilProgramKm === '5000'}
+                onChange={(e) => setOilProgramKm(e.target.value)}
+              />
+              <span>{ar ? '٥,٠٠٠ كم' : '5,000 km'}</span>
+            </label>
+            <label className={styles.radioOption}>
+              <input
+                type="radio"
+                name="oilProgram"
+                value="10000"
+                checked={oilProgramKm === '10000'}
+                onChange={(e) => setOilProgramKm(e.target.value)}
+              />
+              <span>{ar ? '١٠,٠٠٠ كم' : '10,000 km'}</span>
+            </label>
+          </div>
         </div>
 
         <div className={styles.field}>

@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS vehicles (
     model             VARCHAR(60),
     year              INTEGER,
     mileage           INTEGER       DEFAULT 0,
+    oil_program_km    INTEGER       NOT NULL DEFAULT 10000,
     created_at        TIMESTAMPTZ   NOT NULL DEFAULT NOW()
 );
 

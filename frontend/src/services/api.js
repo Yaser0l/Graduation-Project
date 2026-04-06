@@ -139,8 +139,8 @@ export const api = {
   },
 
   maintenance: {
-    listByVehicle: async (vehicleId, oilProgramKm) => {
-      const response = await fetchWithTimeout(`${BASE_URL}/maintenance/vehicle/${vehicleId}?oil_program_km=${oilProgramKm}`, {
+    listByVehicle: async (vehicleId) => {
+      const response = await fetchWithTimeout(`${BASE_URL}/maintenance/vehicle/${vehicleId}`, {
         method: 'GET',
         headers: getHeaders(),
       });

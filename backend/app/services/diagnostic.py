@@ -34,11 +34,11 @@ async def process_dtc_event(db: AsyncSession, payload: dict, on_report_created=N
 
     # Identify vehicle
     if vin:
-        logger.info("[DIAG] Processing DTC event for VIN: %s", vin)
+        logger.warning("[DIAG] Processing DTC event for VIN: %s", vin)
         vehicle_query = text("SELECT * FROM vehicles WHERE vin = :vin")
         result = await db.execute(vehicle_query, {"vin": vin})
     elif vehicle_id:
-        logger.info("[DIAG] Processing DTC event for Vehicle ID: %s", vehicle_id)
+        logger.warning("[DIAG] Processing DTC event for Vehicle ID: %s", vehicle_id)
         vehicle_query = text("SELECT * FROM vehicles WHERE id = :v_id")
         result = await db.execute(vehicle_query, {"v_id": vehicle_id})
     else:
@@ -72,12 +72,25 @@ async def process_dtc_event(db: AsyncSession, payload: dict, on_report_created=N
     existing = result.first()
 
     if existing:
-        logger.info("[DIAG] Duplicate DTC set for vehicle %s — skipping", vin)
+        logger.warning("[DIAG] Duplicate DTC set for vehicle %s — skipping", vin)
         await db.execute(
             text("UPDATE diagnostic_reports SET mileage_at_fault = :mileage WHERE id = :id"),
             {"mileage": mileage, "id": existing.id},
         )
         await db.commit()
+        
+        # Fetch the full report so we can notify the frontend and stop it from hanging
+        full_existing = await db.execute(
+            text("SELECT * FROM diagnostic_reports WHERE id = :id"), 
+            {"id": existing.id}
+        )
+        existing_report = full_existing.first()
+        if existing_report:
+            report_data = dict(existing_report._mapping)
+            if on_report_created:
+                await on_report_created(str(vehicle_data["user_id"]), report_data)
+            return report_data
+            
         return None
 
     # LLM Analysis — failures are soft: we still save the report
