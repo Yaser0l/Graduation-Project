@@ -9,6 +9,7 @@ logger = logging.getLogger(__name__)
 
 async def process_dtc_event(db: AsyncSession, payload: dict, on_report_created=None):
     """Process an incoming DTC event from MQTT or the simulation endpoint."""
+    logger.warning("[DIAG] Event entered backend diagnostic pipeline")
     # Support multiple payload formats (real hardware vs simulation)
     vin = payload.get("vin")
     vehicle_id = payload.get("vehicleId") or payload.get("vehicle_id")
@@ -81,6 +82,7 @@ async def process_dtc_event(db: AsyncSession, payload: dict, on_report_created=N
 
     # LLM Analysis — failures are soft: we still save the report
     try:
+        logger.warning("[DIAG] Calling Agentic Workflow analyze endpoint")
         llm_result = await llm_service.analyze(
             dtc_codes=dtc_list,
             vehicle={
@@ -90,6 +92,7 @@ async def process_dtc_event(db: AsyncSession, payload: dict, on_report_created=N
                 "mileage": vehicle_data.get("mileage"),
             },
         )
+        logger.warning("[DIAG] Agentic response received with urgency=%s", llm_result.get("urgency"))
     except Exception as exc:
         logger.error("[DIAG] LLM analyze() failed: %s", exc)
         llm_result = {

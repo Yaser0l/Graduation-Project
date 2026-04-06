@@ -16,10 +16,12 @@ class MqttService:
     def on_connect(self, client, flags, rc, properties):
         logger.info("[MQTT] Connected")
         self.client.subscribe(settings.MQTT_TOPIC_DTC)
+        logger.warning("[MQTT] Subscribed to topic pattern: %s", settings.MQTT_TOPIC_DTC)
 
     def on_message(self, client, topic, payload, qos, properties):
         logger.info("[MQTT] Message received on %s", topic)
         raw = payload.decode(errors="replace")
+        logger.warning("[MQTT] Incoming event topic=%s payload=%s", topic, raw)
         try:
             data = json.loads(raw)
             asyncio.create_task(self.handle_event(data))
@@ -41,6 +43,8 @@ class MqttService:
     async def handle_event(self, data: dict):
         from app.db.session import SessionLocal
         from app.services.diagnostic import process_dtc_event
+
+        logger.warning("[MQTT] Forwarding event to diagnostic service (backend pipeline)")
 
         async with SessionLocal() as db:
             try:

@@ -70,18 +70,6 @@ export default function Diagnostics() {
                   {report.dtc_codes.map(code => (
                     <div key={code} className={styles.dtcChipItem}>
                       <span className={styles.codeTag}>{code}</span>
-                      {!report.resolved && (
-                        <button
-                          type="button"
-                          className={styles.resolveChipBtn}
-                          onClick={() => handleResolve(report.id)}
-                          disabled={resolvingReportId === report.id}
-                        >
-                          {resolvingReportId === report.id
-                            ? (language === 'ar' ? 'جارٍ...' : '...')
-                            : (language === 'ar' ? 'حل' : 'Resolve')}
-                        </button>
-                      )}
                     </div>
                   ))}
                 </div>
