@@ -8,6 +8,8 @@ import uvicorn
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
+import json
+import re
 
 import asyncio
 from src.main import prepare_input
@@ -61,6 +63,68 @@ class ChatRequest(BaseModel):
     history: List[ChatMessage] = []
     message: str
 
+
+def normalize_urgency(value: Optional[str]) -> str:
+    if not value:
+        return "medium"
+    urgency = str(value).strip().lower()
+    allowed = {"low", "medium", "high", "critical"}
+    return urgency if urgency in allowed else "medium"
+
+
+URGENCY_RANK = {
+    "low": 0,
+    "medium": 1,
+    "high": 2,
+    "critical": 3,
+}
+
+
+def highest_urgency(values: List[str]) -> str:
+    normalized = [normalize_urgency(v) for v in values if v]
+    if not normalized:
+        return "medium"
+    return max(normalized, key=lambda x: URGENCY_RANK.get(x, 1))
+
+
+def parse_analysis_payload(raw: str) -> Dict[str, Any]:
+    """Parse model output into {explanation, urgency, per_code_urgency}; tolerates plain text fallback."""
+    text = (raw or "").strip()
+
+    # Preferred: pure JSON response
+    try:
+        data = json.loads(text)
+        per_code = data.get("per_code_urgency") if isinstance(data.get("per_code_urgency"), dict) else {}
+        return {
+            "explanation": data.get("explanation") or text,
+            "urgency": normalize_urgency(data.get("urgency")),
+            "per_code_urgency": {k: normalize_urgency(v) for k, v in per_code.items()},
+        }
+    except Exception:
+        pass
+
+    # Tolerate markdown fenced JSON blocks
+    fenced = re.search(r"```(?:json)?\s*(\{[\s\S]*?\})\s*```", text, flags=re.IGNORECASE)
+    if fenced:
+        try:
+            data = json.loads(fenced.group(1))
+            per_code = data.get("per_code_urgency") if isinstance(data.get("per_code_urgency"), dict) else {}
+            return {
+                "explanation": data.get("explanation") or text,
+                "urgency": normalize_urgency(data.get("urgency")),
+                "per_code_urgency": {k: normalize_urgency(v) for k, v in per_code.items()},
+            }
+        except Exception:
+            pass
+
+    # Plain text fallback with keyword-based extraction
+    lowered = text.lower()
+    for label in ("critical", "high", "medium", "low"):
+        if re.search(rf"\b{label}\b", lowered):
+            return {"explanation": text, "urgency": label, "per_code_urgency": {}}
+
+    return {"explanation": text, "urgency": "medium", "per_code_urgency": {}}
+
 # -----------------
 # Endpoints
 # -----------------
@@ -78,19 +142,41 @@ async def analyze_dtc(request: AnalyzeRequest):
         car_info = f"{request.vehicle.year} {request.vehicle.make} {request.vehicle.model}"
         dtcs = ", ".join(request.dtc_codes)
         
-        prompt = f"You are a quick automotive diagnostic assistant. Provide a highly concise, 2-3 sentence brief explanation for the provided DTC codes. Be simple and to the point. Vehicle: {car_info}. Codes: {dtcs}."
+        prompt = (
+            "You are an automotive diagnostic assistant. "
+            "Analyze the DTC codes and return STRICT JSON with this exact shape: "
+            '{"explanation":"...","urgency":"low|medium|high|critical","per_code_urgency":{"CODE":"low|medium|high|critical"}}. '
+            "Rules: explanation must be concise (2-3 sentences), practical, and non-alarmist. "
+            "Classify each code in per_code_urgency. "
+            "If there are multiple codes, overall urgency MUST equal the highest severity among all provided codes. "
+            "Urgency must reflect immediate risk and drivability. "
+            f"Vehicle: {car_info}. Codes: {dtcs}."
+        )
         
         messages = [HumanMessage(content=prompt)]
         response = await asyncio.to_thread(llm.invoke, messages)
         
+        parsed = parse_analysis_payload(response.content)
+        final_urgency = parsed["urgency"]
+
+        if len(request.dtc_codes) > 1:
+            per_code = parsed.get("per_code_urgency") or {}
+            if per_code:
+                picked = [per_code.get(code, "medium") for code in request.dtc_codes]
+                final_urgency = highest_urgency(picked + [final_urgency])
+
         return {
-            "explanation": response.content,
-            "urgency": "medium"
+            "explanation": parsed["explanation"],
+            "urgency": final_urgency,
         }
     except Exception as e:
         import traceback
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+        dtcs = ", ".join(request.dtc_codes)
+        return {
+            "explanation": f"LLM provider temporarily unavailable. Raw DTC codes: {dtcs}. Please retry shortly.",
+            "urgency": "medium"
+        }
 
 @app.post("/api/llm/full-report", dependencies=[Depends(verify_internal_secret)])
 async def full_report(request: AnalyzeRequest):
@@ -172,7 +258,9 @@ Answer their questions specifically based on this report. Keep answers clear and
             "reply": response.content
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        return {
+            "reply": "I am temporarily unable to reach the AI provider. Please try again in a moment."
+        }
 
 if __name__ == "__main__":
     uvicorn.run("src.api:app", host="0.0.0.0", port=8000, reload=True)

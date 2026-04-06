@@ -10,6 +10,7 @@ from app.core.deps import get_current_user
 from app.db.session import get_db
 from app.schemas.auth import UserOut
 from app.schemas.maintenance import MaintenanceTaskOut, MaintenanceCompleteRequest
+from app.services.notify import notify_maintenance_alerts
 
 
 router = APIRouter(prefix="/api/maintenance", tags=["maintenance"])
@@ -70,6 +71,20 @@ DEFAULT_TASKS = [
 
 
 async def ensure_default_tasks(db: AsyncSession) -> None:
+    ensure_notifications_table = text(
+        """
+        CREATE TABLE IF NOT EXISTS maintenance_alert_notifications (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            vehicle_id UUID NOT NULL REFERENCES vehicles(id) ON DELETE CASCADE,
+            task_id UUID NOT NULL REFERENCES maintenance_tasks(id) ON DELETE CASCADE,
+            alert_type VARCHAR(20) NOT NULL,
+            notified_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            UNIQUE (vehicle_id, task_id, alert_type)
+        )
+        """
+    )
+    await db.execute(ensure_notifications_table)
+
     upsert = text(
         """
         INSERT INTO maintenance_tasks
@@ -105,7 +120,7 @@ async def list_vehicle_maintenance(
 
     vehicle_query = text(
         """
-        SELECT id, mileage, created_at
+        SELECT id, user_id, vin, make, model, year, mileage, created_at
         FROM vehicles
         WHERE id = :vehicle_id AND user_id = :user_id
         """
@@ -143,6 +158,7 @@ async def list_vehicle_maintenance(
     rows = (await db.execute(query, {"vehicle_id": vehicle_id})).all()
 
     items: List[MaintenanceTaskOut] = []
+    alert_candidates = []
     for row in rows:
         interval_km = row.interval_km
         alert_window_km = row.alert_window_km
@@ -203,6 +219,28 @@ async def list_vehicle_maintenance(
                 lastCompletedAt=last_completed_at,
             )
         )
+
+        alert_candidates.append(
+            {
+                "task_id": row.id,
+                "code": row.code,
+                "title_en": row.title_en,
+                "title_ar": row.title_ar,
+                "status": status,
+                "due_in_km": due_in_km,
+                "due_in_days": due_in_days,
+            }
+        )
+
+    vehicle_data = {
+        "id": vehicle.id,
+        "user_id": vehicle.user_id,
+        "vin": vehicle.vin,
+        "make": vehicle.make,
+        "model": vehicle.model,
+        "year": vehicle.year,
+    }
+    await notify_maintenance_alerts(db, vehicle_data, alert_candidates)
 
     def sort_key(item: MaintenanceTaskOut):
         km_rank = item.dueInKm if item.dueInKm is not None else 10**9

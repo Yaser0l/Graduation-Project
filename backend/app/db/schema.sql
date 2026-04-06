@@ -122,5 +122,17 @@ CREATE TABLE IF NOT EXISTS maintenance_events (
 CREATE INDEX IF NOT EXISTS idx_maint_events_vehicle ON maintenance_events (vehicle_id);
 CREATE INDEX IF NOT EXISTS idx_maint_events_task    ON maintenance_events (task_id);
 
+-- 9. MAINTENANCE ALERT NOTIFICATION LOG (email dedupe)
+CREATE TABLE IF NOT EXISTS maintenance_alert_notifications (
+    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    vehicle_id    UUID         NOT NULL REFERENCES vehicles(id) ON DELETE CASCADE,
+    task_id       UUID         NOT NULL REFERENCES maintenance_tasks(id) ON DELETE CASCADE,
+    alert_type    VARCHAR(20)  NOT NULL,  -- due-soon | overdue
+    notified_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    UNIQUE (vehicle_id, task_id, alert_type)
+);
+
+CREATE INDEX IF NOT EXISTS idx_maint_alert_notif_vehicle ON maintenance_alert_notifications (vehicle_id);
+
 
 CREATE INDEX IF NOT EXISTS idx_chatmsg_session ON chat_messages (session_id);

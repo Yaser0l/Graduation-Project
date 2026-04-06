@@ -40,7 +40,7 @@ export default function Welcome() {
     <motion.div className={styles.container} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
       <div className={styles.hero}>
         <motion.h1 initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className={styles.logo}>
-          Vehicle AI
+          {language === 'ar' ? 'سيارتيك' : 'SayyarTech'}
         </motion.h1>
         <p className={styles.subtitle}>
           {language === 'ar' 

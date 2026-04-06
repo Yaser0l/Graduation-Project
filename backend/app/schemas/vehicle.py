@@ -11,7 +11,8 @@ class VehicleBase(BaseModel):
     mileage: int
 
 class VehicleCreate(VehicleBase):
-    pass
+    initialize_maintenance_baseline: bool = True
+    last_service_km: Optional[int] = Field(default=None, ge=0)
 
 class VehicleUpdate(BaseModel):
     mileage: Optional[int] = None

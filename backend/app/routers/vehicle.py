@@ -43,6 +43,37 @@ async def create_vehicle(
         }
     )
     vehicle = result.first()
+
+    if vehicle_in.initialize_maintenance_baseline:
+        baseline_km = vehicle_in.last_service_km
+        if baseline_km is None:
+            baseline_km = max(0, int(vehicle_in.mileage or 0))
+
+        tasks_result = await db.execute(text("SELECT id FROM maintenance_tasks WHERE is_active = TRUE"))
+        task_ids = [row.id for row in tasks_result.all()]
+
+        if task_ids:
+            baseline_query = text(
+                """
+                INSERT INTO vehicle_maintenance_state (vehicle_id, task_id, last_completed_km, last_completed_at, updated_at)
+                VALUES (:vehicle_id, :task_id, :last_completed_km, NOW(), NOW())
+                ON CONFLICT (vehicle_id, task_id)
+                DO UPDATE SET
+                    last_completed_km = EXCLUDED.last_completed_km,
+                    last_completed_at = EXCLUDED.last_completed_at,
+                    updated_at = NOW()
+                """
+            )
+            for task_id in task_ids:
+                await db.execute(
+                    baseline_query,
+                    {
+                        "vehicle_id": vehicle.id,
+                        "task_id": task_id,
+                        "last_completed_km": baseline_km,
+                    },
+                )
+
     await db.commit()
     return vehicle
 

@@ -123,6 +123,19 @@
   box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.06);
 }
 
+.checkboxRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.checkboxRow input {
+  margin-top: 2px;
+}
+
 /* ── Submit button ── */
 .submitBtn {
   width: 100%;

@@ -1,8 +1,13 @@
 """Configuration settings for the multi-agent mechanic workflow."""
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
+ROOT_DIR = Path(__file__).resolve().parent
+
+# Load local env first, then backend env as a fallback for shared local development.
+load_dotenv(ROOT_DIR / ".env")
+load_dotenv(ROOT_DIR.parent / "backend" / ".env", override=False)
 
 # API Keys
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
@@ -16,6 +21,10 @@ SAMPLE_DATA_PATH = "./data/sample_obd2_data.json"
 
 # Model Configuration
 DEEPSEEK_MODEL = "deepseek-chat"
+
+# If DeepSeek model is selected and no base URL is configured, use DeepSeek default endpoint.
+if not base_url:
+    base_url = "https://api.deepseek.com/v1"
 
 # Agent-specific model settings
 AGENT_MODELS = {

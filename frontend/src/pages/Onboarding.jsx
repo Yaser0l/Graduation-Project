@@ -14,6 +14,8 @@ export default function Onboarding() {
   const [year, setYear]       = useState('');
   const [vin, setVin]         = useState('');
   const [mileage, setMileage] = useState('');
+  const [initializeMaintenanceBaseline, setInitializeMaintenanceBaseline] = useState(true);
+  const [lastServiceKm, setLastServiceKm] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError]     = useState(null);
 
@@ -34,6 +36,10 @@ export default function Onboarding() {
         model:   model.trim(),
         year:    parseInt(year, 10),
         mileage: parseInt(mileage, 10) || 0,
+        initialize_maintenance_baseline: initializeMaintenanceBaseline,
+        last_service_km: initializeMaintenanceBaseline
+          ? (lastServiceKm.trim() === '' ? null : (parseInt(lastServiceKm, 10) || 0))
+          : null,
       });
       navigate('/dashboard');
     } catch (err) {
@@ -54,7 +60,7 @@ export default function Onboarding() {
           initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
           className={styles.logo}
         >
-          Vehicle AI
+          {ar ? 'سيارتيك' : 'SayyarTech'}
         </motion.div>
         <p className={styles.subtitle}>
           {ar ? 'أدخل بيانات مركبتك' : 'Register Your Vehicle'}
@@ -159,6 +165,42 @@ export default function Onboarding() {
             required
           />
         </div>
+
+        <div className={styles.field}>
+          <label className={styles.label}>
+            {ar ? 'تهيئة خط أساس الصيانة' : 'Maintenance Baseline Setup'}
+          </label>
+          <label className={styles.checkboxRow}>
+            <input
+              type="checkbox"
+              checked={initializeMaintenanceBaseline}
+              onChange={(e) => setInitializeMaintenanceBaseline(e.target.checked)}
+            />
+            <span>
+              {ar
+                ? 'اعتبر أن الصيانة الأساسية تمت عند التسجيل لتجنب تنبيهات فورية كثيرة'
+                : 'Assume baseline service at registration to avoid immediate alert flood'}
+            </span>
+          </label>
+        </div>
+
+        {initializeMaintenanceBaseline && (
+          <div className={styles.field}>
+            <label htmlFor="lastServiceKm" className={styles.label}>
+              {ar ? 'كم كان العداد عند آخر صيانة؟' : 'Odometer at last major service'}
+              <span className={styles.optional}>{ar ? '(اختياري)' : '(optional)'}</span>
+            </label>
+            <input
+              id="lastServiceKm"
+              type="number"
+              className={styles.input}
+              placeholder={ar ? 'افتراضياً سيتم استخدام الممشى الحالي' : 'Defaults to current mileage if empty'}
+              value={lastServiceKm}
+              onChange={e => setLastServiceKm(e.target.value)}
+              min={0}
+            />
+          </div>
+        )}
 
         <button
           type="submit"

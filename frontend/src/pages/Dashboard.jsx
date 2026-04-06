@@ -1,11 +1,11 @@
 import React, { useContext, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { AppContext } from '../store/AppContext';
-import { AlertTriangle, Wrench, ShieldCheck, Activity, ScanLine, CarFront, PenLine, Check, X } from 'lucide-react';
+import { AlertTriangle, Wrench, ShieldCheck, Activity, ScanLine, CarFront, PenLine, Check, X, LogOut } from 'lucide-react';
 import styles from './Dashboard.module.css';
 
 export default function Dashboard() {
-  const { activeVehicle, diagnostics, maintenance, language, startScan, updateVehicleMileage } = useContext(AppContext);
+  const { activeVehicle, diagnostics, maintenance, language, startScan, updateVehicleMileage, logout } = useContext(AppContext);
   const [isEditingMileage, setIsEditingMileage] = useState(false);
   const [mileageInput, setMileageInput] = useState('');
   const [isSavingMileage, setIsSavingMileage] = useState(false);
@@ -112,7 +112,13 @@ export default function Dashboard() {
       variants={containerVars} initial="hidden" animate="show" exit={{ opacity: 0 }}
     >
       <motion.div variants={itemVars} className={styles.header}>
-        <h1 className={styles.title}>{language === 'ar' ? 'نظرة عامة' : 'Overview'}</h1>
+        <div className={styles.headerTop}>
+          <h1 className={styles.title}>{language === 'ar' ? 'نظرة عامة' : 'Overview'}</h1>
+          <button type="button" className={styles.logoutBtn} onClick={logout}>
+            <LogOut size={16} />
+            <span>{language === 'ar' ? 'تسجيل الخروج' : 'Log Out'}</span>
+          </button>
+        </div>
         <p className={styles.subtitle}>{activeVehicle.year} {activeVehicle.make} {activeVehicle.model}</p>
       </motion.div>
 

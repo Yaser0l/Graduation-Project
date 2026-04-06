@@ -13,7 +13,7 @@ export default function Layout() {
     <div className={styles.layout}>
       {/* Top Header */}
       <header className={styles.header}>
-        <div className={styles.brand}>Vehicle AI</div>
+        <div className={styles.brand}>{language === 'ar' ? 'سيارتيك' : 'SayyarTech'}</div>
         <button className={styles.langToggle} onClick={toggleLanguage}>
           {language === 'en' ? 'عربي' : 'EN'}
         </button>
