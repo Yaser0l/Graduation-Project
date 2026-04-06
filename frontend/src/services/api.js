@@ -16,10 +16,37 @@ const getHeaders = (isFormData = false) => {
 
 const handleResponse = async (response) => {
   if (!response.ok) {
-    const errorBody = await response.json().catch(() => ({ detail: 'Unknown error' }));
+    let errorBody;
+    try {
+      errorBody = await response.json();
+    } catch {
+      errorBody = { detail: 'Unknown network or server error' };
+    }
     throw new Error(errorBody.detail || `HTTP error! status: ${response.status}`);
   }
   return response.json();
+};
+
+const fetchWithTimeout = async (resource, options = {}) => {
+  const { timeout = 30000 } = options; // Default 30s timeout
+  
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
+
+  try {
+    const response = await fetch(resource, {
+      ...options,
+      signal: controller.signal  
+    });
+    clearTimeout(id);
+    return response;
+  } catch (error) {
+    clearTimeout(id);
+    if (error.name === 'AbortError') {
+      throw new Error(`Request timed out after ${timeout / 1000} seconds`);
+    }
+    throw new Error(`Network error: ${error.message}`);
+  }
 };
 
 export const api = {
@@ -30,7 +57,7 @@ export const api = {
       formData.append('username', email); // backend uses 'username' for the email field
       formData.append('password', password);
 
-      const response = await fetch(`${BASE_URL}/auth/login`, {
+      const response = await fetchWithTimeout(`${BASE_URL}/auth/login`, {
         method: 'POST',
         headers: getHeaders(true),
         body: formData,
@@ -38,7 +65,7 @@ export const api = {
       return handleResponse(response);
     },
     register: async (name, email, password) => {
-      const response = await fetch(`${BASE_URL}/auth/register`, {
+      const response = await fetchWithTimeout(`${BASE_URL}/auth/register`, {
         method: 'POST',
         headers: getHeaders(),
         body: JSON.stringify({ name, email, password }),
@@ -49,14 +76,14 @@ export const api = {
 
   vehicles: {
     list: async () => {
-      const response = await fetch(`${BASE_URL}/vehicles/`, {
+      const response = await fetchWithTimeout(`${BASE_URL}/vehicles/`, {
         method: 'GET',
         headers: getHeaders(),
       });
       return handleResponse(response);
     },
     create: async (vehicleData) => {
-      const response = await fetch(`${BASE_URL}/vehicles/`, {
+      const response = await fetchWithTimeout(`${BASE_URL}/vehicles/`, {
         method: 'POST',
         headers: getHeaders(),
         body: JSON.stringify(vehicleData),
@@ -64,7 +91,7 @@ export const api = {
       return handleResponse(response);
     },
     update: async (vehicleId, updateData) => {
-      const response = await fetch(`${BASE_URL}/vehicles/${vehicleId}`, {
+      const response = await fetchWithTimeout(`${BASE_URL}/vehicles/${vehicleId}`, {
         method: 'PATCH',
         headers: getHeaders(),
         body: JSON.stringify(updateData),
@@ -75,35 +102,35 @@ export const api = {
 
   diagnostics: {
     list: async () => {
-      const response = await fetch(`${BASE_URL}/diagnostics/`, {
+      const response = await fetchWithTimeout(`${BASE_URL}/diagnostics/`, {
         method: 'GET',
         headers: getHeaders(),
       });
       return handleResponse(response);
     },
     listByVehicle: async (vehicleId) => {
-      const response = await fetch(`${BASE_URL}/diagnostics/vehicle/${vehicleId}`, {
+      const response = await fetchWithTimeout(`${BASE_URL}/diagnostics/vehicle/${vehicleId}`, {
         method: 'GET',
         headers: getHeaders(),
       });
       return handleResponse(response);
     },
     get: async (reportId) => {
-      const response = await fetch(`${BASE_URL}/diagnostics/${reportId}`, {
+      const response = await fetchWithTimeout(`${BASE_URL}/diagnostics/${reportId}`, {
         method: 'GET',
         headers: getHeaders(),
       });
       return handleResponse(response);
     },
     resolve: async (reportId) => {
-      const response = await fetch(`${BASE_URL}/diagnostics/${reportId}/resolve`, {
+      const response = await fetchWithTimeout(`${BASE_URL}/diagnostics/${reportId}/resolve`, {
         method: 'PATCH',
         headers: getHeaders(),
       });
       return handleResponse(response);
     },
     fullReport: async (reportId) => {
-      const response = await fetch(`${BASE_URL}/diagnostics/${reportId}/full-report`, {
+      const response = await fetchWithTimeout(`${BASE_URL}/diagnostics/${reportId}/full-report`, {
         method: 'POST',
         headers: getHeaders(),
       });
@@ -113,14 +140,14 @@ export const api = {
 
   maintenance: {
     listByVehicle: async (vehicleId, oilProgramKm) => {
-      const response = await fetch(`${BASE_URL}/maintenance/vehicle/${vehicleId}?oil_program_km=${oilProgramKm}`, {
+      const response = await fetchWithTimeout(`${BASE_URL}/maintenance/vehicle/${vehicleId}?oil_program_km=${oilProgramKm}`, {
         method: 'GET',
         headers: getHeaders(),
       });
       return handleResponse(response);
     },
     completeTask: async (vehicleId, taskId, notes = null) => {
-      const response = await fetch(`${BASE_URL}/maintenance/vehicle/${vehicleId}/tasks/${taskId}/complete`, {
+      const response = await fetchWithTimeout(`${BASE_URL}/maintenance/vehicle/${vehicleId}/tasks/${taskId}/complete`, {
         method: 'POST',
         headers: getHeaders(),
         body: JSON.stringify({ notes }),
@@ -131,7 +158,7 @@ export const api = {
 
   chat: {
     send: async (reportId, message) => {
-      const response = await fetch(`${BASE_URL}/chat/${reportId}`, {
+      const response = await fetchWithTimeout(`${BASE_URL}/chat/${reportId}`, {
         method: 'POST',
         headers: getHeaders(),
         body: JSON.stringify({ message }),
@@ -139,7 +166,7 @@ export const api = {
       return handleResponse(response);
     },
     history: async (reportId) => {
-      const response = await fetch(`${BASE_URL}/chat/${reportId}/history`, {
+      const response = await fetchWithTimeout(`${BASE_URL}/chat/${reportId}/history`, {
         method: 'GET',
         headers: getHeaders(),
       });

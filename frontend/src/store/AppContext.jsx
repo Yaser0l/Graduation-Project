@@ -72,8 +72,14 @@ export const AppProvider = ({ children }) => {
 
   // Rehydrate user from localStorage on mount
   useEffect(() => {
-    const savedUser = localStorage.getItem('user');
-    if (savedUser) setUser(JSON.parse(savedUser));
+    try {
+      const savedUser = localStorage.getItem('user');
+      if (savedUser) setUser(JSON.parse(savedUser));
+    } catch (e) {
+      console.error('Failed to parse user from localStorage', e);
+      localStorage.removeItem('user');
+      setUser(null);
+    }
   }, []);
 
   // ─── Fetch diagnostics whenever active vehicle changes ────────────────────
@@ -138,6 +144,7 @@ export const AppProvider = ({ children }) => {
   useEffect(() => {
     if (!token) return;
     let es;
+    let reconnectTimer;
 
     const parseIncomingPayload = (raw) => {
       try {
@@ -165,15 +172,28 @@ export const AppProvider = ({ children }) => {
       });
     };
 
-    try {
-      es = new EventSource(`${EVENTS_BASE_URL}/api/events?token=${token}`);
-      es.onmessage = (event) => handleIncomingEvent(parseIncomingPayload(event.data));
-      es.addEventListener('diagnostic:new', (event) => handleIncomingEvent(parseIncomingPayload(event.data)));
-      es.onerror = () => es.close();
-    } catch (e) {
-      console.error('SSE setup failed:', e);
-    }
-    return () => { if (es) es.close(); };
+    const connectSSE = () => {
+      try {
+        es = new EventSource(`${EVENTS_BASE_URL}/api/events?token=${token}`);
+        es.onmessage = (event) => handleIncomingEvent(parseIncomingPayload(event.data));
+        es.addEventListener('diagnostic:new', (event) => handleIncomingEvent(parseIncomingPayload(event.data)));
+        es.onerror = () => {
+          console.error('SSE Error. Reconnecting in 5s...');
+          es.close();
+          reconnectTimer = setTimeout(connectSSE, 5000);
+        };
+      } catch (e) {
+        console.error('SSE setup failed:', e);
+        reconnectTimer = setTimeout(connectSSE, 5000);
+      }
+    };
+
+    connectSSE();
+
+    return () => { 
+      if (es) es.close(); 
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+    };
   }, [token]);
 
   // ─── RTL / language ────────────────────────────────────────────────────────

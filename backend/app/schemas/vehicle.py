@@ -1,10 +1,10 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
 class VehicleBase(BaseModel):
-    vin: str
+    vin: str = Field(..., min_length=17, max_length=17, description="Vehicle Identification Number")
     make: str
     model: str
     year: int

@@ -1,7 +1,10 @@
 import uvicorn
 import logging
+import time
+from collections import defaultdict
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Query, HTTPException, status
+from fastapi import FastAPI, Query, HTTPException, status, Request
+from fastapi.responses import JSONResponse
 
 # Silence the (trapped) bcrypt error from passlib
 logging.getLogger("passlib").setLevel(logging.ERROR)
@@ -13,11 +16,27 @@ from app.core.config import settings
 from app.routers import auth, vehicle, diagnostic, chat, internal, maintenance
 from app.core.mqtt import MqttService
 from app.core.sse import on_report_created, sse_service
+from app.db.session import SessionLocal
+from app.routers.maintenance import ensure_default_tasks
+
+# For rate limiting
+RATE_LIMIT = 60
+RATE_WINDOW = 60
+request_counts = defaultdict(list)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Startup: Ensure default maintenance tasks exist
+    async with SessionLocal() as db:
+        try:
+            await ensure_default_tasks(db)
+            print("[LIFESPAN] Default maintenance tasks ensured")
+        except Exception as e:
+            print(f"[LIFESPAN] Failed to ensure maintenance tasks: {e}")
+
     # Startup: Initialize MQTT
     mqtt_svc = MqttService(on_report_created_cb=on_report_created)
+    app.state.mqtt_svc = mqtt_svc
     try:
         await mqtt_svc.connect()
         print("[LIFESPAN] MQTT Connected")
@@ -27,14 +46,33 @@ async def lifespan(app: FastAPI):
     yield
     
     # Shutdown: Disconnect MQTT
-    await mqtt_svc.disconnect()
-    print("[LIFESPAN] MQTT Disconnected")
+    try:
+        await mqtt_svc.disconnect()
+        print("[LIFESPAN] MQTT Disconnected")
+    except Exception as e:
+        print(f"[LIFESPAN] MQTT disconnect failed: {e}")
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
     lifespan=lifespan
 )
+
+# Rate Limiting Middleware
+@app.middleware("http")
+async def rate_limit_middleware(request: Request, call_next):
+    client_ip = request.client.host if request.client else "127.0.0.1"
+    now = time.time()
+    
+    # clean up old reqs
+    request_counts[client_ip] = [t for t in request_counts[client_ip] if now - t < RATE_WINDOW]
+    
+    if len(request_counts[client_ip]) >= RATE_LIMIT:
+        return JSONResponse(status_code=429, content={"detail": "Too Many Requests"})
+    
+    request_counts[client_ip].append(now)
+    response = await call_next(request)
+    return response
 
 # CORS Middleware
 app.add_middleware(

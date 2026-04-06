@@ -21,15 +21,15 @@ export default function Onboarding() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!make.trim() || !model.trim() || !year.trim()) {
-      setError(ar ? 'يرجى تعبئة جميع الحقول المطلوبة.' : 'Please fill in all required fields.');
+    if (!make.trim() || !model.trim() || !year.trim() || !vin.trim() || vin.trim().length !== 17) {
+      setError(ar ? 'يرجى تعبئة جميع الحقول المطلوبة بما في ذلك رقم الهيكل (١٧ حرف/رقم).' : 'Please fill in all required fields including the 17-character VIN.');
       return;
     }
     setIsLoading(true);
     setError(null);
     try {
       await addVehicle({
-        vin:     vin.trim() || `SIM-${Math.random().toString(36).substring(2, 11).toUpperCase()}`,
+        vin:     vin.trim().toUpperCase(),
         make:    make.trim(),
         model:   model.trim(),
         year:    parseInt(year, 10),
@@ -145,7 +145,7 @@ export default function Onboarding() {
           <label htmlFor="vin" className={styles.label}>
             <Fingerprint size={16} />
             {ar ? 'رقم الهيكل VIN' : 'VIN Number'}
-            <span className={styles.optional}>{ar ? '(اختياري)' : '(optional)'}</span>
+            <span className={styles.required}>*</span>
           </label>
           <input
             id="vin"
@@ -154,7 +154,9 @@ export default function Onboarding() {
             placeholder="e.g. 1HGCM82633A004352"
             value={vin}
             onChange={e => setVin(e.target.value.toUpperCase())}
+            minLength={17}
             maxLength={17}
+            required
           />
         </div>
 

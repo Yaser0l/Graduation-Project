@@ -9,15 +9,16 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 
+import asyncio
 from src.main import prepare_input
 from src.graph.main_graph import main_workflow
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 import config
 
-app = FastAPI(title="CarBrain AI Backend")
+from fastapi import Header, Depends
 
-from fastapi import FastAPI, HTTPException, Header, Depends
+app = FastAPI(title="CarBrain AI Backend")
 
 # -----------------
 # Security (Internal Handshake)
@@ -80,7 +81,7 @@ async def analyze_dtc(request: AnalyzeRequest):
         prompt = f"You are a quick automotive diagnostic assistant. Provide a highly concise, 2-3 sentence brief explanation for the provided DTC codes. Be simple and to the point. Vehicle: {car_info}. Codes: {dtcs}."
         
         messages = [HumanMessage(content=prompt)]
-        response = llm.invoke(messages)
+        response = await asyncio.to_thread(llm.invoke, messages)
         
         return {
             "explanation": response.content,
@@ -114,7 +115,7 @@ async def full_report(request: AnalyzeRequest):
         
         # 2. Run the LangGraph Workflow (this takes ~60-240 seconds)
         state = prepare_input(input_data)
-        result = main_workflow.invoke(state)
+        result = await asyncio.to_thread(main_workflow.invoke, state)
         
         final_report = result.get("final_report", "Analysis could not be completed.")
         
@@ -165,7 +166,7 @@ Answer their questions specifically based on this report. Keep answers clear and
         messages.append(HumanMessage(content=request.message))
         
         # Generate reply
-        response = llm.invoke(messages)
+        response = await asyncio.to_thread(llm.invoke, messages)
         
         return {
             "reply": response.content

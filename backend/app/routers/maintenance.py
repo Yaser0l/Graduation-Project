@@ -103,8 +103,6 @@ async def list_vehicle_maintenance(
     if oil_program_km not in (5000, 10000):
         oil_program_km = 10000
 
-    await ensure_default_tasks(db)
-
     vehicle_query = text(
         """
         SELECT id, mileage, created_at

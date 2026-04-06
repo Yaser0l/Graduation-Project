@@ -11,11 +11,14 @@ from app.services.llm import llm_service
 
 router = APIRouter(prefix="/api/diagnostics", tags=["diagnostics"])
 
+
 @router.get("/", response_model=List[DiagnosticReportOut])
 async def get_diagnostics(
     resolved: Optional[bool] = None,
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
     db: AsyncSession = Depends(get_db),
-    current_user: UserOut = Depends(get_current_user)
+    current_user: UserOut = Depends(get_current_user),
 ):
     sql = """
         SELECT dr.*, v.vin, v.make, v.model, v.year
@@ -23,23 +26,47 @@ async def get_diagnostics(
         JOIN vehicles v ON dr.vehicle_id = v.id
         WHERE v.user_id = :user_id
     """
-    params = {"user_id": current_user.id}
+    params = {"user_id": current_user.id, "limit": limit, "offset": offset}
 
     if resolved is True:
         sql += " AND dr.resolved = TRUE"
     elif resolved is False:
         sql += " AND dr.resolved = FALSE"
 
-    sql += " ORDER BY dr.created_at DESC"
-    
+    sql += " ORDER BY dr.created_at DESC LIMIT :limit OFFSET :offset"
+
     result = await db.execute(text(sql), params)
     return result.all()
+
+
+@router.get("/vehicle/{vehicle_id}", response_model=List[DiagnosticReportOut])
+async def get_vehicle_diagnostics(
+    vehicle_id: UUID,
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+    db: AsyncSession = Depends(get_db),
+    current_user: UserOut = Depends(get_current_user),
+):
+    sql = """
+        SELECT dr.*
+        FROM diagnostic_reports dr
+        JOIN vehicles v ON dr.vehicle_id = v.id
+        WHERE v.id = :vehicle_id AND v.user_id = :user_id
+        ORDER BY dr.created_at DESC
+        LIMIT :limit OFFSET :offset
+    """
+    result = await db.execute(
+        text(sql),
+        {"vehicle_id": vehicle_id, "user_id": current_user.id, "limit": limit, "offset": offset},
+    )
+    return result.all()
+
 
 @router.get("/{report_id}", response_model=DiagnosticReportOut)
 async def get_diagnostic(
     report_id: UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: UserOut = Depends(get_current_user)
+    current_user: UserOut = Depends(get_current_user),
 ):
     sql = """
         SELECT dr.*, v.vin, v.make, v.model, v.year, v.mileage AS current_mileage
@@ -53,11 +80,12 @@ async def get_diagnostic(
         raise HTTPException(status_code=404, detail="Report not found")
     return report
 
+
 @router.patch("/{report_id}/resolve", response_model=DiagnosticReportOut)
 async def resolve_diagnostic(
     report_id: UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: UserOut = Depends(get_current_user)
+    current_user: UserOut = Depends(get_current_user),
 ):
     sql = """
         UPDATE diagnostic_reports dr
@@ -73,27 +101,12 @@ async def resolve_diagnostic(
     await db.commit()
     return report
 
-@router.get("/vehicle/{vehicle_id}", response_model=List[DiagnosticReportOut])
-async def get_vehicle_diagnostics(
-    vehicle_id: UUID,
-    db: AsyncSession = Depends(get_db),
-    current_user: UserOut = Depends(get_current_user)
-):
-    sql = """
-        SELECT dr.*
-        FROM diagnostic_reports dr
-        JOIN vehicles v ON dr.vehicle_id = v.id
-        WHERE v.id = :vehicle_id AND v.user_id = :user_id
-        ORDER BY dr.created_at DESC
-    """
-    result = await db.execute(text(sql), {"vehicle_id": vehicle_id, "user_id": current_user.id})
-    return result.all()
 
 @router.post("/{report_id}/full-report")
 async def generate_full_report(
     report_id: UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: UserOut = Depends(get_current_user)
+    current_user: UserOut = Depends(get_current_user),
 ):
     """Triggers the full multi-agent diagnostic analysis for a report."""
     sql = """

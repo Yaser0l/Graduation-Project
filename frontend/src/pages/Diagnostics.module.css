@@ -1,8 +1,16 @@
 .container { display: flex; flex-direction: column; gap: 20px; }
 .header { margin-bottom: 8px; }
 .title { font-size: 2rem; font-weight: 700; letter-spacing: -1px; }
+.title { font-size: 2rem; font-weight: 700; letter-spacing: -1px; }
 
-.categoryGroup { overflow: hidden; padding: 0; display: flex; flex-direction: column; margin-bottom: 8px; }
+.section { margin-bottom: 24px; display: flex; flex-direction: column; gap: 8px; }
+.sectionTitle { font-size: 1.25rem; font-weight: 600; color: var(--text-primary); margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--border-color); opacity: 0.9;}
+
+.resolvedSectionHeader { display: flex; justify-content: space-between; align-items: center; padding: 16px; background: rgba(0, 0, 0, 0.2); border: 1px solid var(--border-color); border-radius: 12px; cursor: pointer; transition: background 0.2s; margin-top: 12px; }
+.resolvedSectionHeader:hover { background: rgba(255, 255, 255, 0.05); }
+.resolvedListContainer { display: flex; flex-direction: column; gap: 8px; overflow: hidden; padding-top: 8px; }
+
+.categoryGroup { overflow: hidden; padding: 0; display: flex; flex-direction: column; }
 .catHeader { display: flex; justify-content: space-between; align-items: center; padding: 20px; cursor: pointer; transition: background 0.2s; }
 .catHeader:hover { background: rgba(255,255,255,0.02); }
 .catHeader h2 { font-size: 1.1rem; font-weight: 600; }
