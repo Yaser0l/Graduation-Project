@@ -12,6 +12,19 @@ export default function Diagnostics() {
   const [showResolved, setShowResolved] = useState(false);
   const navigate = useNavigate();
 
+  const getExplanationText = (report) => {
+    const explanation = report?.llm_explanation?.trim();
+    if (explanation) return explanation;
+
+    const codeList = Array.isArray(report?.dtc_codes) && report.dtc_codes.length
+      ? report.dtc_codes.join(', ')
+      : (language === 'ar' ? 'غير متوفر' : 'N/A');
+
+    return language === 'ar'
+      ? `تعذر إكمال شرح الذكاء الاصطناعي بسبب انقطاع الاتصال أو انتهاء المهلة. الأكواد المكتشفة: ${codeList}.`
+      : `AI explanation could not be completed due to a timeout or network issue. Detected DTC codes: ${codeList}.`;
+  };
+
   const containerVars = { 
     hidden: { opacity: 0 }, 
     show: { opacity: 1, transition: { staggerChildren: 0.1 } } 
@@ -86,7 +99,7 @@ export default function Diagnostics() {
 
               <div className={styles.plainBox}>
                 <h3>{language === 'ar' ? 'تحليل الذكاء الاصطناعي' : 'AI Analysis'}</h3>
-                <p>{report.llm_explanation || (language === 'ar' ? 'جاري تحليل البيانات...' : 'Analyzing diagnostic data...')}</p>
+                <p>{getExplanationText(report)}</p>
               </div>
 
               <div className={styles.issueFooter}>

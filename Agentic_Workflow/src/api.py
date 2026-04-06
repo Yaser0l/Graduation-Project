@@ -10,17 +10,32 @@ from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 import json
 import re
+import logging
 
 import asyncio
-from src.main import prepare_input
-from src.graph.main_graph import main_workflow
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
+from openai import APITimeoutError, APIConnectionError, AuthenticationError, RateLimitError
 import config
 
 from fastapi import Header, Depends
 
 app = FastAPI(title="CarBrain AI Backend")
+logger = logging.getLogger(__name__)
+
+
+@app.on_event("startup")
+async def startup_checks() -> None:
+    """Emit provider configuration diagnostics on startup (without leaking secrets)."""
+    key_set = bool((config.OPENAI_API_KEY or "").strip())
+    base = (config.base_url or "").strip()
+    logger.info("LLM provider base_url=%s key_present=%s", base or "<empty>", key_set)
+
+    if not key_set:
+        logger.warning("OPENAI_API_KEY is empty. Provider requests will fail with authentication errors.")
+
+    if not base:
+        logger.warning("BASE_URL/OPENAI_BASE_URL is empty. Falling back may fail depending on provider setup.")
 
 # -----------------
 # Security (Internal Handshake)
@@ -137,7 +152,7 @@ async def analyze_dtc(request: AnalyzeRequest):
         if config.base_url:
             llm_kwargs["base_url"] = config.base_url
             
-        llm = ChatOpenAI(model="deepseek-chat", temperature=0.7, **llm_kwargs)
+        llm = ChatOpenAI(model="deepseek-chat", temperature=0.7, timeout=25, max_retries=1, **llm_kwargs)
         
         car_info = f"{request.vehicle.year} {request.vehicle.make} {request.vehicle.model}"
         dtcs = ", ".join(request.dtc_codes)
@@ -169,9 +184,36 @@ async def analyze_dtc(request: AnalyzeRequest):
             "explanation": parsed["explanation"],
             "urgency": final_urgency,
         }
+    except APITimeoutError:
+        dtcs = ", ".join(request.dtc_codes)
+        logger.warning("analyze_dtc timed out while calling provider for codes: %s", dtcs)
+        return {
+            "explanation": f"AI provider timeout. Preliminary result only: detected DTC codes {dtcs}. Please retry when connectivity is stable.",
+            "urgency": "medium"
+        }
+    except APIConnectionError as e:
+        dtcs = ", ".join(request.dtc_codes)
+        logger.warning("analyze_dtc connection failure base_url=%s err=%s", config.base_url, e)
+        return {
+            "explanation": f"AI provider connection failed (cannot reach model endpoint). Detected DTC codes: {dtcs}. Check internet/firewall/VPN and BASE_URL.",
+            "urgency": "medium"
+        }
+    except AuthenticationError as e:
+        dtcs = ", ".join(request.dtc_codes)
+        logger.warning("analyze_dtc auth failure err=%s", e)
+        return {
+            "explanation": f"AI provider authentication failed (invalid/expired API key). Detected DTC codes: {dtcs}. Update OPENAI_API_KEY and retry.",
+            "urgency": "medium"
+        }
+    except RateLimitError as e:
+        dtcs = ", ".join(request.dtc_codes)
+        logger.warning("analyze_dtc rate limited err=%s", e)
+        return {
+            "explanation": f"AI provider rate limit/quota reached. Detected DTC codes: {dtcs}. Retry later or check provider quota.",
+            "urgency": "medium"
+        }
     except Exception as e:
-        import traceback
-        traceback.print_exc()
+        logger.warning("analyze_dtc failed (%s): %s", type(e).__name__, e)
         dtcs = ", ".join(request.dtc_codes)
         return {
             "explanation": f"LLM provider temporarily unavailable. Raw DTC codes: {dtcs}. Please retry shortly.",
@@ -182,6 +224,10 @@ async def analyze_dtc(request: AnalyzeRequest):
 async def full_report(request: AnalyzeRequest):
     """Generates the full comprehensive diagnostic report using the Multi-Agent Workflow."""
     try:
+        # Lazy import to avoid loading the full graph + embeddings for lightweight analyze/chat routes.
+        from src.main import prepare_input
+        from src.graph.main_graph import main_workflow
+
         # 1. Format the request to match the expected state of our LangGraph workflow
         obd_codes = [{"code": code, "description": "Unknown", "system": "Unknown"} for code in request.dtc_codes]
         
@@ -226,7 +272,7 @@ async def chat_with_mechanic(request: ChatRequest):
         llm_kwargs = {"api_key": config.OPENAI_API_KEY}
         if config.base_url:
             llm_kwargs["base_url"] = config.base_url
-        llm = ChatOpenAI(model="deepseek-chat", temperature=0.7, **llm_kwargs)
+        llm = ChatOpenAI(model="deepseek-chat", temperature=0.7, timeout=25, max_retries=1, **llm_kwargs)
         
         system_prompt = f"""You are a helpful, professional automotive mechanic assisting a customer.
 You have already provided them with the following diagnostic report:
@@ -257,10 +303,33 @@ Answer their questions specifically based on this report. Keep answers clear and
         return {
             "reply": response.content
         }
+    except APITimeoutError:
+        logger.warning("chat_with_mechanic timed out while calling provider")
+        return {
+            "reply": "The AI mechanic request timed out due to network/provider delay. Please try again in a moment."
+        }
+    except APIConnectionError as e:
+        logger.warning("chat_with_mechanic connection failure base_url=%s err=%s", config.base_url, e)
+        return {
+            "reply": "The AI mechanic endpoint is unreachable right now. Check internet/firewall/VPN and provider base URL."
+        }
+    except AuthenticationError as e:
+        logger.warning("chat_with_mechanic auth failure err=%s", e)
+        return {
+            "reply": "AI provider authentication failed. Please verify your API key and try again."
+        }
+    except RateLimitError as e:
+        logger.warning("chat_with_mechanic rate limited err=%s", e)
+        return {
+            "reply": "AI provider quota/rate limit reached. Please retry later."
+        }
     except Exception as e:
+        logger.warning("chat_with_mechanic failed (%s): %s", type(e).__name__, e)
         return {
             "reply": "I am temporarily unable to reach the AI provider. Please try again in a moment."
         }
 
 if __name__ == "__main__":
-    uvicorn.run("src.api:app", host="0.0.0.0", port=8000, reload=True)
+    # Keep reload opt-in in local dev to avoid double-process cold starts.
+    use_reload = os.getenv("UVICORN_RELOAD", "0").strip().lower() in {"1", "true", "yes", "on"}
+    uvicorn.run("src.api:app", host="0.0.0.0", port=8000, reload=use_reload)

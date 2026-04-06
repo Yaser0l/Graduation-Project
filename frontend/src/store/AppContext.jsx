@@ -15,6 +15,7 @@ export const AppProvider = ({ children }) => {
   // Real diagnostic reports — filtered by active vehicle
   const [diagnostics, setDiagnostics] = useState([]);
   const [maintenance, setMaintenance] = useState([]);
+  const [maintenanceError, setMaintenanceError] = useState(null);
   const [oilChangeProgramKm, setOilChangeProgramKm] = useState(() => {
     const saved = localStorage.getItem('oilChangeProgramKm');
     return saved === '5000' ? '5000' : '10000';
@@ -27,15 +28,17 @@ export const AppProvider = ({ children }) => {
   const fetchMaintenanceForVehicle = useCallback(async (vehicle) => {
     if (!token || !vehicle) {
       setMaintenance([]);
+      setMaintenanceError(null);
       return;
     }
     try {
       const programKm = oilChangeProgramKm === '5000' ? 5000 : 10000;
       const list = await api.maintenance.listByVehicle(vehicle.id, programKm);
       setMaintenance(list);
+      setMaintenanceError(null);
     } catch (err) {
       console.error('Failed to fetch maintenance for vehicle:', err);
-      setMaintenance([]);
+      setMaintenanceError(err.message || 'Failed to load maintenance data');
     }
   }, [token, oilChangeProgramKm]);
 
@@ -239,6 +242,7 @@ export const AppProvider = ({ children }) => {
     setActiveVehicleState(null);
     setDiagnostics([]);
     setMaintenance([]);
+    setMaintenanceError(null);
   };
 
   // ─── Vehicle helpers ────────────────────────────────────────────────────────
@@ -288,6 +292,7 @@ export const AppProvider = ({ children }) => {
       resolveDiagnostic,
       // maintenance (regular periodic schedule)
       maintenance,
+      maintenanceError,
       completeMaintenanceTask,
       oilChangeProgramKm,
       setOilChangeProgram,

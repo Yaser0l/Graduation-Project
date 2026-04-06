@@ -5,7 +5,7 @@ import { CheckCircle2, AlertCircle, Clock, Wrench } from 'lucide-react';
 import styles from './Maintenance.module.css';
 
 export default function Maintenance() {
-  const { maintenance, language, completeMaintenanceTask, oilChangeProgramKm, setOilChangeProgram } = useContext(AppContext);
+  const { maintenance, maintenanceError, activeVehicle, language, completeMaintenanceTask, oilChangeProgramKm, setOilChangeProgram } = useContext(AppContext);
   const [resolvingId, setResolvingId] = React.useState(null);
 
   const containerVars = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.1 } } };
@@ -56,11 +56,23 @@ export default function Maintenance() {
       </motion.div>
 
       <div className={styles.timeline}>
-        {maintenance.length === 0 ? (
+        {!activeVehicle ? (
+          <div className={styles.emptyState}>
+            <AlertCircle size={48} color="var(--status-yellow)" />
+            <h2>{language === 'ar' ? 'لا توجد مركبة نشطة' : 'No Active Vehicle'}</h2>
+            <p>{language === 'ar' ? 'اختر مركبة أولاً لعرض خطة الصيانة.' : 'Select a vehicle first to view maintenance timeline.'}</p>
+          </div>
+        ) : maintenanceError ? (
+          <div className={styles.emptyState}>
+            <AlertCircle size={48} color="var(--status-red)" />
+            <h2>{language === 'ar' ? 'تعذر تحميل بيانات الصيانة' : 'Failed to Load Maintenance'}</h2>
+            <p>{language === 'ar' ? 'حدث خطأ في جلب البيانات. حاول التحديث مرة أخرى.' : 'There was an error loading maintenance data. Please refresh and try again.'}</p>
+          </div>
+        ) : maintenance.length === 0 ? (
           <div className={styles.emptyState}>
             <CheckCircle2 size={48} color="var(--status-green)" />
-            <h2>{language === 'ar' ? 'لا توجد صيانة معلقة' : 'No Pending Maintenance'}</h2>
-            <p>{language === 'ar' ? 'مركبتك في حالة جيدة حالياً.' : 'Your vehicle is currently in good condition.'}</p>
+            <h2>{language === 'ar' ? 'لا توجد مهام صيانة حالياً' : 'No Maintenance Tasks Found'}</h2>
+            <p>{language === 'ar' ? 'لم يتم العثور على مهام صيانة لهذه المركبة.' : 'No maintenance tasks were returned for this vehicle.'}</p>
           </div>
         ) : (
           maintenance.map((item, idx) => (

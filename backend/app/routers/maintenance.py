@@ -156,6 +156,10 @@ async def list_vehicle_maintenance(
         """
     )
     rows = (await db.execute(query, {"vehicle_id": vehicle_id})).all()
+    if not rows:
+        # Self-heal in case default catalog seeding was skipped at startup.
+        await ensure_default_tasks(db)
+        rows = (await db.execute(query, {"vehicle_id": vehicle_id})).all()
 
     items: List[MaintenanceTaskOut] = []
     alert_candidates = []
