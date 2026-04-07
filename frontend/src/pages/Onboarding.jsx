@@ -1,13 +1,14 @@
 import React, { useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { AppContext } from '../store/AppContext';
+import { LanguageContext, VehicleContext } from '../store/AppContext';
 import { Car, Settings2, Fingerprint, GaugeCircle } from 'lucide-react';
 import styles from './Onboarding.module.css';
 
 export default function Onboarding() {
   const navigate = useNavigate();
-  const { language, addVehicle } = useContext(AppContext);
+  const { language } = useContext(LanguageContext);
+  const { addVehicle } = useContext(VehicleContext);
 
   const [make, setMake]       = useState('');
   const [model, setModel]     = useState('');

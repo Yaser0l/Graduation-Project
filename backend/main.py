@@ -6,8 +6,6 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Query, HTTPException, status, Request
 from fastapi.responses import JSONResponse
 
-# Silence the (trapped) bcrypt error from passlib
-logging.getLogger("passlib").setLevel(logging.ERROR)
 from fastapi.middleware.cors import CORSMiddleware
 from sse_starlette.sse import EventSourceResponse
 from jose import jwt, JWTError
@@ -49,10 +47,15 @@ app = FastAPI(
 )
 
 # Rate Limiting Middleware
+MAX_TRACKED_IPS = 1000
+
 @app.middleware("http")
 async def rate_limit_middleware(request: Request, call_next):
     client_ip = request.client.host if request.client else "127.0.0.1"
     now = time.time()
+    
+    if len(request_counts) > MAX_TRACKED_IPS:
+        request_counts.clear()
     
     # clean up old reqs
     request_counts[client_ip] = [t for t in request_counts[client_ip] if now - t < RATE_WINDOW]

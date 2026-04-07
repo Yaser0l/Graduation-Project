@@ -1,7 +1,7 @@
 import React, { useState, useContext } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { AppContext } from '../store/AppContext';
+import { LanguageContext, AuthContext } from '../store/AppContext';
 import { Mail, Lock, LogIn, UserPlus, User } from 'lucide-react';
 import styles from './Welcome.module.css';
 
@@ -13,7 +13,8 @@ export default function Welcome() {
   const [isLoading, setIsLoading] = useState(false);
   const [localError, setLocalError] = useState(null);
 
-  const { language, login, register } = useContext(AppContext);
+  const { language } = useContext(LanguageContext);
+  const { login, register } = useContext(AuthContext);
   const navigate = useNavigate();
 
   const handleAuth = async (e) => {

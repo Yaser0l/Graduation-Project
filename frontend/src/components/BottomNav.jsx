@@ -3,10 +3,10 @@ import { NavLink } from 'react-router-dom';
 import { LayoutDashboard, Stethoscope, Wrench, CarFront } from 'lucide-react';
 import clsx from 'clsx';
 import styles from './BottomNav.module.css';
-import { AppContext } from '../store/AppContext';
+import { LanguageContext } from '../store/AppContext';
 
 export default function BottomNav({ onCarsOpen, carsSheetOpen }) {
-  const { language } = useContext(AppContext);
+  const { language } = useContext(LanguageContext);
 
   const navItems = [
     { to: "/dashboard", icon: LayoutDashboard, labelEn: "Dashboard", labelAr: "الرئيسية" },

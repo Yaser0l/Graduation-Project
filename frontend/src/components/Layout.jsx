@@ -1,12 +1,12 @@
 import React, { useContext, useState } from 'react';
 import { Outlet } from 'react-router-dom';
-import { AppContext } from '../store/AppContext';
+import { LanguageContext } from '../store/AppContext';
 import BottomNav from './BottomNav';
 import CarSwitcherSheet from './CarSwitcherSheet';
 import styles from './Layout.module.css';
 
 export default function Layout() {
-  const { language, toggleLanguage } = useContext(AppContext);
+  const { language, toggleLanguage } = useContext(LanguageContext);
   const [carsSheetOpen, setCarsSheetOpen] = useState(false);
 
   return (

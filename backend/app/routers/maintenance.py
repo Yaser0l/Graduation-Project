@@ -16,12 +16,109 @@ from app.services.notify import notify_maintenance_alerts
 router = APIRouter(prefix="/api/maintenance", tags=["maintenance"])
 
 
+DEFAULT_MAINTENANCE_TASKS = [
+    {
+        "code": "engine_oil",
+        "title_en": "Engine Oil & Filter",
+        "title_ar": "زيت المحرك وفلتر الزيت",
+        "category": "Engine",
+        "interval_km": 10000,
+        "interval_days": 365,
+        "alert_window_km": 900,
+        "alert_window_days": 45,
+    },
+    {
+        "code": "air_filter",
+        "title_en": "Engine Air Filter",
+        "title_ar": "فلتر هواء المحرك",
+        "category": "Engine",
+        "interval_km": 15000,
+        "interval_days": 365,
+        "alert_window_km": 1500,
+        "alert_window_days": 45,
+    },
+    {
+        "code": "spark_plugs",
+        "title_en": "Spark Plugs",
+        "title_ar": "شمعات الاحتراق",
+        "category": "Engine",
+        "interval_km": 40000,
+        "interval_days": None,
+        "alert_window_km": 5000,
+        "alert_window_days": None,
+    },
+    {
+        "code": "brake_fluid",
+        "title_en": "Brake Fluid",
+        "title_ar": "زيت الفرامل",
+        "category": "Brakes",
+        "interval_km": None,
+        "interval_days": 730,
+        "alert_window_km": None,
+        "alert_window_days": 60,
+    },
+    {
+        "code": "coolant",
+        "title_en": "Coolant",
+        "title_ar": "سائل التبريد",
+        "category": "Cooling",
+        "interval_km": 40000,
+        "interval_days": 730,
+        "alert_window_km": 5000,
+        "alert_window_days": 60,
+    },
+    {
+        "code": "transmission_fluid",
+        "title_en": "Transmission Fluid",
+        "title_ar": "زيت ناقل الحركة",
+        "category": "Transmission",
+        "interval_km": 60000,
+        "interval_days": None,
+        "alert_window_km": 7000,
+        "alert_window_days": None,
+    },
+]
+
+
+async def _ensure_default_maintenance_tasks(db: AsyncSession) -> None:
+    count_query = text("SELECT COUNT(*)::int AS total FROM maintenance_tasks")
+    total = (await db.execute(count_query)).scalar() or 0
+    if total > 0:
+        return
+
+    insert_task = text(
+        """
+        INSERT INTO maintenance_tasks
+            (code, title_en, title_ar, category, interval_km, interval_days, alert_window_km, alert_window_days, is_active)
+        VALUES
+            (:code, :title_en, :title_ar, :category, :interval_km, :interval_days, :alert_window_km, :alert_window_days, TRUE)
+        ON CONFLICT (code)
+        DO UPDATE SET
+            title_en = EXCLUDED.title_en,
+            title_ar = EXCLUDED.title_ar,
+            category = EXCLUDED.category,
+            interval_km = EXCLUDED.interval_km,
+            interval_days = EXCLUDED.interval_days,
+            alert_window_km = EXCLUDED.alert_window_km,
+            alert_window_days = EXCLUDED.alert_window_days,
+            is_active = TRUE
+        """
+    )
+
+    for task in DEFAULT_MAINTENANCE_TASKS:
+        await db.execute(insert_task, task)
+
+    await db.commit()
+
+
 @router.get("/vehicle/{vehicle_id}", response_model=List[MaintenanceTaskOut])
 async def list_vehicle_maintenance(
     vehicle_id: UUID,
     db: AsyncSession = Depends(get_db),
     current_user: UserOut = Depends(get_current_user),
 ):
+    await _ensure_default_maintenance_tasks(db)
+
     vehicle_query = text(
         """
         SELECT id, user_id, vin, make, model, year, mileage, oil_program_km, created_at
@@ -206,6 +303,17 @@ async def complete_maintenance_task(
             "completed_km": int(vehicle.mileage or 0),
             "notes": payload.notes,
         },
+    )
+
+    delete_notifications = text(
+        """
+        DELETE FROM maintenance_alert_notifications
+        WHERE vehicle_id = :vehicle_id AND task_id = :task_id
+        """
+    )
+    await db.execute(
+        delete_notifications,
+        {"vehicle_id": vehicle_id, "task_id": task_id}
     )
 
     await db.commit()

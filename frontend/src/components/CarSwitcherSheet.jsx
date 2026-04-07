@@ -1,12 +1,13 @@
 import React, { useContext } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { AppContext } from '../store/AppContext';
+import { LanguageContext, VehicleContext } from '../store/AppContext';
 import { Check, Plus, CarFront, CheckCircle2 } from 'lucide-react';
 import styles from './CarSwitcherSheet.module.css';
 
 export default function CarSwitcherSheet({ isOpen, onClose }) {
-  const { vehicles, activeVehicle, setActiveVehicle, language } = useContext(AppContext);
+  const { vehicles, activeVehicle, setActiveVehicle } = useContext(VehicleContext);
+  const { language } = useContext(LanguageContext);
   const navigate = useNavigate();
 
   const handleSelect = (vehicle) => {

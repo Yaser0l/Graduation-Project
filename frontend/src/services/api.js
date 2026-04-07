@@ -29,14 +29,14 @@ const handleResponse = async (response) => {
 
 const fetchWithTimeout = async (resource, options = {}) => {
   const { timeout = 30000 } = options; // Default 30s timeout
-  
+
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeout);
 
   try {
     const response = await fetch(resource, {
       ...options,
-      signal: controller.signal  
+      signal: controller.signal
     });
     clearTimeout(id);
     return response;
@@ -133,6 +133,7 @@ export const api = {
       const response = await fetchWithTimeout(`${BASE_URL}/diagnostics/${reportId}/full-report`, {
         method: 'POST',
         headers: getHeaders(),
+        timeout: 300000,
       });
       return handleResponse(response);
     },

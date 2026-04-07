@@ -1,9 +1,9 @@
 import React, { useContext } from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
-import { AppContext } from '../store/AppContext';
+import { AuthContext } from '../store/AppContext';
 
 export default function ProtectedRoute() {
-  const { token } = useContext(AppContext);
+  const { token } = useContext(AuthContext);
 
   if (!token) {
     return <Navigate to="/welcome" replace />;

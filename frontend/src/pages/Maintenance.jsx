@@ -1,13 +1,14 @@
 import React, { useContext } from 'react';
 import { motion } from 'framer-motion';
-import { AppContext } from '../store/AppContext';
+import { LanguageContext, DiagnosticContext, VehicleContext } from '../store/AppContext';
 import { CheckCircle2, AlertCircle, Clock, Wrench } from 'lucide-react';
 import styles from './Maintenance.module.css';
 
 export default function Maintenance() {
-  const { maintenance, maintenanceError, activeVehicle, language, completeMaintenanceTask } = useContext(AppContext);
+  const { maintenance, maintenanceError, isMaintenanceLoading, completeMaintenanceTask } = useContext(DiagnosticContext);
+  const { activeVehicle } = useContext(VehicleContext);
+  const { language } = useContext(LanguageContext);
   const [resolvingId, setResolvingId] = React.useState(null);
-  const oilProgramKm = activeVehicle?.oil_program_km === 5000 ? 5000 : 10000;
 
   const containerVars = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.1 } } };
   const itemVars = { hidden: { x: -20, opacity: 0 }, show: { x: 0, opacity: 1 } };
@@ -28,16 +29,6 @@ export default function Maintenance() {
     <motion.div className={styles.container} variants={containerVars} initial="hidden" animate="show" exit={{ opacity: 0 }}>
       <motion.div variants={itemVars} className={styles.header}>
         <h1 className={styles.title}>{language === 'ar' ? 'الجدول الزمني للصيانة' : 'Service Timeline'}</h1>
-        <div className={styles.oilPlanPanel}>
-          <div className={styles.oilPlanHeader}>
-            <span>{language === 'ar' ? 'خطة تغيير زيت المحرك' : 'Engine Oil Program'}</span>
-          </div>
-          <p className={styles.oilPlanHint}>
-            {language === 'ar'
-              ? `خطة ثابتة عند التسجيل: كل ${oilProgramKm.toLocaleString()} كم`
-              : `Fixed at registration: every ${oilProgramKm.toLocaleString()} km`}
-          </p>
-        </div>
       </motion.div>
 
       <div className={styles.timeline}>
@@ -53,11 +44,21 @@ export default function Maintenance() {
             <h2>{language === 'ar' ? 'تعذر تحميل بيانات الصيانة' : 'Failed to Load Maintenance'}</h2>
             <p>{language === 'ar' ? 'حدث خطأ في جلب البيانات. حاول التحديث مرة أخرى.' : 'There was an error loading maintenance data. Please refresh and try again.'}</p>
           </div>
+        ) : isMaintenanceLoading && maintenance.length === 0 ? (
+          <div className={styles.emptyState}>
+            <Clock size={48} color="var(--status-yellow)" className={styles.spin} style={{ animation: 'spin 2s linear infinite' }} />
+            <h2>{language === 'ar' ? 'جاري تحميل بيانات الصيانة...' : 'Loading Maintenance Data...'}</h2>
+            <p>{language === 'ar' ? 'يرجى الانتظار...' : 'Please wait...'}</p>
+          </div>
         ) : maintenance.length === 0 ? (
           <div className={styles.emptyState}>
-            <CheckCircle2 size={48} color="var(--status-green)" />
-            <h2>{language === 'ar' ? 'لا توجد مهام صيانة حالياً' : 'No Maintenance Tasks Found'}</h2>
-            <p>{language === 'ar' ? 'لم يتم العثور على مهام صيانة لهذه المركبة.' : 'No maintenance tasks were returned for this vehicle.'}</p>
+            <AlertCircle size={48} color="var(--status-yellow)" />
+            <h2>{language === 'ar' ? 'لا توجد مهام صيانة معرفة' : 'No Maintenance Tasks Configured'}</h2>
+            <p>
+              {language === 'ar'
+                ? 'يجب إضافة بيانات مهام الصيانة في قاعدة البيانات أولاً حتى يظهر المخطط.'
+                : 'Maintenance task definitions are missing in the database, so the timeline has nothing to render.'}
+            </p>
           </div>
         ) : (
           maintenance.map((item, idx) => (

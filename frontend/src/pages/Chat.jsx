@@ -1,7 +1,7 @@
 import React, { useContext, useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLocation } from 'react-router-dom';
-import { AppContext } from '../store/AppContext';
+import { LanguageContext } from '../store/AppContext';
 import { api } from '../services/api';
 import { Send, Zap, MessageCircle, FileText, Loader } from 'lucide-react';
 import styles from './Chat.module.css';
@@ -39,7 +39,7 @@ const renderInlines = (text) => {
 };
 
 export default function Chat() {
-  const { language } = useContext(AppContext);
+  const { language } = useContext(LanguageContext);
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   const queryReportId = searchParams.get('reportId');

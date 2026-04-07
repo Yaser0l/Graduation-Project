@@ -127,7 +127,7 @@ def main():
         if not config.OPENAI_API_KEY:
             print("ERROR: OPENAI_API_KEY not set in environment")
             print("Please set your API key in the .env file")
-            sys.exit(1)
+            raise RuntimeError("OPENAI_API_KEY not set in environment")
         
         if not config.TAVILY_API_KEY:
             print("WARNING: TAVILY_API_KEY not set in environment")
@@ -153,7 +153,7 @@ def main():
         print(f"\nError: {str(e)}")
         import traceback
         traceback.print_exc()
-        sys.exit(1)
+        raise
 
 
 if __name__ == "__main__":

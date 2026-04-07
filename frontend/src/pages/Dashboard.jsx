@@ -1,11 +1,14 @@
 import React, { useContext, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { AppContext } from '../store/AppContext';
+import { LanguageContext, DiagnosticContext, VehicleContext, AuthContext } from '../store/AppContext';
 import { AlertTriangle, Wrench, ShieldCheck, Activity, ScanLine, CarFront, PenLine, Check, X, LogOut } from 'lucide-react';
 import styles from './Dashboard.module.css';
 
 export default function Dashboard() {
-  const { activeVehicle, diagnostics, maintenance, language, startScan, updateVehicleMileage, logout } = useContext(AppContext);
+  const { activeVehicle, updateVehicleMileage } = useContext(VehicleContext);
+  const { diagnostics, maintenance, startScan } = useContext(DiagnosticContext);
+  const { language } = useContext(LanguageContext);
+  const { logout } = useContext(AuthContext);
   const [isEditingMileage, setIsEditingMileage] = useState(false);
   const [mileageInput, setMileageInput] = useState('');
   const [isSavingMileage, setIsSavingMileage] = useState(false);
@@ -147,7 +150,7 @@ export default function Dashboard() {
 
           {!isEditingMileage ? (
             <div className={styles.mileageRow}>
-              <p className={styles.mileage}><Activity size={16}/> {activeVehicle.mileage.toLocaleString()} km</p>
+              <p className={styles.mileage}><Activity size={16}/> {activeVehicle.mileage.toLocaleString()} {language === 'ar' ? 'كم' : 'km'}</p>
               <button
                 type="button"
                 className={styles.mileageEditBtn}
@@ -166,7 +169,7 @@ export default function Dashboard() {
                 value={mileageInput}
                 onChange={(e) => setMileageInput(e.target.value)}
               />
-              <span className={styles.mileageUnit}>km</span>
+              <span className={styles.mileageUnit}>{language === 'ar' ? 'كم' : 'km'}</span>
               <button
                 type="button"
                 className={styles.mileageActionBtn}

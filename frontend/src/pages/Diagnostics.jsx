@@ -1,12 +1,13 @@
 import React, { useContext, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AppContext } from '../store/AppContext';
+import { LanguageContext, DiagnosticContext } from '../store/AppContext';
 import { useNavigate } from 'react-router-dom';
 import { ChevronDown, MessageSquareText, Calendar, AlertCircle, CheckCircle2 } from 'lucide-react';
 import styles from './Diagnostics.module.css';
 
 export default function Diagnostics() {
-  const { diagnostics, language, resolveDiagnostic } = useContext(AppContext);
+  const { diagnostics, resolveDiagnostic } = useContext(DiagnosticContext);
+  const { language } = useContext(LanguageContext);
   const [expandedReport, setExpandedReport] = useState(diagnostics?.[0]?.id || null);
   const [resolvingReportId, setResolvingReportId] = useState(null);
   const [showResolved, setShowResolved] = useState(false);

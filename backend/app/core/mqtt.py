@@ -21,7 +21,7 @@ class MqttService:
     def on_message(self, client, topic, payload, qos, properties):
         logger.info("[MQTT] Message received on %s", topic)
         raw = payload.decode(errors="replace")
-        logger.warning("[MQTT] Incoming event topic=%s payload=%s", topic, raw)
+        logger.warning("[MQTT] Incoming event topic=%s payload=%s", "vehicle/+/dtc", raw)
         try:
             data = json.loads(raw)
             asyncio.create_task(self.handle_event(data))

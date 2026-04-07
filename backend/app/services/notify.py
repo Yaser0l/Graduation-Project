@@ -48,8 +48,12 @@ async def send_email_alert(to_email: str, report: dict, vehicle: dict):
     message.set_content(html, subtype="html")
 
     try:
+        if not settings.MAIL_USER or not settings.MAIL_PASSWORD:
+            print(f"[NOTIFY] no sender email")
+            return
+            
         await _send_email_message(message)
-        print(f"[NOTIFY] Email sent to {to_email}")
+        print(f"[NOTIFY] email sent to {to_email}")
     except Exception as e:
         print(f"[NOTIFY] Failed to send email: {e}")
 
@@ -85,8 +89,12 @@ async def send_maintenance_alert(to_email: str, vehicle: dict, task: dict):
     message.set_content(html, subtype="html")
 
     try:
+        if not settings.MAIL_USER or not settings.MAIL_PASSWORD:
+            print(f"[NOTIFY] no sender email")
+            return True
+
         await _send_email_message(message)
-        print(f"[NOTIFY] Maintenance email sent to {to_email}")
+        print(f"[NOTIFY] email sent to {to_email}")
         return True
     except Exception as e:
         print(f"[NOTIFY] Failed to send maintenance email: {e}")
@@ -149,23 +157,8 @@ async def notify_maintenance_alerts(db, vehicle: dict, tasks: list[dict], oil_pr
                 },
             )
             if inserted.first():
-                sent = await send_maintenance_alert(user.email, vehicle, task)
-                if not sent:
-                    await db.execute(
-                        text(
-                            """
-                            DELETE FROM maintenance_alert_notifications
-                            WHERE vehicle_id = :vehicle_id
-                              AND task_id = :task_id
-                              AND alert_type = :alert_type
-                            """
-                        ),
-                        {
-                            "vehicle_id": vehicle.get("id"),
-                            "task_id": task.get("task_id"),
-                            "alert_type": alert_type_key,
-                        },
-                    )
+                import asyncio
+                asyncio.create_task(send_maintenance_alert(user.email, vehicle, task))
 
         await db.commit()
     except Exception as e:
