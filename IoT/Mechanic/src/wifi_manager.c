@@ -9,9 +9,15 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
 #include "freertos/task.h"
+#include "driver/gpio.h"
 
 #define WIFI_CONNECT_TIMEOUT_MS 10000
 #define WIFI_RETRY_LOOP_DELAY_MS 2000
+#define LED_BLINK_INTERVAL_MS 300
+
+#define BLINK_GPIO GPIO_NUM_48
+#define LED_ON_LEVEL 0
+#define LED_OFF_LEVEL 1
 
 static const char *TAG = "wifi_manager";
 static EventGroupHandle_t s_wifi_event_group;
@@ -20,6 +26,13 @@ static const int WIFI_CONNECTED_BIT = BIT0;
 static saved_ap_store_t s_ap_store = {0};
 static bool s_config_ap = false;
 static bool s_should_connect = false;
+
+static void wifi_status_led_init(void)
+{
+    gpio_reset_pin(BLINK_GPIO);
+    gpio_set_direction(BLINK_GPIO, GPIO_MODE_OUTPUT);
+    gpio_set_level(BLINK_GPIO, LED_OFF_LEVEL);
+}
 
 static bool is_wifi_connected(void)
 {
@@ -129,6 +142,27 @@ static void wifi_manager_task(void *arg)
     }
 }
 
+static void wifi_status_led_task(void *arg)
+{
+    (void)arg;
+    bool led_on = false;
+
+    while (true)
+    {
+        if (is_wifi_connected())
+        {
+            gpio_set_level(BLINK_GPIO, LED_ON_LEVEL);
+        }
+        else
+        {
+            led_on = !led_on;
+            gpio_set_level(BLINK_GPIO, led_on ? LED_ON_LEVEL : LED_OFF_LEVEL);
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(LED_BLINK_INTERVAL_MS));
+    }
+}
+
 static void wifi_event_handler(void *arg, esp_event_base_t event_base,
                                int32_t event_id, void *event_data)
 {
@@ -169,6 +203,8 @@ void wifi_manager_init(const saved_ap_store_t *initial_store)
 void wifi_manager_start_task(void)
 {
     xTaskCreate(wifi_manager_task, "wifi_manager_task", 4096, NULL, 5, NULL);
+    wifi_status_led_init();
+    xTaskCreate(wifi_status_led_task, "wifi_status_led_task", 2048, NULL, 4, NULL);
 }
 
 void wifi_manager_notify_store_changed(const saved_ap_store_t *store)
