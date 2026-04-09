@@ -1,0 +1,57 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>WiFi Manager</title>
+  </head>
+  <body>
+    <h1>WiFi Manager</h1>
+
+    <form action="/wifi/save" method="post">
+      <label for="ssid">SSID:</label><br />
+      <input type="text" id="ssid" name="ssid" /><br />
+
+      <label for="passphrase">Passphrase:</label><br />
+      <input type="password" id="passphrase" name="passphrase" /><br /><br />
+
+      <input type="submit" value="Save" />
+    </form>
+
+    <button onclick="scanNetworks()">Scan Nearby Networks</button>
+
+    <h2>Scanned Networks</h2>
+    <ul id="scan-list"></ul>
+
+    <h2>Saved Networks</h2>
+    <ul id="network-list"></ul>
+
+    <script>
+      async function fetchNetworks() {
+        const response = await fetch("/wifi/saved");
+        const networks = await response.json();
+        const list = document.getElementById("network-list");
+        list.innerHTML = "";
+        networks.forEach((ssid) => {
+          const li = document.createElement("li");
+          li.textContent = ssid;
+          list.appendChild(li);
+        });
+      }
+
+      async function scanNetworks() {
+        const response = await fetch("/wifi/scan");
+        const networks = await response.json();
+        const list = document.getElementById("scan-list");
+        list.innerHTML = "";
+        networks.forEach((ssid) => {
+          const li = document.createElement("li");
+          li.textContent = ssid;
+          list.appendChild(li);
+        });
+      }
+
+      fetchNetworks();
+    </script>
+  </body>
+</html>
