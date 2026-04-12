@@ -27,6 +27,64 @@ const handleResponse = async (response) => {
   return response.json();
 };
 
+const parseNdjsonStream = async (response, handlers = {}) => {
+  if (!response.ok) {
+    let errorBody;
+    try {
+      errorBody = await response.json();
+    } catch {
+      errorBody = { detail: `HTTP error! status: ${response.status}` };
+    }
+    throw new Error(errorBody.detail || `HTTP error! status: ${response.status}`);
+  }
+
+  if (!response.body) {
+    throw new Error('Streaming is not supported by this browser.');
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let finalPayload = null;
+
+  const consumeLine = (line) => {
+    if (!line.trim()) return;
+    let eventPayload;
+    try {
+      eventPayload = JSON.parse(line);
+    } catch {
+      return;
+    }
+
+    const event = eventPayload.event;
+    if (event === 'start' && handlers.onStart) {
+      handlers.onStart(eventPayload);
+    } else if (event === 'token' && handlers.onToken) {
+      handlers.onToken(eventPayload.chunk || '');
+    } else if (event === 'done') {
+      finalPayload = eventPayload;
+      if (handlers.onDone) handlers.onDone(eventPayload);
+    } else if (event === 'error') {
+      if (handlers.onError) handlers.onError(eventPayload);
+      throw new Error(eventPayload.message || 'Streaming request failed.');
+    }
+  };
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
+    lines.forEach(consumeLine);
+  }
+
+  buffer += decoder.decode();
+  if (buffer.trim()) consumeLine(buffer);
+
+  return finalPayload;
+};
+
 const fetchWithTimeout = async (resource, options = {}) => {
   const { timeout = 30000 } = options; // Default 30s timeout
 
@@ -141,14 +199,19 @@ export const api = {
       });
       return handleResponse(response);
     },
-    fullReport: async (reportId, language = 'en') => {
-      const response = await fetchWithTimeout(`${BASE_URL}/diagnostics/${reportId}/full-report`, {
+    fullReport: async (reportId, language = 'en', streamOptions = {}) => {
+      const { onStart, onToken, onDone, onError, streamMode = 'word', streamChunkSize = 3 } = streamOptions;
+      const query = new URLSearchParams({
+        stream_mode: streamMode,
+        stream_chunk_size: String(streamChunkSize),
+      });
+      const response = await fetchWithTimeout(`${BASE_URL}/diagnostics/${reportId}/full-report?${query.toString()}`, {
         method: 'POST',
         headers: getHeaders(),
         body: JSON.stringify({ language }),
         timeout: 300000,
       });
-      return handleResponse(response);
+      return parseNdjsonStream(response, { onStart, onToken, onDone, onError, streamMode, streamChunkSize });
     },
   },
 
@@ -171,13 +234,15 @@ export const api = {
   },
 
   chat: {
-    send: async (reportId, message) => {
+    send: async (reportId, message, streamOptions = {}) => {
+      const { onStart, onToken, onDone, onError, streamMode = 'word', streamChunkSize = 2 } = streamOptions;
       const response = await fetchWithTimeout(`${BASE_URL}/chat/${reportId}`, {
         method: 'POST',
         headers: getHeaders(),
-        body: JSON.stringify({ message }),
+        body: JSON.stringify({ message, stream_mode: streamMode, stream_chunk_size: streamChunkSize }),
+        timeout: 300000,
       });
-      return handleResponse(response);
+      return parseNdjsonStream(response, { onStart, onToken, onDone, onError });
     },
     history: async (reportId) => {
       const response = await fetchWithTimeout(`${BASE_URL}/chat/${reportId}/history`, {

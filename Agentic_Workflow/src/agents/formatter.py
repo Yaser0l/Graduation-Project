@@ -1,5 +1,6 @@
 """Formatter Agent for creating user-friendly reports."""
 from typing import Dict, Any
+from datetime import datetime
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage
 from src.states.writer_state import WriterState
@@ -15,7 +16,9 @@ class FormatterAgent:
         llm_params = {
             "model": agent_config["model"],
             "temperature": agent_config["temperature"],
-            "api_key": config.OPENAI_API_KEY
+            "api_key": config.OPENAI_API_KEY,
+            "timeout": config.AGENT_LLM_TIMEOUT_SEC,
+            "max_retries": config.AGENT_LLM_MAX_RETRIES,
         }
         if config.base_url:
             llm_params["base_url"] = config.base_url
@@ -55,6 +58,7 @@ class FormatterAgent:
         p1_label = "الأولوية 1 (نفذ أولاً)" if is_arabic else "Priority 1 (Do First)"
         p2_label = "الأولوية 2 (نفذ قريباً)" if is_arabic else "Priority 2 (Do Soon)"
         tips_label = "نصائح صيانة" if is_arabic else "Maintenance Tips"
+        current_date = datetime.now().strftime("%d/%m/%Y")
 
         return f"""You are formatting a technical automotive report for a customer who may not have technical expertise.
 
@@ -78,6 +82,7 @@ LANGUAGE REQUIREMENTS:
 - Translate all section titles, labels, and bullet text into {output_language_label}.
 - Keep diagnostic codes, VIN values, product names, and URLs unchanged.
 - Keep the exact section order and separator style shown below.
+- Use date in this exact format: DD/MM/YYYY.
 
 FORMAT YOUR RESPONSE AS:
 
@@ -85,8 +90,8 @@ FORMAT YOUR RESPONSE AS:
 {header_title}
 ━━━━━━━━━━━━━
 
-{vehicle_label}: [car info]
-{date_label}: [current date]
+{vehicle_label}: {car_info}
+{date_label}: {current_date}
 
 ━━━━━━━━━━━━━
 {section_found}
@@ -165,7 +170,7 @@ USER-FRIENDLY REPORT:"""
             Updated state dictionary
         """
         # Extract data from state
-        draft_report = state.get("draft_report", "")
+        draft_report = (state.get("draft_report", "") or "")[:config.FORMATTER_DRAFT_CHARS]
         car_metadata = state["car_metadata"]
         report_language = self._normalize_language(state.get("language", "en"))
         

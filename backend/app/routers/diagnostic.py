@@ -1,8 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from typing import List, Optional
 from uuid import UUID
+import json
 from app.db.session import get_db
 from app.core.deps import get_current_user
 from app.schemas.auth import UserOut
@@ -106,6 +108,8 @@ async def resolve_diagnostic(
 async def generate_full_report(
     report_id: UUID,
     payload: FullReportRequest,
+    stream_mode: str = Query(default="word"),
+    stream_chunk_size: int = Query(default=3, ge=1, le=12),
     db: AsyncSession = Depends(get_db),
     current_user: UserOut = Depends(get_current_user),
 ):
@@ -129,9 +133,29 @@ async def generate_full_report(
         "mileage": report.mileage,
     }
 
-    full_result = await llm_service.full_report(
-        dtc_codes=dtc_codes,
-        vehicle=vehicle,
-        language=(payload.language or "en"),
-    )
-    return full_result
+    normalized_mode = (stream_mode or "word").lower()
+    if normalized_mode not in {"word", "char"}:
+        normalized_mode = "word"
+
+    async def event_stream():
+        try:
+            async for upstream_event in llm_service.full_report_stream(
+                dtc_codes=dtc_codes,
+                vehicle=vehicle,
+                language=(payload.language or "en"),
+                stream_mode=normalized_mode,
+                stream_chunk_size=stream_chunk_size,
+            ):
+                if "reportId" not in upstream_event:
+                    upstream_event["reportId"] = str(report_id)
+                yield json.dumps(upstream_event, ensure_ascii=False) + "\n"
+        except Exception:
+            yield json.dumps(
+                {
+                    "event": "error",
+                    "message": "Failed to generate full report. Please try again.",
+                    "reportId": str(report_id),
+                }
+            , ensure_ascii=False) + "\n"
+
+    return StreamingResponse(event_stream(), media_type="application/x-ndjson")

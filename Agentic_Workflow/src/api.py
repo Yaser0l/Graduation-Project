@@ -6,6 +6,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 """FastAPI Microservice for Multi-Agent Mechanic Workflow."""
 import uvicorn
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 import json
@@ -61,6 +62,8 @@ class AnalyzeRequest(BaseModel):
     dtc_codes: List[str]
     vehicle: Vehicle
     language: Optional[str] = "en"
+    stream_mode: Optional[str] = "word"
+    stream_chunk_size: Optional[int] = 3
 
 class ReportModel(BaseModel):
     dtc_codes: List[str]
@@ -78,6 +81,47 @@ class ChatRequest(BaseModel):
     vehicle: Vehicle
     history: List[ChatMessage] = []
     message: str
+    stream_mode: Optional[str] = "word"
+    stream_chunk_size: Optional[int] = 3
+
+
+def _content_to_text(content: Any) -> str:
+    if content is None:
+        return ""
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts = []
+        for item in content:
+            if isinstance(item, dict):
+                text_part = item.get("text")
+                if text_part:
+                    parts.append(str(text_part))
+            elif isinstance(item, str):
+                parts.append(item)
+        return "".join(parts)
+    return str(content)
+
+
+def _normalize_stream_mode(mode: Optional[str]) -> str:
+    normalized = (mode or "word").strip().lower()
+    return normalized if normalized in {"word", "char"} else "word"
+
+
+def _chunk_text(text: str, mode: str = "word", chunk_size: int = 1):
+    if not text:
+        return
+    if mode == "char":
+        tokens = list(text)
+    else:
+        tokens = re.findall(r"\S+\s*|\s+", text)
+    size = max(1, int(chunk_size or 1))
+    for idx in range(0, len(tokens), size):
+        yield "".join(tokens[idx: idx + size])
+
+
+def _ndjson(payload: Dict[str, Any]) -> str:
+    return json.dumps(payload, ensure_ascii=False) + "\n"
 
 
 def normalize_urgency(value: Optional[str]) -> str:
@@ -153,7 +197,7 @@ async def analyze_dtc(request: AnalyzeRequest):
         if config.base_url:
             llm_kwargs["base_url"] = config.base_url
             
-        llm = ChatOpenAI(model="deepseek-chat", temperature=0.7, timeout=25, max_retries=1, **llm_kwargs)
+        llm = ChatOpenAI(model="deepseek-chat", temperature=0.7, timeout=240, max_retries=1, **llm_kwargs)
         
         car_info = f"{request.vehicle.year} {request.vehicle.make} {request.vehicle.model}"
         dtcs = ", ".join(request.dtc_codes)
@@ -223,60 +267,115 @@ async def analyze_dtc(request: AnalyzeRequest):
 
 @app.post("/api/llm/full-report", dependencies=[Depends(verify_internal_secret)])
 async def full_report(request: AnalyzeRequest):
-    """Generates the full comprehensive diagnostic report using the Multi-Agent Workflow."""
-    try:
-        # Lazy import to avoid loading the full graph + embeddings for lightweight analyze/chat routes.
-        from src.main import prepare_input
-        from src.graph.main_graph import main_workflow
+    """Generates and streams a comprehensive diagnostic report using the Multi-Agent Workflow."""
+    stream_mode = _normalize_stream_mode(request.stream_mode)
+    stream_chunk_size = max(1, min(int(request.stream_chunk_size or 3), 12))
+    is_arabic = str(request.language or "en").strip().lower().startswith("ar")
 
-        # 1. Format the request to match the expected state of our LangGraph workflow
-        obd_codes = [{"code": code, "description": "Unknown", "system": "Unknown"} for code in request.dtc_codes]
-        
-        input_data = {
-            "user_id": "api_user",
-            "language": request.language or "en",
-            "car_metadata": {
-                "car_name": request.vehicle.make or "Unknown",
-                "car_model": request.vehicle.model or "Unknown",
-                "year": request.vehicle.year or 2000,
-                "mileage": request.vehicle.mileage,
-                "vin": ""
-            },
-            "obd2_data": {
-                "diagnostic_codes": obd_codes
+    start_msg = (
+        "بدء مسار التشخيص...\nقد يستغرق ذلك من 3 إلى 5 دقائق.\n\n"
+        if is_arabic
+        else "Starting diagnostic pipeline...\nThis may take 3-5 minutes.\n\n"
+    )
+    running_obd_msg = "جاري تحليل بيانات OBD2...\n\n" if is_arabic else "Running OBD2 analysis...\n\n"
+    composing_msg = "جاري إنشاء التقرير النهائي بصيغة سهلة القراءة...\n\n" if is_arabic else "Generating final user-friendly report...\n\n"
+
+    async def event_stream():
+        try:
+            # Lazy imports keep analyze/chat fast.
+            from src.main import prepare_input
+            from src.orchestrations.obd2_orchestration import obd2_orchestration
+            from src.orchestrations.writer_orchestration import writer_orchestration
+
+            yield _ndjson({"event": "start"})
+            yield _ndjson({"event": "token", "chunk": start_msg})
+
+            obd_codes = [{"code": code, "description": "Unknown", "system": "Unknown"} for code in request.dtc_codes]
+            input_data = {
+                "user_id": "api_user",
+                "language": request.language or "en",
+                "car_metadata": {
+                    "car_name": request.vehicle.make or "Unknown",
+                    "car_model": request.vehicle.model or "Unknown",
+                    "year": request.vehicle.year or 2000,
+                    "mileage": request.vehicle.mileage,
+                    "vin": ""
+                },
+                "obd2_data": {
+                    "diagnostic_codes": obd_codes
+                }
             }
-        }
-        
-        # 2. Run the LangGraph Workflow (this takes ~60-240 seconds)
-        state = prepare_input(input_data)
-        result = await asyncio.to_thread(main_workflow.invoke, state)
-        
-        final_report = result.get("final_report", "Analysis could not be completed.")
-        
-        return {
-            "explanation": final_report,
-            "urgency": "medium",
-            "estimated_cost_min": 100, 
-            "estimated_cost_max": 500
-        }
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+
+            state = prepare_input(input_data)
+
+            yield _ndjson({"event": "token", "chunk": running_obd_msg})
+            obd2_state = {
+                "user_id": state["user_id"],
+                "car_metadata": state["car_metadata"],
+                "obd2_data": state["obd2_data"],
+                "retrieved_context": [],
+                "web_search_results": None,
+                "analysis_draft": None,
+                "analysis_review": None,
+                "final_analysis": None,
+                "reflection_count": 0,
+                "revision_count": 0,
+                "messages": state.get("messages", []),
+            }
+            obd2_result = await asyncio.to_thread(obd2_orchestration.invoke, obd2_state)
+            obd2_analysis = obd2_result.get("final_analysis") or obd2_result.get("analysis_draft") or ""
+
+            if obd2_analysis:
+                pass
+
+            writer_state = {
+                "user_id": state["user_id"],
+                "language": state.get("language", "en"),
+                "car_metadata": state["car_metadata"],
+                "obd2_analysis": obd2_analysis,
+                "product_recommendations": None,
+                "draft_report": None,
+                "technical_review": None,
+                "user_friendly_report": None,
+                "final_report": "",
+                "messages": state.get("messages", []),
+            }
+
+            yield _ndjson({"event": "token", "chunk": composing_msg})
+            writer_result = await asyncio.to_thread(writer_orchestration.invoke, writer_state)
+            final_report = writer_result.get("final_report") or "Analysis could not be completed."
+
+            for chunk in _chunk_text(final_report, mode=stream_mode, chunk_size=stream_chunk_size):
+                yield _ndjson({"event": "token", "chunk": chunk})
+                await asyncio.sleep(0)
+
+            yield _ndjson(
+                {
+                    "event": "done",
+                    "explanation": final_report,
+                    "urgency": "medium",
+                    "estimated_cost_min": 100,
+                    "estimated_cost_max": 500,
+                }
+            )
+        except Exception as e:
+            logger.exception("full_report streaming failed")
+            yield _ndjson({"event": "error", "message": str(e)})
+
+    return StreamingResponse(event_stream(), media_type="application/x-ndjson")
 
 
 @app.post("/api/llm/chat", dependencies=[Depends(verify_internal_secret)])
 async def chat_with_mechanic(request: ChatRequest):
-    """Handles continuous conversation regarding a previous diagnostic report."""
-    try:
-        # A lightweight ChatOpenAI tool to answer conversational questions
-        # Using the actual generated report as the System Context.
-        llm_kwargs = {"api_key": config.OPENAI_API_KEY}
-        if config.base_url:
-            llm_kwargs["base_url"] = config.base_url
-        llm = ChatOpenAI(model="deepseek-chat", temperature=0.7, timeout=25, max_retries=1, **llm_kwargs)
-        
-        system_prompt = f"""You are a helpful, professional automotive mechanic assisting a customer.
+    """Handles continuous conversation and streams model tokens in real time."""
+    async def event_stream():
+        try:
+            llm_kwargs = {"api_key": config.OPENAI_API_KEY}
+            if config.base_url:
+                llm_kwargs["base_url"] = config.base_url
+            llm = ChatOpenAI(model="deepseek-chat", temperature=0.7, timeout=60, max_retries=1, **llm_kwargs)
+
+            system_prompt = f"""You are a helpful, professional automotive mechanic assisting a customer.
 You have already provided them with the following diagnostic report:
 
 VEHICLE: {request.vehicle.year} {request.vehicle.make} {request.vehicle.model}
@@ -287,49 +386,58 @@ REPORT EXPLANATION:
 
 Answer their questions specifically based on this report. Keep answers clear and supportive."""
 
-        messages = [SystemMessage(content=system_prompt)]
-        
-        # Add conversation history
-        for msg in request.history:
-            if msg.role == "user":
-                messages.append(HumanMessage(content=msg.content))
-            else:
-                messages.append(AIMessage(content=msg.content))
-                
-        # Add current user message
-        messages.append(HumanMessage(content=request.message))
-        
-        # Generate reply
-        response = await asyncio.to_thread(llm.invoke, messages)
-        
-        return {
-            "reply": response.content
-        }
-    except APITimeoutError:
-        logger.warning("chat_with_mechanic timed out while calling provider")
-        return {
-            "reply": "The AI mechanic request timed out due to network/provider delay. Please try again in a moment."
-        }
-    except APIConnectionError as e:
-        logger.warning("chat_with_mechanic connection failure base_url=%s err=%s", config.base_url, e)
-        return {
-            "reply": "The AI mechanic endpoint is unreachable right now. Check internet/firewall/VPN and provider base URL."
-        }
-    except AuthenticationError as e:
-        logger.warning("chat_with_mechanic auth failure err=%s", e)
-        return {
-            "reply": "AI provider authentication failed. Please verify your API key and try again."
-        }
-    except RateLimitError as e:
-        logger.warning("chat_with_mechanic rate limited err=%s", e)
-        return {
-            "reply": "AI provider quota/rate limit reached. Please retry later."
-        }
-    except Exception as e:
-        logger.warning("chat_with_mechanic failed (%s): %s", type(e).__name__, e)
-        return {
-            "reply": "I am temporarily unable to reach the AI provider. Please try again in a moment."
-        }
+            messages = [SystemMessage(content=system_prompt)]
+            for msg in request.history:
+                if msg.role == "user":
+                    messages.append(HumanMessage(content=msg.content))
+                else:
+                    messages.append(AIMessage(content=msg.content))
+            messages.append(HumanMessage(content=request.message))
+
+            mode = _normalize_stream_mode(request.stream_mode)
+            size = max(1, min(int(request.stream_chunk_size or 3), 12))
+
+            yield _ndjson({"event": "start"})
+            response_parts: List[str] = []
+
+            async for chunk in llm.astream(messages):
+                piece = _content_to_text(getattr(chunk, "content", ""))
+                if not piece:
+                    continue
+                response_parts.append(piece)
+                for out in _chunk_text(piece, mode=mode, chunk_size=size):
+                    yield _ndjson({"event": "token", "chunk": out})
+
+            full_reply = "".join(response_parts).strip()
+            yield _ndjson({"event": "done", "reply": full_reply})
+        except APITimeoutError:
+            yield _ndjson({
+                "event": "error",
+                "message": "The AI mechanic request timed out due to network/provider delay. Please try again in a moment."
+            })
+        except APIConnectionError:
+            yield _ndjson({
+                "event": "error",
+                "message": "The AI mechanic endpoint is unreachable right now. Check internet/firewall/VPN and provider base URL."
+            })
+        except AuthenticationError:
+            yield _ndjson({
+                "event": "error",
+                "message": "AI provider authentication failed. Please verify your API key and try again."
+            })
+        except RateLimitError:
+            yield _ndjson({
+                "event": "error",
+                "message": "AI provider quota/rate limit reached. Please retry later."
+            })
+        except Exception as e:
+            logger.warning("chat_with_mechanic failed (%s): %s", type(e).__name__, e)
+            yield _ndjson({
+                "event": "error",
+                "message": "I am temporarily unable to reach the AI provider. Please try again in a moment."
+            })
+
+    return StreamingResponse(event_stream(), media_type="application/x-ndjson")
 
 if __name__ == "__main__":
     # Keep reload opt-in in local dev to avoid double-process cold starts.

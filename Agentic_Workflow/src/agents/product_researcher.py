@@ -6,6 +6,7 @@ from src.states.writer_state import WriterState
 from src.tools.tavily_tool import search_products
 import config
 import re
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 
 class ProductResearchAgent:
@@ -17,7 +18,9 @@ class ProductResearchAgent:
         llm_params = {
             "model": agent_config["model"],
             "temperature": agent_config["temperature"],
-            "api_key": config.OPENAI_API_KEY
+            "api_key": config.OPENAI_API_KEY,
+            "timeout": config.AGENT_LLM_TIMEOUT_SEC,
+            "max_retries": config.AGENT_LLM_MAX_RETRIES,
         }
         if config.base_url:
             llm_params["base_url"] = config.base_url
@@ -97,19 +100,39 @@ Product types needed:"""
         
         # Extract product needs from analysis
         print("[Product Researcher] Extracting product needs from analysis...")
-        product_types = self._extract_product_needs(obd2_analysis)
+        product_types = self._extract_product_needs(
+            (obd2_analysis or "")[:config.PRODUCT_NEEDS_ANALYSIS_CHARS]
+        )
         
         print(f"[Product Researcher] Identified product needs: {product_types}")
         
         # Search for each product type
         all_recommendations = []
         
-        for product_type in product_types[:3]:  # Limit to top 3 product types
-            print(f"[Product Researcher] Searching for: {product_type}")
-            products = self._search_for_products(product_type, car_info, max_results=3)
-            
-            if products:
-                all_recommendations.extend(products)
+        selected_types = product_types[:max(1, config.PRODUCT_SEARCH_MAX_TYPES)]
+        if selected_types:
+            with ThreadPoolExecutor(max_workers=min(3, len(selected_types))) as ex:
+                future_map = {
+                    ex.submit(
+                        self._search_for_products,
+                        product_type,
+                        car_info,
+                        max(1, config.PRODUCT_SEARCH_RESULTS_PER_TYPE),
+                    ): product_type
+                    for product_type in selected_types
+                }
+
+                for future in as_completed(future_map):
+                    product_type = future_map[future]
+                    print(f"[Product Researcher] Searching for: {product_type}")
+                    try:
+                        products = future.result()
+                    except Exception as e:
+                        print(f"[Product Researcher] Search failed for {product_type}: {e}")
+                        products = []
+
+                    if products:
+                        all_recommendations.extend(products)
         
         print(f"[Product Researcher] Found {len(all_recommendations)} product recommendations")
 

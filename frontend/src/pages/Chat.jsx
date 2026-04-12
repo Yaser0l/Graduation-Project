@@ -11,31 +11,73 @@ const MarkdownRenderer = ({ text }) => {
   const blocks = text.split(/\n\n+/);
   
   return blocks.map((block, bIdx) => {
-    if (block.startsWith('###')) {
-      return <h3 key={bIdx} className={styles.mdHeader}>{block.replace(/^###\s*/, '')}</h3>;
+    const trimmed = block.trim();
+    if (!trimmed) return null;
+
+    if (trimmed.startsWith('###')) {
+      return <h3 key={bIdx} className={styles.mdHeader}>{renderInlines(trimmed.replace(/^###\s*/, ''))}</h3>;
     }
-    if (block.startsWith('* ') || block.startsWith('- ')) {
-      const items = block.split('\n');
+
+    if (/^---+$/.test(trimmed)) {
+      return <hr key={bIdx} />;
+    }
+
+    const lines = block.split('\n').map((line) => line.trim()).filter(Boolean);
+
+    if (lines.length > 0 && lines.every((line) => /^[-*]\s+/.test(line))) {
       return (
         <ul key={bIdx} className={styles.mdList}>
-          {items.map((item, iIdx) => (
+          {lines.map((item, iIdx) => (
             <li key={iIdx}>{renderInlines(item.replace(/^[*|-]\s*/, ''))}</li>
           ))}
         </ul>
       );
     }
+
+    if (lines.length > 0 && lines.every((line) => /^\d+\.\s+/.test(line))) {
+      return (
+        <ol key={bIdx} className={styles.mdList}>
+          {lines.map((item, iIdx) => (
+            <li key={iIdx}>{renderInlines(item.replace(/^\d+\.\s*/, ''))}</li>
+          ))}
+        </ol>
+      );
+    }
+
     return <p key={bIdx} className={styles.mdPara}>{renderInlines(block)}</p>;
   });
 };
 
 const renderInlines = (text) => {
-  const parts = text.split(/(\*\*.*?\*\*)/);
-  return parts.map((part, index) => {
-    if (part.startsWith('**') && part.endsWith('**')) {
-      return <strong key={index}>{part.slice(2, -2)}</strong>;
+  const normalized = String(text || '')
+    .replace(/\*\*\s+\*\*/g, ' ')
+    .replace(/__\s+__/g, ' ')
+    .replace(/\*{3,}/g, '**');
+
+  const out = [];
+  const pattern = /(\*\*|__)(.+?)\1/g;
+  let lastIndex = 0;
+  let match;
+  let key = 0;
+
+  while ((match = pattern.exec(normalized)) !== null) {
+    const [full, , content] = match;
+    if (match.index > lastIndex) {
+      out.push(normalized.slice(lastIndex, match.index));
     }
-    return part;
-  });
+    out.push(<strong key={`s-${key}`}>{content}</strong>);
+    key += 1;
+    lastIndex = match.index + full.length;
+  }
+
+  if (lastIndex < normalized.length) {
+    const tail = normalized.slice(lastIndex)
+      .replace(/(^|\s)\*\*(?=\s|$)/g, '$1')
+      .replace(/(^|\s)__(?=\s|$)/g, '$1');
+    out.push(tail);
+  }
+
+  return out;
 };
 
 export default function Chat() {
@@ -51,8 +93,78 @@ export default function Chat() {
   const [isReporting, setIsReporting] = useState(false);
   const [currentReport, setCurrentReport] = useState(null);
   const scrollRef = useRef(null);
+  const streamBufferRef = useRef([]);
+  const streamTimerRef = useRef(null);
+  const streamMessageIdRef = useRef(null);
+  const streamModeRef = useRef('word');
+  const pendingFinalTextRef = useRef(null);
+
+  const STREAM_DISPLAY_MODE = 'word'; // switch to 'char' for character-by-character reveal
 
   const getChatCacheKey = (id) => `chat_cache_${id}`;
+
+  const splitForReveal = (text, mode = 'word') => {
+    if (!text) return [];
+    if (mode === 'char') return Array.from(text);
+    return text.match(/\S+\s*|\s+/g) || [text];
+  };
+
+  const stopStreamReveal = () => {
+    if (streamTimerRef.current) {
+      clearInterval(streamTimerRef.current);
+      streamTimerRef.current = null;
+    }
+    streamBufferRef.current = [];
+    streamMessageIdRef.current = null;
+    pendingFinalTextRef.current = null;
+  };
+
+  const startStreamReveal = (messageId, mode = 'word') => {
+    stopStreamReveal();
+    streamMessageIdRef.current = messageId;
+    streamModeRef.current = mode;
+
+    const intervalMs = mode === 'char' ? 14 : 45;
+    streamTimerRef.current = setInterval(() => {
+      const nextChunk = streamBufferRef.current.shift();
+      if (!streamMessageIdRef.current) return;
+
+      if (!nextChunk) {
+        if (pendingFinalTextRef.current !== null) {
+          const targetId = streamMessageIdRef.current;
+          const finalText = pendingFinalTextRef.current;
+          setMessages(prev => prev.map(m => (
+            m.id === targetId ? { ...m, text: finalText || m.text } : m
+          )));
+          stopStreamReveal();
+        }
+        return;
+      }
+
+      setMessages(prev => prev.map(m => (
+        m.id === streamMessageIdRef.current ? { ...m, text: `${m.text}${nextChunk}` } : m
+      )));
+    }, intervalMs);
+  };
+
+  const pushStreamChunk = (chunkText) => {
+    streamBufferRef.current.push(...splitForReveal(chunkText, streamModeRef.current));
+  };
+
+  const finalizeStreamMessage = (finalText) => {
+    if (!streamMessageIdRef.current) return;
+    pendingFinalTextRef.current = finalText || '';
+
+    // If there is no buffered content left, finalize immediately.
+    if (streamBufferRef.current.length === 0) {
+      const targetId = streamMessageIdRef.current;
+      const doneText = pendingFinalTextRef.current;
+      setMessages(prev => prev.map(m => (
+        m.id === targetId ? { ...m, text: doneText || m.text } : m
+      )));
+      stopStreamReveal();
+    }
+  };
 
   useEffect(() => {
     if (queryReportId) {
@@ -75,11 +187,13 @@ export default function Chat() {
       }
 
       try {
+        let hasCachedMessages = false;
         const cached = localStorage.getItem(getChatCacheKey(reportId));
         if (cached) {
           const cachedMessages = JSON.parse(cached);
           if (Array.isArray(cachedMessages) && cachedMessages.length > 0) {
             setMessages(cachedMessages);
+            hasCachedMessages = true;
           }
         }
 
@@ -99,7 +213,7 @@ export default function Chat() {
           });
         }
 
-        if (historyData.messages && historyData.messages.length > 0) {
+        if (historyData.messages && historyData.messages.length > 0 && !hasCachedMessages) {
           const mapped = historyData.messages.map((m, idx) => ({
             id: `h-${idx}`,
             sender: m.role === 'user' ? 'user' : 'ai',
@@ -108,7 +222,7 @@ export default function Chat() {
           const merged = [...initialMessages, ...mapped];
           setMessages(merged);
           localStorage.setItem(getChatCacheKey(reportId), JSON.stringify(merged));
-        } else {
+        } else if (!hasCachedMessages) {
           const initial = [
             ...initialMessages,
             {
@@ -127,12 +241,16 @@ export default function Chat() {
       }
     };
     initChat();
-  }, [reportId, language]);
+  }, [reportId]);
 
   useEffect(() => {
     if (!reportId || messages.length === 0) return;
     localStorage.setItem(getChatCacheKey(reportId), JSON.stringify(messages));
   }, [messages, reportId]);
+
+  useEffect(() => {
+    return () => stopStreamReveal();
+  }, []);
 
   // Scroll to bottom
   useEffect(() => {
@@ -142,55 +260,54 @@ export default function Chat() {
   }, [messages]);
 
   const handleSend = async (text) => {
-    if (!text.trim() || isLoading || !reportId) return;
+    if (!text.trim() || isLoading || isReporting || !reportId) return;
 
     const userMessage = { id: Date.now().toString(), sender: 'user', text };
+    const aiMessageId = `${Date.now()}-stream-ai`;
     setMessages(prev => [...prev, userMessage]);
     setInputVal('');
     setIsLoading(true);
+    setMessages(prev => [...prev, { id: aiMessageId, sender: 'ai', text: '' }]);
+    startStreamReveal(aiMessageId, STREAM_DISPLAY_MODE);
 
     try {
-      const response = await api.chat.send(reportId, text);
-      const aiResponse = { 
-        id: (Date.now() + 1).toString(), 
-        sender: 'ai', 
-        text: response.reply 
-      };
-      setMessages(prev => [...prev, aiResponse]);
+      const response = await api.chat.send(reportId, text, {
+        streamMode: 'word',
+        streamChunkSize: 3,
+        onToken: (chunk) => pushStreamChunk(chunk),
+      });
+      finalizeStreamMessage(response?.reply || '');
     } catch (err) {
       console.error("Failed to send message:", err);
-      setMessages(prev => [...prev, {
-        id: 'err', sender: 'ai',
-        text: language === 'ar' ? 'عذراً، حدث خطأ أثناء الاتصال بالخادم.' : 'Sorry, an error occurred while connecting to the engine.'
-      }]);
+      finalizeStreamMessage(language === 'ar'
+        ? 'عذراً، حدث خطأ أثناء الاتصال بالخادم.'
+        : 'Sorry, an error occurred while connecting to the engine.');
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleFullReport = async () => {
-    if (isReporting || !reportId) return;
+    if (isReporting || isLoading || !reportId) return;
     setIsReporting(true);
+    const reportMessageId = `fr-${Date.now()}`;
     setMessages(prev => [...prev, {
-      id: 'fr-loading',
+      id: reportMessageId,
       sender: 'ai',
-      text: language === 'ar' 
-        ? '⏳ جارٍ إنشاء تقرير شامل متعدد الوكلاء... قد يستغرق هذا دقيقة أو أكثر.'
-        : '⏳ Generating full multi-agent diagnostic report... This may take 1-2 minutes.'
+      text: ''
     }]);
+    startStreamReveal(reportMessageId, STREAM_DISPLAY_MODE);
     try {
-      const result = await api.diagnostics.fullReport(reportId, language);
-      setMessages(prev => prev.filter(m => m.id !== 'fr-loading').concat({
-        id: `fr-${Date.now()}`,
-        sender: 'ai',
-        text: result.explanation || (language === 'ar' ? 'لم يتم إنشاء التقرير.' : 'No report was generated.')
-      }));
+      const result = await api.diagnostics.fullReport(reportId, language, {
+        streamMode: 'word',
+        streamChunkSize: 4,
+        onToken: (chunk) => pushStreamChunk(chunk),
+      });
+      finalizeStreamMessage(result?.explanation || (language === 'ar' ? 'لم يتم إنشاء التقرير.' : 'No report was generated.'));
     } catch (err) {
-      setMessages(prev => prev.filter(m => m.id !== 'fr-loading').concat({
-        id: 'fr-err',
-        sender: 'ai',
-        text: language === 'ar' ? 'فشل إنشاء التقرير الشامل. يرجى المحاولة مجدداً.' : 'Failed to generate full report. Please try again.'
-      }));
+      finalizeStreamMessage(language === 'ar'
+        ? 'فشل إنشاء التقرير الشامل. يرجى المحاولة مجدداً.'
+        : 'Failed to generate full report. Please try again.');
     } finally {
       setIsReporting(false);
     }
@@ -234,7 +351,7 @@ export default function Chat() {
               </div>
             </motion.div>
           ))}
-          {isLoading && (
+          {isLoading && !streamMessageIdRef.current && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className={styles.aiWrap}>
                <div className={styles.aiAvatar}><Zap size={16} className={styles.glowIcon} /></div>
                <div className={`${styles.bubble} ${styles.ai}`}>...</div>
@@ -249,7 +366,7 @@ export default function Chat() {
             <button 
               key={chip.id} 
               className={styles.chip} 
-              disabled={!reportId || isLoading}
+              disabled={!reportId || isLoading || isReporting}
               onClick={() => handleSend(language === 'ar' ? chip.textAr : chip.textEn)}
             >
               {language === 'ar' ? chip.textAr : chip.textEn}
@@ -262,7 +379,7 @@ export default function Chat() {
             className={styles.input}
             placeholder={language === 'ar' ? 'رسالة...' : 'Transmit message...'}
             value={inputVal}
-            disabled={!reportId || isLoading}
+            disabled={!reportId || isLoading || isReporting}
             onChange={e => setInputVal(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleSend(inputVal)}
           />
@@ -274,7 +391,7 @@ export default function Chat() {
           >
             {isReporting ? <Loader size={20} className={styles.spinIcon} /> : <FileText size={20} />}
           </button>
-          <button className={styles.sendBtn} onClick={() => handleSend(inputVal)} disabled={!reportId || isLoading}>
+          <button className={styles.sendBtn} onClick={() => handleSend(inputVal)} disabled={!reportId || isLoading || isReporting}>
             <Send size={20} />
           </button>
         </div>
