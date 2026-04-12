@@ -5,7 +5,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 """FastAPI Microservice for Multi-Agent Mechanic Workflow."""
 import uvicorn
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Header, Depends
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
@@ -18,8 +18,6 @@ from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 from openai import APITimeoutError, APIConnectionError, AuthenticationError, RateLimitError
 import config
-
-from fastapi import Header, Depends
 
 app = FastAPI(title="CarBrain AI Backend")
 logger = logging.getLogger(__name__)

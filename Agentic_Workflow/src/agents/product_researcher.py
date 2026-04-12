@@ -5,7 +5,6 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from src.states.writer_state import WriterState
 from src.tools.tavily_tool import search_products
 import config
-import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 
