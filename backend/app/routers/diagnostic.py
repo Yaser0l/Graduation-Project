@@ -6,7 +6,7 @@ from uuid import UUID
 from app.db.session import get_db
 from app.core.deps import get_current_user
 from app.schemas.auth import UserOut
-from app.schemas.diagnostic import DiagnosticReportOut
+from app.schemas.diagnostic import DiagnosticReportOut, FullReportRequest
 from app.services.llm import llm_service
 
 router = APIRouter(prefix="/api/diagnostics", tags=["diagnostics"])
@@ -105,6 +105,7 @@ async def resolve_diagnostic(
 @router.post("/{report_id}/full-report")
 async def generate_full_report(
     report_id: UUID,
+    payload: FullReportRequest,
     db: AsyncSession = Depends(get_db),
     current_user: UserOut = Depends(get_current_user),
 ):
@@ -128,5 +129,9 @@ async def generate_full_report(
         "mileage": report.mileage,
     }
 
-    full_result = await llm_service.full_report(dtc_codes=dtc_codes, vehicle=vehicle)
+    full_result = await llm_service.full_report(
+        dtc_codes=dtc_codes,
+        vehicle=vehicle,
+        language=(payload.language or "en"),
+    )
     return full_result

@@ -41,6 +41,7 @@ def prepare_input(data: Dict[str, Any]) -> Dict[str, Any]:
     # Prepare state
     state = {
         "user_id": data.get("user_id", "unknown_user"),
+        "language": data.get("language", "en"),
         "car_metadata": car_metadata,
         "obd2_data": data.get("obd2_data", {}),
         "messages": []

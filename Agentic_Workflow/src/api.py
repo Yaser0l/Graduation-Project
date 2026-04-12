@@ -60,6 +60,7 @@ class Vehicle(BaseModel):
 class AnalyzeRequest(BaseModel):
     dtc_codes: List[str]
     vehicle: Vehicle
+    language: Optional[str] = "en"
 
 class ReportModel(BaseModel):
     dtc_codes: List[str]
@@ -233,6 +234,7 @@ async def full_report(request: AnalyzeRequest):
         
         input_data = {
             "user_id": "api_user",
+            "language": request.language or "en",
             "car_metadata": {
                 "car_name": request.vehicle.make or "Unknown",
                 "car_model": request.vehicle.model or "Unknown",

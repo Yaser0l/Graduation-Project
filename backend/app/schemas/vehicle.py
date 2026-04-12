@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from datetime import datetime
+from datetime import datetime, date
 from typing import Optional
 from uuid import UUID
 
@@ -14,6 +14,7 @@ class VehicleBase(BaseModel):
 class VehicleCreate(VehicleBase):
     initialize_maintenance_baseline: bool = True
     last_service_km: Optional[int] = Field(default=None, ge=0)
+    last_service_date: Optional[date] = None
 
 class VehicleUpdate(BaseModel):
     mileage: Optional[int] = None

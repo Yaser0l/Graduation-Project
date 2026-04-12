@@ -98,6 +98,18 @@ export const api = {
       });
       return handleResponse(response);
     },
+    remove: async (vehicleId) => {
+      const response = await fetchWithTimeout(`${BASE_URL}/vehicles/${vehicleId}`, {
+        method: 'DELETE',
+        headers: getHeaders(),
+      });
+
+      if (response.status === 204) {
+        return null;
+      }
+
+      return handleResponse(response);
+    },
   },
 
   diagnostics: {
@@ -129,10 +141,11 @@ export const api = {
       });
       return handleResponse(response);
     },
-    fullReport: async (reportId) => {
+    fullReport: async (reportId, language = 'en') => {
       const response = await fetchWithTimeout(`${BASE_URL}/diagnostics/${reportId}/full-report`, {
         method: 'POST',
         headers: getHeaders(),
+        body: JSON.stringify({ language }),
         timeout: 300000,
       });
       return handleResponse(response);

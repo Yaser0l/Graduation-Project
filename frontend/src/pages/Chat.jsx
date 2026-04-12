@@ -179,7 +179,7 @@ export default function Chat() {
         : '⏳ Generating full multi-agent diagnostic report... This may take 1-2 minutes.'
     }]);
     try {
-      const result = await api.diagnostics.fullReport(reportId);
+      const result = await api.diagnostics.fullReport(reportId, language);
       setMessages(prev => prev.filter(m => m.id !== 'fr-loading').concat({
         id: `fr-${Date.now()}`,
         sender: 'ai',

@@ -85,6 +85,13 @@
   color: var(--text-primary);
 }
 
+.vehicleRow {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: stretch;
+}
+
 .vehicleCard:hover {
   background: var(--bg-card-hover);
   border-color: var(--accent-primary);
@@ -170,4 +177,40 @@
   background: rgba(var(--accent-primary-rgb, 99, 102, 241), 0.08);
   border-color: var(--accent-primary);
   transform: translateY(-1px);
+}
+
+.removeVehicleBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  background: var(--bg-app);
+  color: #ef4444;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.removeVehicleBtn:hover:not(:disabled) {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.12);
+}
+
+.removeVehicleBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.spinner {
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }

@@ -27,3 +27,7 @@ class DiagnosticReportOut(DiagnosticReportBase):
 
     class Config:
         from_attributes = True
+
+
+class FullReportRequest(BaseModel):
+    language: Optional[str] = "en"

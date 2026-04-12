@@ -18,6 +18,7 @@ export default function Onboarding() {
   const [oilProgramKm, setOilProgramKm] = useState('10000');
   const [initializeMaintenanceBaseline, setInitializeMaintenanceBaseline] = useState(true);
   const [lastServiceKm, setLastServiceKm] = useState('');
+  const [lastServiceDate, setLastServiceDate] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError]     = useState(null);
 
@@ -42,6 +43,9 @@ export default function Onboarding() {
         initialize_maintenance_baseline: initializeMaintenanceBaseline,
         last_service_km: initializeMaintenanceBaseline
           ? (lastServiceKm.trim() === '' ? null : (parseInt(lastServiceKm, 10) || 0))
+          : null,
+        last_service_date: initializeMaintenanceBaseline
+          ? (lastServiceDate.trim() === '' ? null : lastServiceDate)
           : null,
       });
       navigate('/dashboard');
@@ -217,20 +221,37 @@ export default function Onboarding() {
         </div>
 
         {initializeMaintenanceBaseline && (
-          <div className={styles.field}>
-            <label htmlFor="lastServiceKm" className={styles.label}>
-              {ar ? 'كم كان العداد عند آخر صيانة؟' : 'Odometer at last major service'}
-              <span className={styles.optional}>{ar ? '(اختياري)' : '(optional)'}</span>
-            </label>
-            <input
-              id="lastServiceKm"
-              type="number"
-              className={styles.input}
-              placeholder={ar ? 'افتراضياً سيتم استخدام الممشى الحالي' : 'Defaults to current mileage if empty'}
-              value={lastServiceKm}
-              onChange={e => setLastServiceKm(e.target.value)}
-              min={0}
-            />
+          <div className={styles.row}>
+            <div className={styles.field}>
+              <label htmlFor="lastServiceKm" className={styles.label}>
+                {ar ? 'كم كان العداد عند آخر صيانة؟' : 'Odometer at last major service'}
+                <span className={styles.optional}>{ar ? '(اختياري)' : '(optional)'}</span>
+              </label>
+              <input
+                id="lastServiceKm"
+                type="number"
+                className={styles.input}
+                placeholder={ar ? 'افتراضياً سيتم استخدام الممشى الحالي' : 'Defaults to current mileage if empty'}
+                value={lastServiceKm}
+                onChange={e => setLastServiceKm(e.target.value)}
+                min={0}
+              />
+            </div>
+
+            <div className={styles.field}>
+              <label htmlFor="lastServiceDate" className={styles.label}>
+                {ar ? 'تاريخ آخر صيانة' : 'Date of last major service'}
+                <span className={styles.optional}>{ar ? '(اختياري)' : '(optional)'}</span>
+              </label>
+              <input
+                id="lastServiceDate"
+                type="date"
+                className={styles.input}
+                value={lastServiceDate}
+                onChange={e => setLastServiceDate(e.target.value)}
+                max={new Date().toISOString().split('T')[0]}
+              />
+            </div>
           </div>
         )}
 

@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
@@ -51,6 +53,14 @@ async def create_vehicle(
         if baseline_km is None:
             baseline_km = max(0, int(vehicle_in.mileage or 0))
 
+        baseline_at = datetime.now(timezone.utc)
+        if vehicle_in.last_service_date is not None:
+            baseline_at = datetime.combine(
+                vehicle_in.last_service_date,
+                datetime.min.time(),
+                tzinfo=timezone.utc,
+            )
+
         tasks_result = await db.execute(text("SELECT id FROM maintenance_tasks WHERE is_active = TRUE"))
         task_ids = [row.id for row in tasks_result.all()]
 
@@ -58,7 +68,7 @@ async def create_vehicle(
             baseline_query = text(
                 """
                 INSERT INTO vehicle_maintenance_state (vehicle_id, task_id, last_completed_km, last_completed_at, updated_at)
-                VALUES (:vehicle_id, :task_id, :last_completed_km, NOW(), NOW())
+                VALUES (:vehicle_id, :task_id, :last_completed_km, :last_completed_at, NOW())
                 ON CONFLICT (vehicle_id, task_id)
                 DO UPDATE SET
                     last_completed_km = EXCLUDED.last_completed_km,
@@ -73,6 +83,7 @@ async def create_vehicle(
                         "vehicle_id": vehicle.id,
                         "task_id": task_id,
                         "last_completed_km": baseline_km,
+                        "last_completed_at": baseline_at,
                     },
                 )
 
@@ -126,3 +137,31 @@ async def update_vehicle(
 
     await db.commit()
     return vehicle
+
+
+@router.delete("/{vehicle_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_vehicle(
+    vehicle_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserOut = Depends(get_current_user)
+):
+    query = text(
+        """
+        DELETE FROM vehicles
+        WHERE id = :id AND user_id = :user_id
+        RETURNING id
+        """
+    )
+    result = await db.execute(
+        query,
+        {
+            "id": vehicle_id,
+            "user_id": current_user.id,
+        }
+    )
+    deleted = result.first()
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+
+    await db.commit()
+    return None

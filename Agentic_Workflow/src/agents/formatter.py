@@ -21,16 +21,41 @@ class FormatterAgent:
             llm_params["base_url"] = config.base_url
         self.llm = ChatOpenAI(**llm_params)
     
-    def _build_format_prompt(self, draft_report: str, car_info: str) -> str:
+    def _normalize_language(self, value: str) -> str:
+        """Normalize incoming language preference to supported values."""
+        if not value:
+            return "en"
+        lowered = str(value).strip().lower()
+        return "ar" if lowered.startswith("ar") else "en"
+
+    def _build_format_prompt(self, draft_report: str, car_info: str, report_language: str) -> str:
         """Build the prompt for formatting.
         
         Args:
             draft_report: Technical draft report
             car_info: Car information
+            report_language: Target report language (en/ar)
             
         Returns:
             Formatting prompt
         """
+        is_arabic = report_language == "ar"
+        output_language_label = "Arabic" if is_arabic else "English"
+        header_title = "تقرير التشخيص" if is_arabic else "DIAGNOSTIC REPORT"
+        section_found = "ما الذي وجدناه" if is_arabic else "WHAT WE FOUND"
+        section_urgency = "مستوى الخطورة" if is_arabic else "URGENCY LEVEL"
+        section_findings = "النتائج التفصيلية" if is_arabic else "DETAILED FINDINGS"
+        section_actions = "الإجراءات الموصى بها" if is_arabic else "RECOMMENDED ACTIONS"
+        section_products = "المنتجات الموصى بها" if is_arabic else "RECOMMENDED PRODUCTS"
+        section_cost = "تقدير التكلفة" if is_arabic else "COST ESTIMATE"
+        section_safety = "معلومات السلامة" if is_arabic else "SAFETY INFORMATION"
+        section_next = "الخطوات التالية" if is_arabic else "NEXT STEPS"
+        vehicle_label = "المركبة" if is_arabic else "Vehicle"
+        date_label = "تاريخ التقرير" if is_arabic else "Report Date"
+        p1_label = "الأولوية 1 (نفذ أولاً)" if is_arabic else "Priority 1 (Do First)"
+        p2_label = "الأولوية 2 (نفذ قريباً)" if is_arabic else "Priority 2 (Do Soon)"
+        tips_label = "نصائح صيانة" if is_arabic else "Maintenance Tips"
+
         return f"""You are formatting a technical automotive report for a customer who may not have technical expertise.
 
 VEHICLE:
@@ -48,30 +73,36 @@ Transform this technical report into a user-friendly format that:
 4. Is empathetic and helpful in tone
 5. Provides clear next steps
 
+LANGUAGE REQUIREMENTS:
+- Output the entire report in {output_language_label}.
+- Translate all section titles, labels, and bullet text into {output_language_label}.
+- Keep diagnostic codes, VIN values, product names, and URLs unchanged.
+- Keep the exact section order and separator style shown below.
+
 FORMAT YOUR RESPONSE AS:
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-DIAGNOSTIC REPORT
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━
+{header_title}
+━━━━━━━━━━━━━
 
-Vehicle: [car info]
-Report Date: [current date]
+{vehicle_label}: [car info]
+{date_label}: [current date]
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-WHAT WE FOUND
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━
+{section_found}
+━━━━━━━━━━━━━
 
 [Brief, clear summary of issues in plain language]
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-URGENCY LEVEL
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━
+{section_urgency}
+━━━━━━━━━━━━━
 
 [Critical/High/Medium/Low with explanation]
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-DETAILED FINDINGS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━
+{section_findings}
+━━━━━━━━━━━━
 
 [Clear explanation of each issue with:
  • What it is (in plain language)
@@ -79,46 +110,46 @@ DETAILED FINDINGS
  • What it affects
  • What needs to be done]
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-RECOMMENDED ACTIONS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━
+{section_actions}
+━━━━━━━━━━━━
 
-Priority 1 (Do First):
+{p1_label}:
 • [action items]
 
-Priority 2 (Do Soon):
+{p2_label}:
 • [action items]
 
-Maintenance Tips:
+{tips_label}:
 • [preventive recommendations]
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-RECOMMENDED PRODUCTS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━
+{section_products}
+━━━━━━━━━━━━━
 
 [List products with links and brief explanations]
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-COST ESTIMATE
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━
+{section_cost}
+━━━━━━━━━━━━━
 
 [Estimated costs if available]
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-SAFETY INFORMATION
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━
+{section_safety}
+━━━━━━━━━━━━━
 
 [Any safety concerns or driving restrictions]
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-NEXT STEPS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━
+{section_next}
+━━━━━━━━━━━━━
 
 1. [First step]
 2. [Second step]
 3. [Third step]
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━
 
 Make it friendly, clear, and actionable!
 
@@ -136,6 +167,7 @@ USER-FRIENDLY REPORT:"""
         # Extract data from state
         draft_report = state.get("draft_report", "")
         car_metadata = state["car_metadata"]
+        report_language = self._normalize_language(state.get("language", "en"))
         
         if not draft_report:
             return {
@@ -147,7 +179,7 @@ USER-FRIENDLY REPORT:"""
         car_info = f"{car_metadata.year} {car_metadata.car_name} {car_metadata.car_model}"
         
         # Build format prompt
-        prompt = self._build_format_prompt(draft_report, car_info)
+        prompt = self._build_format_prompt(draft_report, car_info, report_language)
         
         # Generate formatted report
         print("[Formatter] Creating user-friendly report...")

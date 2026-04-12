@@ -53,7 +53,7 @@ async def send_email_alert(to_email: str, report: dict, vehicle: dict):
             return
             
         await _send_email_message(message)
-        print(f"[NOTIFY] email sent to {to_email}")
+        print(f"[NOTIFY] Email sent to {to_email}")
     except Exception as e:
         print(f"[NOTIFY] Failed to send email: {e}")
 

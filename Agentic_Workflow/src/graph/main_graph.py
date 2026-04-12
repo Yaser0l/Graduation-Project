@@ -15,6 +15,7 @@ class MainState(TypedDict):
     """Main state for the entire workflow."""
     # Input fields
     user_id: str
+    language: str
     car_metadata: CarMetadata
     obd2_data: Dict[str, Any]
     
@@ -135,6 +136,7 @@ def writer_orchestration_node(state: MainState) -> Dict[str, Any]:
     # Prepare Writer state
     writer_state: WriterState = {
         "user_id": state["user_id"],
+        "language": state.get("language", "en"),
         "car_metadata": state["car_metadata"],
         "obd2_analysis": state["obd2_analysis"],
         "product_recommendations": None,

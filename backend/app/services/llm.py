@@ -89,14 +89,14 @@ class LlmService:
                 logger.error("[LLM] chat() failed: %s", e)
                 return "Sorry, the AI mechanic is temporarily unavailable. Please try again in a moment."
 
-    async def full_report(self, dtc_codes: list, vehicle: dict) -> dict:
+    async def full_report(self, dtc_codes: list, vehicle: dict, language: str = "en") -> dict:
         async with httpx.AsyncClient(
             base_url=self.base_url, timeout=self.timeout, headers=self.headers
         ) as client:
             try:
                 response = await client.post(
                     settings.LLM_FULL_REPORT_PATH,
-                    json={"dtc_codes": dtc_codes, "vehicle": vehicle},
+                    json={"dtc_codes": dtc_codes, "vehicle": vehicle, "language": language},
                 )
                 response.raise_for_status()
                 data = response.json()

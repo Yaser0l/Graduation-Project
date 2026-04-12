@@ -140,6 +140,30 @@ export const AppProvider = ({ children }) => {
     return updated;
   };
 
+  const removeVehicle = async (vehicleId) => {
+    await api.vehicles.remove(vehicleId);
+
+    setVehicles((prev) => {
+      const nextVehicles = prev.filter((v) => v.id !== vehicleId);
+
+      setActiveVehicleState((currentActive) => {
+        if (!currentActive || currentActive.id !== vehicleId) {
+          return currentActive;
+        }
+
+        const replacement = nextVehicles[0] || null;
+        if (replacement) {
+          localStorage.setItem('activeVehicleId', replacement.id);
+        } else {
+          localStorage.removeItem('activeVehicleId');
+        }
+        return replacement;
+      });
+
+      return nextVehicles;
+    });
+  };
+
   // --- Diagnostic State ---
   const [diagnostics, setDiagnostics] = useState([]);
   const [maintenance, setMaintenance] = useState([]);
@@ -308,6 +332,7 @@ export const AppProvider = ({ children }) => {
             setActiveVehicle,
             addVehicle,
             updateVehicleMileage,
+            removeVehicle,
             fetchAppData,
             isLoadingData,
           }}

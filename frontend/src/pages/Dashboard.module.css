@@ -9,26 +9,6 @@
 .title { font-size: 2rem; font-weight: 700; letter-spacing: -1px; }
 .subtitle { color: var(--text-secondary); font-size: 1.1rem; }
 
-.logoutBtn {
-	display: inline-flex;
-	align-items: center;
-	gap: 8px;
-	border: 1px solid var(--border-color);
-	background: rgba(239, 68, 68, 0.12);
-	color: #fca5a5;
-	border-radius: 10px;
-	padding: 8px 12px;
-	font-weight: 600;
-	font-size: 0.85rem;
-	cursor: pointer;
-	transition: all 0.2s ease;
-}
-
-.logoutBtn:hover {
-	border-color: rgba(239, 68, 68, 0.65);
-	background: rgba(239, 68, 68, 0.2);
-	color: #fecaca;
-}
 
 .hudCard { display: flex; flex-direction: column; align-items: center; padding: 32px 24px; gap: 24px; position: relative; overflow: hidden; }
 .hudCard::before { content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(circle, rgba(228,228,231,0.03) 0%, transparent 60%); pointer-events: none; }
@@ -146,11 +126,6 @@
 @media (max-width: 768px) {
 	.headerTop {
 		align-items: flex-start;
-	}
-
-	.logoutBtn {
-		padding: 7px 10px;
-		font-size: 0.8rem;
 	}
 
 	.issueGrid {

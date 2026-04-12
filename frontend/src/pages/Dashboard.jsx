@@ -1,14 +1,13 @@
 import React, { useContext, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { LanguageContext, DiagnosticContext, VehicleContext, AuthContext } from '../store/AppContext';
-import { AlertTriangle, Wrench, ShieldCheck, Activity, ScanLine, CarFront, PenLine, Check, X, LogOut } from 'lucide-react';
+import { LanguageContext, DiagnosticContext, VehicleContext } from '../store/AppContext';
+import { AlertTriangle, Wrench, ShieldCheck, Activity, ScanLine, CarFront, PenLine, Check, X } from 'lucide-react';
 import styles from './Dashboard.module.css';
 
 export default function Dashboard() {
   const { activeVehicle, updateVehicleMileage } = useContext(VehicleContext);
   const { diagnostics, maintenance, startScan } = useContext(DiagnosticContext);
   const { language } = useContext(LanguageContext);
-  const { logout } = useContext(AuthContext);
   const [isEditingMileage, setIsEditingMileage] = useState(false);
   const [mileageInput, setMileageInput] = useState('');
   const [isSavingMileage, setIsSavingMileage] = useState(false);
@@ -117,10 +116,6 @@ export default function Dashboard() {
       <motion.div variants={itemVars} className={styles.header}>
         <div className={styles.headerTop}>
           <h1 className={styles.title}>{language === 'ar' ? 'نظرة عامة' : 'Overview'}</h1>
-          <button type="button" className={styles.logoutBtn} onClick={logout}>
-            <LogOut size={16} />
-            <span>{language === 'ar' ? 'تسجيل الخروج' : 'Log Out'}</span>
-          </button>
         </div>
         <p className={styles.subtitle}>{activeVehicle.year} {activeVehicle.make} {activeVehicle.model}</p>
       </motion.div>
