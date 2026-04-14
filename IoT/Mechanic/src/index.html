@@ -26,6 +26,20 @@
     <h2>Saved Networks</h2>
     <ul id="network-list"></ul>
 
+    <h2>MQTT Broker</h2>
+    <form id="broker-form">
+      <label for="broker_uri">Broker URI:</label><br />
+      <input
+        type="text"
+        id="broker_uri"
+        name="broker_uri"
+        placeholder="mqtt://broker.example.com"
+      /><br /><br />
+      <input type="submit" value="Save Broker URI" />
+    </form>
+
+    <p id="mqtt-status"></p>
+
     <script>
       async function fetchNetworks() {
         const response = await fetch("/wifi/saved");
