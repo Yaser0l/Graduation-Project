@@ -1,159 +1,233 @@
-/*
- * PROJECT: DHT11 SENSOR PUBLISHER
- *
- * This code reads temperature and humidity from a DHT11 sensor
- * and publishes the data to an MQTT broker.
- */
+#include "mqtt.h"
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "freertos/event_groups.h" // Added for synchronization
-#include "esp_system.h"
-#include "esp_wifi.h"
-#include "esp_event.h"
+
 #include "esp_log.h"
-#include "nvs_flash.h"
-
+#include "esp_random.h"
+#include "esp_timer.h"
 #include "mqtt_client.h"
-#include "dht.h" // Include DHT sensor library
+#include "nvs.h"
 
-// --- Configuration ---
-#define WIFI_SSID "SSID"
-#define WIFI_PASS "password"
+#include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
+#include "freertos/task.h"
 
-#define MQTT_BROKER_URI "mqtt://broker.emqx.io"
-#define DHT_GPIO 4 // GPIO pin for the DHT11 sensor data line
+#include "wifi_manager.h"
 
-// --- Global Variables ---
-static const char *TAG = "DHT_PUBLISHER";
-esp_mqtt_client_handle_t client;
+#define MQTT_DEFAULT_BROKER_URI "mqtt://broker.emqx.io"
+#define MQTT_PUBLISH_INTERVAL_MS 5000
+#define MQTT_TOPIC_DATA "iotfrontier/esp32/data"
+#define MQTT_TOPIC_STATUS "iotfrontier/esp32/status"
+#define MQTT_NVS_NAMESPACE "mqtt_cfg"
+#define MQTT_NVS_KEY_BROKER_URI "broker_uri"
 
-/* --- Event Group for Synchronization --- */
-static EventGroupHandle_t wifi_event_group;
-// Define a bit for when we are connected to Wi-Fi and have an IP
-#define WIFI_CONNECTED_BIT BIT0
+static const char *TAG = "mqtt_module";
 
-// --- Event Handlers ---
-static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data)
+static SemaphoreHandle_t s_lock = NULL;
+static esp_mqtt_client_handle_t s_client = NULL;
+static char s_broker_uri[MQTT_BROKER_URI_MAX_LEN] = MQTT_DEFAULT_BROKER_URI;
+
+static esp_err_t mqtt_store_broker_uri_locked(void)
 {
-    switch ((esp_mqtt_event_id_t)event_id)
+    nvs_handle_t nvs;
+    esp_err_t err = nvs_open(MQTT_NVS_NAMESPACE, NVS_READWRITE, &nvs);
+    if (err != ESP_OK)
     {
-    case MQTT_EVENT_CONNECTED:
-        ESP_LOGI(TAG, "MQTT client connected");
-        esp_mqtt_client_publish(client, "iotfrontier/esp32/status", "sensor_online", 0, 1, 0);
-        break;
-    case MQTT_EVENT_DISCONNECTED:
-        ESP_LOGI(TAG, "MQTT client disconnected");
-        break;
-    default:
-        break;
+        return err;
+    }
+
+    err = nvs_set_str(nvs, MQTT_NVS_KEY_BROKER_URI, s_broker_uri);
+    if (err == ESP_OK)
+    {
+        err = nvs_commit(nvs);
+    }
+
+    nvs_close(nvs);
+    return err;
+}
+
+static void mqtt_load_broker_uri(void)
+{
+    nvs_handle_t nvs;
+    esp_err_t err = nvs_open(MQTT_NVS_NAMESPACE, NVS_READONLY, &nvs);
+    if (err != ESP_OK)
+    {
+        ESP_LOGI(TAG, "No persisted broker URI, using default");
+        return;
+    }
+
+    size_t len = sizeof(s_broker_uri);
+    err = nvs_get_str(nvs, MQTT_NVS_KEY_BROKER_URI, s_broker_uri, &len);
+    nvs_close(nvs);
+
+    if (err != ESP_OK || s_broker_uri[0] == '\0')
+    {
+        strncpy(s_broker_uri, MQTT_DEFAULT_BROKER_URI, sizeof(s_broker_uri) - 1);
+        s_broker_uri[sizeof(s_broker_uri) - 1] = '\0';
+        ESP_LOGI(TAG, "Invalid broker URI in NVS, using default");
     }
 }
 
-// This function now signals the event group when an IP is obtained.
-static void wifi_event_handler(void *arg, esp_event_base_t event_base,
-                               int32_t event_id, void *event_data)
+static void mqtt_stop_client_locked(void)
 {
-    if (event_id == WIFI_EVENT_STA_START)
+    if (!s_client)
     {
-        esp_wifi_connect();
-        ESP_LOGI(TAG, "Wi-Fi connecting...");
+        return;
     }
-    else if (event_id == WIFI_EVENT_STA_DISCONNECTED)
-    {
-        ESP_LOGI(TAG, "Wi-Fi disconnected, trying to reconnect...");
-        esp_wifi_connect();
-    }
-    else if (event_id == IP_EVENT_STA_GOT_IP)
-    {
-        ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
-        ESP_LOGI(TAG, "Got IP address: " IPSTR, IP2STR(&event->ip_info.ip));
-        // Set the bit to signal that the connection is ready
-        xEventGroupSetBits(wifi_event_group, WIFI_CONNECTED_BIT);
-    }
+
+    esp_mqtt_client_stop(s_client);
+    esp_mqtt_client_destroy(s_client);
+    s_client = NULL;
 }
 
-// --- Initialization Functions ---
-static void wifi_init(void)
+static void mqtt_start_client_locked(void)
 {
-    // Create the event group before anything else
-    wifi_event_group = xEventGroupCreate();
-
-    ESP_ERROR_CHECK(nvs_flash_init());
-    ESP_ERROR_CHECK(esp_netif_init());
-    ESP_ERROR_CHECK(esp_event_loop_create_default());
-
-    ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler, NULL, NULL));
-    ESP_ERROR_CHECK(esp_event_handler_instance_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &wifi_event_handler, NULL, NULL));
-
-    esp_netif_create_default_wifi_sta();
-    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
-
-    wifi_config_t wifi_config = {.sta = {.ssid = WIFI_SSID, .password = WIFI_PASS}};
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
-    ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config));
-    ESP_ERROR_CHECK(esp_wifi_start());
-    ESP_LOGI(TAG, "Wi-Fi initialization finished. Waiting for connection...");
-}
-
-static void mqtt_app_start(void)
-{
-    esp_mqtt_client_config_t mqtt_cfg = {.broker.address.uri = MQTT_BROKER_URI};
-    client = esp_mqtt_client_init(&mqtt_cfg);
-    esp_mqtt_client_register_event(client, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
-    esp_mqtt_client_start(client);
-}
-
-// --- Publisher Task ---
-void publisher_task(void *pvParameters)
-{
-    float temperature, humidity;
-    char json_payload[120];
-
-    while (1)
+    if (s_client || !wifi_manager_is_connected())
     {
-        if (dht_read_float_data(DHT_TYPE_DHT11, DHT_GPIO, &humidity, &temperature) == ESP_OK)
+        return;
+    }
+
+    esp_mqtt_client_config_t mqtt_cfg = {
+        .broker.address.uri = s_broker_uri,
+    };
+
+    s_client = esp_mqtt_client_init(&mqtt_cfg);
+    if (!s_client)
+    {
+        ESP_LOGE(TAG, "Failed to initialize MQTT client");
+        return;
+    }
+
+    esp_mqtt_client_start(s_client);
+    esp_mqtt_client_publish(s_client, MQTT_TOPIC_STATUS, "online", 0, 1, 0);
+    ESP_LOGI(TAG, "MQTT client started with broker: %s", s_broker_uri);
+}
+
+static void mqtt_restart_client_locked(void)
+{
+    mqtt_stop_client_locked();
+    mqtt_start_client_locked();
+}
+
+static void mqtt_publish_task(void *arg)
+{
+    (void)arg;
+
+    while (true)
+    {
+        esp_mqtt_client_handle_t client = NULL;
+        bool should_publish = false;
+
+        xSemaphoreTake(s_lock, portMAX_DELAY);
+
+        if (wifi_manager_is_connected())
         {
-            ESP_LOGI(TAG, "Sensor Read OK: Temp=%.1fC, Humidity=%.1f%%", temperature, humidity);
-
-            snprintf(json_payload, sizeof(json_payload),
-                     "{\"device_id\":\"dht11_sensor_1\", \"temperature\":%.1f, \"humidity\":%.1f}",
-                     temperature, humidity);
-
-            esp_mqtt_client_publish(client, "iotfrontier/esp32/data", json_payload, 0, 1, 0);
+            if (!s_client)
+            {
+                mqtt_start_client_locked();
+            }
+            if (s_client)
+            {
+                should_publish = true;
+                client = s_client;
+            }
         }
-        else
+        else if (s_client)
         {
-            ESP_LOGE(TAG, "Failed to read data from DHT11 sensor");
+            mqtt_stop_client_locked();
         }
 
-        vTaskDelay(10000 / portTICK_PERIOD_MS);
+        xSemaphoreGive(s_lock);
+
+        if (should_publish && client)
+        {
+            char payload[160];
+            uint32_t arbitrary_value = esp_random() % 100000;
+            int64_t timestamp_ms = esp_timer_get_time() / 1000;
+
+            snprintf(payload, sizeof(payload),
+                     "{\"device_id\":\"esp32_s3_1\",\"value\":%lu,\"ts_ms\":%lld}",
+                     (unsigned long)arbitrary_value,
+                     (long long)timestamp_ms);
+
+            int msg_id = esp_mqtt_client_publish(client, MQTT_TOPIC_DATA, payload, 0, 1, 0);
+            ESP_LOGI(TAG, "Publish result=%d payload=%s", msg_id, payload);
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(MQTT_PUBLISH_INTERVAL_MS));
     }
 }
 
-// --- Main Application (Updated) ---
-void app_main(void)
+esp_err_t mqtt_module_init(void)
 {
-    // Initialize Wi-Fi and start the connection process
-    wifi_init();
+    if (!s_lock)
+    {
+        s_lock = xSemaphoreCreateMutex();
+        if (!s_lock)
+        {
+            return ESP_ERR_NO_MEM;
+        }
+    }
 
-    // --- Wait here until the WIFI_CONNECTED_BIT is set ---
-    // The program will pause on this line until the event handler
-    // signals that an IP address has been received.
-    xEventGroupWaitBits(wifi_event_group,
-                        WIFI_CONNECTED_BIT,
-                        pdFALSE,
-                        pdFALSE,
-                        portMAX_DELAY);
+    xSemaphoreTake(s_lock, portMAX_DELAY);
+    mqtt_load_broker_uri();
+    xSemaphoreGive(s_lock);
 
-    ESP_LOGI(TAG, "Wi-Fi connection established. Starting MQTT client.");
+    return ESP_OK;
+}
 
-    // Now that we are connected, we can safely start the MQTT client
-    mqtt_app_start();
+void mqtt_module_start_task(void)
+{
+    xTaskCreate(mqtt_publish_task, "mqtt_publish_task", 4096, NULL, 5, NULL);
+}
 
-    // Create and run the publisher task
-    xTaskCreate(&publisher_task, "publisher_task", 2048, NULL, 5, NULL);
+esp_err_t mqtt_module_set_broker_uri(const char *broker_uri)
+{
+    if (!s_lock || !broker_uri)
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    size_t len = strnlen(broker_uri, MQTT_BROKER_URI_MAX_LEN);
+    if (len == 0 || len >= MQTT_BROKER_URI_MAX_LEN)
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    xSemaphoreTake(s_lock, portMAX_DELAY);
+
+    bool changed = strcmp(s_broker_uri, broker_uri) != 0;
+    strncpy(s_broker_uri, broker_uri, sizeof(s_broker_uri) - 1);
+    s_broker_uri[sizeof(s_broker_uri) - 1] = '\0';
+
+    esp_err_t err = mqtt_store_broker_uri_locked();
+    if (err == ESP_OK && changed)
+    {
+        mqtt_restart_client_locked();
+    }
+
+    xSemaphoreGive(s_lock);
+    return err;
+}
+
+bool mqtt_module_get_broker_uri(char *out, size_t out_len)
+{
+    if (!s_lock || !out || out_len == 0)
+    {
+        return false;
+    }
+
+    xSemaphoreTake(s_lock, portMAX_DELAY);
+    size_t len = strnlen(s_broker_uri, sizeof(s_broker_uri));
+    if (len + 1 > out_len)
+    {
+        xSemaphoreGive(s_lock);
+        return false;
+    }
+
+    memcpy(out, s_broker_uri, len + 1);
+    xSemaphoreGive(s_lock);
+    return true;
 }

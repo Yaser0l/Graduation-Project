@@ -1,5 +1,3 @@
-- don't run pio commands
-
 ## Terminal command execution
 
 for output directly. Use this pattern instead for ALL terminal commands:
@@ -19,3 +17,5 @@ Then read `.idea/.copilot_out.txt`.
 
 Never use `isBackground: false` for commands that produce output.
 Never use `get_terminal_output` — it returns null in this environment.
+
+- never run pio commands

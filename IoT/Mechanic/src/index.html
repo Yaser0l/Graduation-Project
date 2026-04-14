@@ -65,7 +65,54 @@
         });
       }
 
+      async function loadBrokerUri() {
+        const status = document.getElementById("mqtt-status");
+        try {
+          const response = await fetch("/mqtt/broker");
+          const data = await response.json();
+          if (data.broker_uri) {
+            document.getElementById("broker_uri").value = data.broker_uri;
+          }
+          status.textContent = "Broker URI loaded";
+        } catch (error) {
+          status.textContent = "Failed to load Broker URI";
+        }
+      }
+
+      document
+        .getElementById("broker-form")
+        .addEventListener("submit", async (event) => {
+          event.preventDefault();
+
+          const brokerUri = document.getElementById("broker_uri").value.trim();
+          const status = document.getElementById("mqtt-status");
+
+          if (!brokerUri) {
+            status.textContent = "Broker URI is required";
+            return;
+          }
+
+          try {
+            const response = await fetch("/mqtt/broker", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ broker_uri: brokerUri }),
+            });
+
+            if (!response.ok) {
+              throw new Error("Request failed");
+            }
+
+            status.textContent = "Broker URI saved";
+          } catch (error) {
+            status.textContent = "Failed to save Broker URI";
+          }
+        });
+
       fetchNetworks();
+      loadBrokerUri();
     </script>
   </body>
 </html>

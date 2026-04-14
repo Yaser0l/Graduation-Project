@@ -10,6 +10,7 @@
 #include "esp_log.h"
 #include "esp_wifi.h"
 
+#include "mqtt.h"
 #include "wifi_manager.h"
 #include "wifi_store.h"
 
@@ -334,6 +335,98 @@ static esp_err_t scan_endpoint_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+static esp_err_t mqtt_broker_handler(httpd_req_t *req)
+{
+    if (req->method != HTTP_POST)
+    {
+        send_json(req, 405, "{\"status\":\"error\",\"message\":\"Method not allowed\"}");
+        return ESP_OK;
+    }
+
+    if (req->content_len <= 0 || req->content_len >= 512)
+    {
+        send_json(req, 400, "{\"status\":\"error\",\"message\":\"Invalid payload\"}");
+        return ESP_OK;
+    }
+
+    char body[512];
+    int received = httpd_req_recv(req, body, req->content_len);
+    if (received <= 0)
+    {
+        send_json(req, 400, "{\"status\":\"error\",\"message\":\"Failed to read body\"}");
+        return ESP_OK;
+    }
+    body[received] = '\0';
+
+    char broker_uri[MQTT_BROKER_URI_MAX_LEN] = {0};
+    cJSON *json = cJSON_Parse(body);
+    if (json)
+    {
+        cJSON *broker_json = cJSON_GetObjectItemCaseSensitive(json, "broker_uri");
+        if (cJSON_IsString(broker_json) && broker_json->valuestring)
+        {
+            strncpy(broker_uri, broker_json->valuestring, sizeof(broker_uri) - 1);
+        }
+        cJSON_Delete(json);
+    }
+    else
+    {
+        read_form_value(body, "broker_uri", broker_uri, sizeof(broker_uri));
+    }
+
+    if (broker_uri[0] == '\0')
+    {
+        send_json(req, 400, "{\"status\":\"error\",\"message\":\"broker_uri is required\"}");
+        return ESP_OK;
+    }
+
+    if (mqtt_module_set_broker_uri(broker_uri) != ESP_OK)
+    {
+        send_json(req, 500, "{\"status\":\"error\",\"message\":\"Failed to save broker URI\"}");
+        return ESP_OK;
+    }
+
+    send_json(req, 200, "{\"status\":\"success\"}");
+    return ESP_OK;
+}
+
+static esp_err_t mqtt_broker_get_handler(httpd_req_t *req)
+{
+    if (req->method != HTTP_GET)
+    {
+        send_json(req, 405, "{\"status\":\"error\",\"message\":\"Method not allowed\"}");
+        return ESP_OK;
+    }
+
+    char broker_uri[MQTT_BROKER_URI_MAX_LEN] = {0};
+    if (!mqtt_module_get_broker_uri(broker_uri, sizeof(broker_uri)))
+    {
+        send_json(req, 500, "{\"status\":\"error\",\"message\":\"Failed to load broker URI\"}");
+        return ESP_OK;
+    }
+
+    cJSON *response_json = cJSON_CreateObject();
+    if (!response_json)
+    {
+        send_json(req, 500, "{\"status\":\"error\",\"message\":\"Out of memory\"}");
+        return ESP_OK;
+    }
+
+    cJSON_AddStringToObject(response_json, "broker_uri", broker_uri);
+    char *response = cJSON_PrintUnformatted(response_json);
+    cJSON_Delete(response_json);
+
+    if (!response)
+    {
+        send_json(req, 500, "{\"status\":\"error\",\"message\":\"Out of memory\"}");
+        return ESP_OK;
+    }
+
+    send_json(req, 200, response);
+    free(response);
+    return ESP_OK;
+}
+
 void web_server_start(saved_ap_store_t *store)
 {
     if (!store)
@@ -393,6 +486,18 @@ void web_server_start(saved_ap_store_t *store)
         .handler = scan_endpoint_handler,
         .user_ctx = NULL,
     };
+    httpd_uri_t mqtt_broker_post_uri = {
+        .uri = "/mqtt/broker",
+        .method = HTTP_POST,
+        .handler = mqtt_broker_handler,
+        .user_ctx = NULL,
+    };
+    httpd_uri_t mqtt_broker_get_uri = {
+        .uri = "/mqtt/broker",
+        .method = HTTP_GET,
+        .handler = mqtt_broker_get_handler,
+        .user_ctx = NULL,
+    };
 
     httpd_register_uri_handler(s_http_server, &homepage_uri);
     httpd_register_uri_handler(s_http_server, &save_uri);
@@ -401,4 +506,6 @@ void web_server_start(saved_ap_store_t *store)
     httpd_register_uri_handler(s_http_server, &connect_uri);
     httpd_register_uri_handler(s_http_server, &reset_uri);
     httpd_register_uri_handler(s_http_server, &scan_uri);
+    httpd_register_uri_handler(s_http_server, &mqtt_broker_post_uri);
+    httpd_register_uri_handler(s_http_server, &mqtt_broker_get_uri);
 }

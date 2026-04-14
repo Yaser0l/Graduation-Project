@@ -4,6 +4,7 @@
 #include "esp_wifi.h"
 #include "nvs_flash.h"
 
+#include "mqtt.h"
 #include "web_server.h"
 #include "wifi_manager.h"
 #include "wifi_store.h"
@@ -32,6 +33,7 @@ void app_main(void)
     ESP_ERROR_CHECK(wifi_store_load(&s_ap_store));
 
     wifi_manager_init(&s_ap_store);
+    ESP_ERROR_CHECK(mqtt_module_init());
 
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
     ESP_ERROR_CHECK(esp_wifi_start());
@@ -49,4 +51,5 @@ void app_main(void)
 
     web_server_start(&s_ap_store);
     wifi_manager_start_task();
+    mqtt_module_start_task();
 }
