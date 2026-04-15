@@ -5,6 +5,7 @@
 #include "nvs_flash.h"
 
 #include "mqtt.h"
+#include "canmodule.h"
 #include "web_server.h"
 #include "wifi_manager.h"
 #include "wifi_store.h"
@@ -29,6 +30,8 @@ void app_main(void)
 
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+
+    ESP_ERROR_CHECK(canmodule_init());
 
     ESP_ERROR_CHECK(wifi_store_load(&s_ap_store));
 
