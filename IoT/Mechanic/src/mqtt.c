@@ -18,8 +18,8 @@
 
 #define MQTT_DEFAULT_BROKER_URI "mqtt://broker.emqx.io"
 #define MQTT_PUBLISH_INTERVAL_MS 5000
-#define MQTT_TOPIC_DATA "iotfrontier/esp32/data"
-#define MQTT_TOPIC_STATUS "iotfrontier/esp32/status"
+#define MQTT_TOPIC_DATA "MechanicAI/user1/vehicle_1/data"
+#define MQTT_TOPIC_STATUS "MechanicAI/user1/vehicle_1/status"
 #define MQTT_NVS_NAMESPACE "mqtt_cfg"
 #define MQTT_NVS_KEY_BROKER_URI "broker_uri"
 
