@@ -5,7 +5,6 @@
 #include <string.h>
 
 #include "esp_log.h"
-#include "esp_random.h"
 #include "esp_timer.h"
 #include "mqtt_client.h"
 #include "nvs.h"
@@ -14,6 +13,7 @@
 #include "freertos/semphr.h"
 #include "freertos/task.h"
 
+#include "canmodule.h"
 #include "wifi_manager.h"
 
 #define MQTT_DEFAULT_BROKER_URI "mqtt://broker.emqx.io"
@@ -143,14 +143,30 @@ static void mqtt_publish_task(void *arg)
 
         if (should_publish && client)
         {
-            char payload[160];
-            uint32_t arbitrary_value = esp_random() % 100000;
+            char payload[512];
             int64_t timestamp_ms = esp_timer_get_time() / 1000;
+            can_decoded_signals_t signals = {0};
+
+            if (canmodule_get_latest_signals(&signals) != ESP_OK)
+            {
+                ESP_LOGW(TAG, "Failed to read CAN decoded signals");
+            }
 
             snprintf(payload, sizeof(payload),
-                     "{\"device_id\":\"esp32_s3_1\",\"value\":%lu,\"ts_ms\":%lld}",
-                     (unsigned long)arbitrary_value,
-                     (long long)timestamp_ms);
+                     "{\"device_id\":\"esp32_s3_1\",\"ts_ms\":%lld,\"rx_frames\":%lu,\"vehicle_speed_mph\":%.3f,\"wheel_speed_fl_mph\":%.3f,\"wheel_speed_fr_mph\":%.3f,\"wheel_speed_rl_mph\":%.3f,\"wheel_speed_rr_mph\":%.3f,\"steer_angle_deg\":%.3f,\"steer_rate_deg_s\":%.3f,\"engine_rpm\":%.3f,\"gas_pedal\":%.3f,\"brake_pedal\":%.3f,\"gear\":%u}",
+                     (long long)timestamp_ms,
+                     (unsigned long)signals.rx_frames,
+                     signals.vehicle_speed_mph,
+                     signals.wheel_speed_fl_mph,
+                     signals.wheel_speed_fr_mph,
+                     signals.wheel_speed_rl_mph,
+                     signals.wheel_speed_rr_mph,
+                     signals.steer_angle_deg,
+                     signals.steer_rate_deg_s,
+                     signals.engine_rpm,
+                     signals.gas_pedal,
+                     signals.brake_pedal,
+                     (unsigned int)signals.gear);
 
             int msg_id = esp_mqtt_client_publish(client, MQTT_TOPIC_DATA, payload, 0, 1, 0);
             ESP_LOGI(TAG, "Publish result=%d payload=%s", msg_id, payload);
