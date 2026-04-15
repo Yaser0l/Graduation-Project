@@ -19,3 +19,4 @@ Never use `isBackground: false` for commands that produce output.
 Never use `get_terminal_output` — it returns null in this environment.
 
 - never run pio commands
+- esp-idf framework location: ~/.platformio/packages/framework-espidf/
