@@ -33,6 +33,19 @@ cd frontend
 npm run dev
 ```
 
+### Terminal 4: exapmle dtc code
+```bash
+$payload = @{
+   vin = "XXXXXXXXXXXXXXXXX"
+   dtc_list = @("P0211")
+   mileage = 98000
+   timestamp = "2026-04-06T12:00:00Z"
+ } | ConvertTo-Json -Compress
+ 
+ $payload | docker exec -i carbrain-mqtt mosquitto_pub -h localhost -p 1883 -t vehicle/f/dtc -s
+
+```
+
 ## Stopping the Services
 
 To stop any service, press `Ctrl+C` in the respective terminal window.
