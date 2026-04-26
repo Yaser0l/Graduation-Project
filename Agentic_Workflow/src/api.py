@@ -33,8 +33,16 @@ async def startup_checks() -> None:
     if not key_set:
         logger.warning("OPENAI_API_KEY is empty. Provider requests will fail with authentication errors.")
 
-    if not base:
-        logger.warning("BASE_URL/OPENAI_BASE_URL is empty. Falling back may fail depending on provider setup.")
+        if not base:
+            logger.warning("BASE_URL/OPENAI_BASE_URL is empty. Falling back may fail depending on provider setup.")
+
+    # Pre-load the embedding model at startup so RAG queries are not delayed by model download
+    try:
+        from src.rag.knowledge_base import knowledge_base
+        _ = knowledge_base.embeddings  # triggers model download + cache
+        logger.info("Embedding model pre-loaded successfully")
+    except Exception as e:
+        logger.warning("Could not pre-load embedding model: %s. RAG will load it lazily on first call.", e)
 
 # -----------------
 # Security (Internal Handshake)
@@ -186,34 +194,78 @@ def parse_analysis_payload(raw: str) -> Dict[str, Any]:
 # -----------------
 # Endpoints
 # -----------------
+def _build_dtc_query(dtc_codes: List[str]) -> str:
+    """Build a RAG query string from DTC codes."""
+    return f"OBD2 diagnostic codes {' '.join(dtc_codes)} causes repair solutions"
+
+
 @app.post("/api/llm/analyze", dependencies=[Depends(verify_internal_secret)])
 async def analyze_dtc(request: AnalyzeRequest):
-    """Generates a lightning-fast brief explanation of the DTCs."""
+    """Generates a brief explanation of the DTCs using RAG knowledge first, with plain LLM fallback."""
     try:
-        # Fast single LLM call for immediate database saving
+        # Step 1: Query the RAG knowledge base (no Tavily web search)
+        rag_context = ""
+        rag_sources = False
+        try:
+            from src.tools.rag_tool import retrieve_with_reflection
+
+            query = _build_dtc_query(request.dtc_codes)
+            logger.info("analyze_dtc querying RAG for codes: %s", ", ".join(request.dtc_codes))
+            retrieval = retrieve_with_reflection.invoke({"query": query, "top_k": 3})
+            rag_sources = retrieval.get("is_sufficient", False)
+            rag_content = retrieval.get("content", "").strip()
+
+            if rag_content:
+                logger.info(
+                    "analyze_dtc RAG returned %d documents (score=%.2f, sufficient=%s)",
+                    retrieval.get("document_count", 0),
+                    retrieval.get("score", 0.0),
+                    rag_sources,
+                )
+                rag_context = f"\nREFERENCE INFORMATION:\n{rag_content}\n"
+            else:
+                logger.info("analyze_dtc RAG returned no content — falling back to plain LLM")
+        except Exception as rag_err:
+            logger.warning("analyze_dtc RAG retrieval failed (%s), falling back to plain LLM", rag_err)
+
+        # Step 2: Build the LLM call (with RAG context if available, otherwise plain)
         llm_kwargs = {"api_key": config.OPENAI_API_KEY}
         if config.base_url:
             llm_kwargs["base_url"] = config.base_url
-            
+
         llm = ChatOpenAI(model="deepseek-chat", temperature=0.7, timeout=240, max_retries=1, **llm_kwargs)
-        
+
         car_info = f"{request.vehicle.year} {request.vehicle.make} {request.vehicle.model}"
         dtcs = ", ".join(request.dtc_codes)
-        
-        prompt = (
-            "You are an automotive diagnostic assistant. "
-            "Analyze the DTC codes and return STRICT JSON with this exact shape: "
-            '{"explanation":"...","urgency":"low|medium|high|critical","per_code_urgency":{"CODE":"low|medium|high|critical"}}. '
-            "Rules: explanation must be concise (2-3 sentences), practical, and non-alarmist. "
-            "Classify each code in per_code_urgency. "
-            "If there are multiple codes, overall urgency MUST equal the highest severity among all provided codes. "
-            "Urgency must reflect immediate risk and drivability. "
-            f"Vehicle: {car_info}. Codes: {dtcs}."
-        )
-        
+
+        if rag_context:
+            prompt = (
+                "You are an automotive diagnostic assistant. "
+                "Analyze the DTC codes using the reference information below. "
+                "Return STRICT JSON with this exact shape: "
+                '{"explanation":"...","urgency":"low|medium|high|critical","per_code_urgency":{"CODE":"low|medium|high|critical"}}. '
+                "Rules: explanation must be concise (2-3 sentences), practical, and non-alarmist. "
+                "Classify each code in per_code_urgency. "
+                "If there are multiple codes, overall urgency MUST equal the highest severity among all provided codes. "
+                "Urgency must reflect immediate risk and drivability. "
+                f"Vehicle: {car_info}. Codes: {dtcs}."
+                f"{rag_context}"
+            )
+        else:
+            prompt = (
+                "You are an automotive diagnostic assistant. "
+                "Analyze the DTC codes and return STRICT JSON with this exact shape: "
+                '{"explanation":"...","urgency":"low|medium|high|critical","per_code_urgency":{"CODE":"low|medium|high|critical"}}. '
+                "Rules: explanation must be concise (2-3 sentences), practical, and non-alarmist. "
+                "Classify each code in per_code_urgency. "
+                "If there are multiple codes, overall urgency MUST equal the highest severity among all provided codes. "
+                "Urgency must reflect immediate risk and drivability. "
+                f"Vehicle: {car_info}. Codes: {dtcs}."
+            )
+
         messages = [HumanMessage(content=prompt)]
         response = await asyncio.to_thread(llm.invoke, messages)
-        
+
         parsed = parse_analysis_payload(response.content)
         final_urgency = parsed["urgency"]
 
@@ -226,6 +278,7 @@ async def analyze_dtc(request: AnalyzeRequest):
         return {
             "explanation": parsed["explanation"],
             "urgency": final_urgency,
+            "rag_sources_used": rag_sources,
         }
     except APITimeoutError:
         dtcs = ", ".join(request.dtc_codes)
