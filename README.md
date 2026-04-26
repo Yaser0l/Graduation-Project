@@ -7,7 +7,7 @@ This project consists of three services that need to be run simultaneously in se
 - Python 3.x installed
 - Node.js and npm installed
 - Virtual environments set up in `agentic` and `backend` directories
-- docker compose the database
+- docker compose the database and mqtt
 
 ## Running the Services
 
