@@ -9,7 +9,7 @@ graph TD
         
         subgraph Layer1_Ingestion["1. Ingestion"]
             TWAI_DRV["TWAI Driver\n(Native CAN)"]
-            ELM_DRV["UART Driver\n(ELM327 Interface)"]
+            ISOTP_LIB["ISO-TP Stack\n(esp-idf)"]
         end
 
         subgraph Layer2_Core["2. Processing"]
@@ -27,22 +27,19 @@ graph TD
             MQTT_CLIENT["MQTT Client"]
             WIFI_DRV["Wi-Fi Stack"]
         end
-
-        ELM_CHIP[("ELM327 Chip")]
     end
 
     %% --- External Physical Connections ---
     VEHICLE -- "Raw CAN Traffic" --> TWAI_DRV
-    VEHICLE <-. "ISO 15765-4" .-> ELM_CHIP
-    ELM_CHIP -- "UART ASCII" --> ELM_DRV
-    ELM_DRV -- "AT Commands" --> ELM_CHIP
+    VEHICLE <-. "ISO 15765-4 (CAN)" .-> TWAI_DRV
 
     %% --- Internal Logic Flow ---
     TWAI_DRV --> MSG_CLASS
-    ELM_DRV --> MSG_CLASS
+    TWAI_DRV <--> ISOTP_LIB
+    ISOTP_LIB --> MSG_CLASS
 
     MSG_CLASS -- "Native Frames" --> RT_INT
-    MSG_CLASS -- "DTC Strings" --> DTC_INT
+    MSG_CLASS -- "UDS/DTC Payloads" --> DTC_INT
 
     RT_INT --> payload_Gen
     DTC_INT --> payload_Gen
@@ -55,4 +52,3 @@ graph TD
     style VEHICLE fill:#f9f,stroke:#333
     style BROKER fill:#f9f,stroke:#333
     style ESP32S3_DEVICE fill:#fff,stroke:#000
-    style ELM_CHIP fill:#eee,stroke:#f00,stroke-dasharray: 5 5
