@@ -1,9 +1,17 @@
-# This file was automatically generated for projects
-# without default 'CMakeLists.txt' file.
-
-FILE(GLOB_RECURSE app_sources ${CMAKE_SOURCE_DIR}/main/*.c)
-
 idf_component_register(
-	SRCS ${app_sources}
-	EMBED_TXTFILES "index.html"
+    SRCS 
+        "main.c"
+        "canmodule.c"
+        "mqtt.c"
+        "toyota_prius_2010_pt.c"
+        "web_server.c"
+        "wifi_manager.c"
+        "wifi_store.c"
+    EMBED_TXTFILES 
+        "index.html"
+    PRIV_REQUIRES 
+        "esp_http_server"
+		"nvs_flash"
+		"esp_wifi"
+		"esp_driver_gpio"
 )
