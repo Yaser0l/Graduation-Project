@@ -5,8 +5,4 @@ idf_component_register(
         "index.html"
     PRIV_REQUIRES 
         "esp_http_server"
-		"nvs_flash"
-		"esp_wifi"
-        "network"
-
 )

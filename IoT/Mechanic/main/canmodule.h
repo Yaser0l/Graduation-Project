@@ -2,7 +2,7 @@
 #define CANMODULE_H
 
 #include "esp_err.h"
-#include "esp_twai.h"
+#include "esp_twai_types.h"
 #include <stdint.h>
 
 typedef struct

@@ -10,7 +10,6 @@
 #include "mqtt_client.h"
 #include "nvs.h"
 
-#include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
 

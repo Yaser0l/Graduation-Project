@@ -1,14 +1,18 @@
 idf_component_register(
     SRCS 
         "main.c"
+        "canmodule.c"
+        "local_mqtt.c"
+        "dtc_reporter.c"
+        "toyota_prius_2010_pt.c"
+        "web_server.c"
+        "wifi_manager.c"
+        "wifi_store.c"
+    EMBED_TXTFILES 
+        "index.html"
     PRIV_REQUIRES 
         "esp_http_server"
 		"nvs_flash"
 		"esp_wifi"
 		"esp_driver_gpio"
-        "network"
-        "diagnostics"
-        "web_ui"
-        "vehicle_comms"
-
 )
