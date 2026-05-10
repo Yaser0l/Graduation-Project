@@ -8,6 +8,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/portmacro.h"
 #include "toyota_prius_2010_pt.h"
+#include "dtc_reporter.h"
 
 static const char *TAG = "canmodule";
 
@@ -129,6 +130,7 @@ static bool twai_rx_cb(twai_node_handle_t handle, const twai_rx_done_event_data_
     if (twai_node_receive_from_isr(handle, &rx_frame) == ESP_OK)
     {
         taskENTER_CRITICAL_ISR(&s_signals_lock);
+        dtc_reporter_can_rx_isr(&rx_frame);
         decode_prius_frame_from_isr(&rx_frame);
         s_signals.rx_frames++;
         taskEXIT_CRITICAL_ISR(&s_signals_lock);
@@ -185,4 +187,9 @@ esp_err_t canmodule_get_latest_signals(can_decoded_signals_t *out_signals)
     taskEXIT_CRITICAL(&s_signals_lock);
 
     return ESP_OK;
+}
+
+twai_node_handle_t canmodule_get_twai_handle(void)
+{
+    return s_node_hdl;
 }

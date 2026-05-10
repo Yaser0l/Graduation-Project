@@ -6,6 +6,7 @@
 
 #include "mqtt.h"
 #include "canmodule.h"
+#include "dtc_reporter.h"
 #include "web_server.h"
 #include "wifi_manager.h"
 #include "wifi_store.h"
@@ -32,6 +33,7 @@ void app_main(void)
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
 
     ESP_ERROR_CHECK(canmodule_init());
+    ESP_ERROR_CHECK(dtc_reporter_init());
 
     ESP_ERROR_CHECK(wifi_store_load(&s_ap_store));
 
@@ -55,4 +57,5 @@ void app_main(void)
     web_server_start(&s_ap_store);
     wifi_manager_start_task();
     mqtt_module_start_task();
+    dtc_reporter_start_task();
 }

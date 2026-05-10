@@ -3,6 +3,7 @@ idf_component_register(
         "main.c"
         "canmodule.c"
         "mqtt.c"
+        "dtc_reporter.c"
         "toyota_prius_2010_pt.c"
         "web_server.c"
         "wifi_manager.c"

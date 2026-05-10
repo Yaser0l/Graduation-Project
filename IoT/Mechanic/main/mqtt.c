@@ -6,6 +6,7 @@
 
 #include "esp_log.h"
 #include "esp_timer.h"
+#include "esp_random.h"
 #include "mqtt_client.h"
 #include "nvs.h"
 
@@ -20,6 +21,8 @@
 #define MQTT_PUBLISH_INTERVAL_MS 5000
 #define MQTT_TOPIC_DATA "MechanicAI/user1/vehicle_1/data"
 #define MQTT_TOPIC_STATUS "MechanicAI/user1/vehicle_1/status"
+#define MQTT_TOPIC_DTC_PREFIX "MechanicAI/user1/"
+#define MQTT_TOPIC_DTC_SUFFIX "/DTC"
 #define MQTT_NVS_NAMESPACE "mqtt_cfg"
 #define MQTT_NVS_KEY_BROKER_URI "broker_uri"
 
@@ -28,6 +31,7 @@ static const char *TAG = "mqtt_module";
 static SemaphoreHandle_t s_lock = NULL;
 static esp_mqtt_client_handle_t s_client = NULL;
 static char s_broker_uri[MQTT_BROKER_URI_MAX_LEN] = MQTT_DEFAULT_BROKER_URI;
+static char s_vehicle_fallback[24] = {0};
 
 static esp_err_t mqtt_store_broker_uri_locked(void)
 {
@@ -246,4 +250,44 @@ bool mqtt_module_get_broker_uri(char *out, size_t out_len)
     memcpy(out, s_broker_uri, len + 1);
     xSemaphoreGive(s_lock);
     return true;
+}
+
+esp_err_t mqtt_module_publish_dtc(const char *vin, const char *payload)
+{
+    if (!payload || !s_lock)
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    esp_err_t result = ESP_ERR_INVALID_STATE;
+    char topic[96];
+    const char *id = vin && vin[0] ? vin : NULL;
+    if (!id)
+    {
+        if (s_vehicle_fallback[0] == '\0')
+        {
+            uint32_t rand_val = esp_random();
+            snprintf(s_vehicle_fallback, sizeof(s_vehicle_fallback), "vehicle_%08lx", (unsigned long)rand_val);
+        }
+        id = s_vehicle_fallback;
+    }
+    int topic_len = snprintf(topic, sizeof(topic), "%s%s%s", MQTT_TOPIC_DTC_PREFIX, id, MQTT_TOPIC_DTC_SUFFIX);
+    if (topic_len <= 0 || topic_len >= (int)sizeof(topic))
+    {
+        return ESP_ERR_INVALID_SIZE;
+    }
+
+    xSemaphoreTake(s_lock, portMAX_DELAY);
+
+    if (s_client && wifi_manager_is_connected())
+    {
+        int msg_id = esp_mqtt_client_publish(s_client, topic, payload, 0, 1, 0);
+        if (msg_id >= 0)
+        {
+            result = ESP_OK;
+        }
+    }
+
+    xSemaphoreGive(s_lock);
+    return result;
 }

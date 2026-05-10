@@ -2,6 +2,7 @@
 #define CANMODULE_H
 
 #include "esp_err.h"
+#include "esp_twai.h"
 #include <stdint.h>
 
 typedef struct
@@ -22,5 +23,6 @@ typedef struct
 
 esp_err_t canmodule_init(void);
 esp_err_t canmodule_get_latest_signals(can_decoded_signals_t *out_signals);
+twai_node_handle_t canmodule_get_twai_handle(void);
 
 #endif
