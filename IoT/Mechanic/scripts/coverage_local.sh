@@ -12,8 +12,7 @@ mkdir -p coverage
 
 gcovr -r . \
   --filter "components/vehicle_comms/canmodule.c" \
-  --filter "components/vehicle_comms/toyota_prius_2010_pt.c" \
-  --filter "tests/.*" \
+  --filter "unit_tests/.*" \
   --html-details --html coverage/coverage.html \
   --xml-pretty --xml coverage/coverage.xml \
   --txt coverage/coverage.txt

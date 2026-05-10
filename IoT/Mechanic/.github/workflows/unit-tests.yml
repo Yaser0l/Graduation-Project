@@ -19,7 +19,7 @@ jobs:
           python3 -m pip install gcovr
 
       - name: Configure tests
-        run: cmake -S tests -B build/tests -DCMAKE_BUILD_TYPE=Debug -DENABLE_COVERAGE=ON
+        run: cmake -S unit_tests -B build/tests -DCMAKE_BUILD_TYPE=Debug -DENABLE_COVERAGE=ON
 
       - name: Build tests
         run: cmake --build build/tests
@@ -32,8 +32,7 @@ jobs:
           mkdir -p build/tests/coverage
           gcovr -r . \
             --filter "components/vehicle_comms/canmodule.c" \
-            --filter "components/vehicle_comms/toyota_prius_2010_pt.c" \
-            --filter "tests/.*" \
+            --filter "unit_tests/.*" \
             --html-details -o build/tests/coverage/coverage.html \
             --xml-pretty -o build/tests/coverage/coverage.xml \
             --txt -o build/tests/coverage/coverage.txt
