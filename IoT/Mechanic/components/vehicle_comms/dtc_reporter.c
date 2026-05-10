@@ -358,7 +358,7 @@ esp_err_t dtc_reporter_init(void)
         .rx_buffer_size = DTC_RX_BUFFER_SIZE,
     };
 
-    esp_err_t err = esp_isotp_new_transport_ex(node, &config, &s_isotp, false);
+    esp_err_t err = esp_isotp_new_transport(node, &config, &s_isotp);
     if (err != ESP_OK)
     {
         return err;
@@ -375,10 +375,5 @@ void dtc_reporter_start_task(void)
 
 void dtc_reporter_can_rx_isr(const twai_frame_t *rx_frame)
 {
-    if (!s_ready || !s_isotp)
-    {
-        return;
-    }
-
-    (void)esp_isotp_process_frame(s_isotp, rx_frame);
+    (void)rx_frame;
 }

@@ -1,0 +1,45 @@
+name: Unit Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake gcc make
+          python3 -m pip install --upgrade pip
+          python3 -m pip install gcovr
+
+      - name: Configure tests
+        run: cmake -S tests -B build/tests -DCMAKE_BUILD_TYPE=Debug -DENABLE_COVERAGE=ON
+
+      - name: Build tests
+        run: cmake --build build/tests
+
+      - name: Run tests
+        run: ctest --test-dir build/tests --output-on-failure
+
+      - name: Generate coverage
+        run: |
+          mkdir -p build/tests/coverage
+          gcovr -r . \
+            --filter "components/vehicle_comms/toyota_prius_2010_pt.c" \
+            --filter "tests/.*" \
+            --html-details -o build/tests/coverage/coverage.html \
+            --xml-pretty -o build/tests/coverage/coverage.xml \
+            --txt -o build/tests/coverage/coverage.txt
+
+      - name: Upload coverage artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: build/tests/coverage

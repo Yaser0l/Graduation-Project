@@ -6,6 +6,7 @@ idf_component_register(
     INCLUDE_DIRS 
         "."
     PRIV_REQUIRES
+        "vehicle_comms"
         "espressif__mqtt"
         "esp_driver_gpio"
         "esp_event"
