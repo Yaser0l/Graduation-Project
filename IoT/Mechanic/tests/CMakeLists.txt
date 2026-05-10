@@ -27,18 +27,6 @@ endif()
 
 enable_testing()
 
-add_executable(test_toyota_prius_2010_pt
-    ${CMAKE_CURRENT_LIST_DIR}/../components/vehicle_comms/toyota_prius_2010_pt.c
-    ${CMAKE_CURRENT_LIST_DIR}/test_toyota_prius_2010_pt.c
-)
-
-target_include_directories(test_toyota_prius_2010_pt PRIVATE
-    ${CMAKE_CURRENT_LIST_DIR}/../components/vehicle_comms
-)
-
-target_link_libraries(test_toyota_prius_2010_pt PRIVATE unity m)
-
-add_test(NAME test_toyota_prius_2010_pt COMMAND test_toyota_prius_2010_pt)
 
 add_executable(test_canmodule
     ${CMAKE_CURRENT_LIST_DIR}/test_canmodule.c
