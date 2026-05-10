@@ -31,8 +31,9 @@ jobs:
         run: |
           mkdir -p build/tests/coverage
           gcovr -r . \
-            --filter "components/vehicle_comms/canmodule.c" \
-            --filter "unit_tests/.*" \
+            --filter "components/.*" \
+            --exclude "unit_tests/.*" \
+            --exclude "components/vehicle_comms/toyota_prius_2010_pt.c" \
             --html-details -o build/tests/coverage/coverage.html \
             --xml-pretty -o build/tests/coverage/coverage.xml \
             --txt -o build/tests/coverage/coverage.txt

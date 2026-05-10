@@ -34,6 +34,16 @@ void tearDown(void)
 {
 }
 
+static void canmodule_invoke_rx(uint32_t id, const uint8_t *payload, uint8_t len)
+{
+    twai_stub_set_next_frame(id, payload, len);
+
+    const twai_event_callbacks_t *cbs = twai_stub_get_callbacks();
+    TEST_ASSERT_NOT_NULL(cbs->on_rx_done);
+
+    TEST_ASSERT_FALSE(cbs->on_rx_done(twai_stub_get_handle(), NULL, NULL));
+}
+
 void test_canmodule_init_success_registers_callback(void)
 {
     twai_stub_set_results(ESP_OK, ESP_OK, ESP_OK, ESP_OK);
@@ -137,6 +147,162 @@ void test_canmodule_rx_wheel_speeds_updates_signals(void)
     TEST_ASSERT_EQUAL_INT(1, s_dtc_isr_calls);
 }
 
+void test_canmodule_rx_steer_angle_updates_signals(void)
+{
+    twai_stub_set_results(ESP_OK, ESP_OK, ESP_OK, ESP_OK);
+    TEST_ASSERT_EQUAL(ESP_OK, canmodule_init());
+
+    struct toyota_prius_2010_pt_steer_angle_sensor_t steer = {
+        .steer_angle = 200,
+        .steer_rate = 500,
+    };
+    uint8_t payload[TOYOTA_PRIUS_2010_PT_STEER_ANGLE_SENSOR_LENGTH] = {0};
+
+    TEST_ASSERT_EQUAL_INT(TOYOTA_PRIUS_2010_PT_STEER_ANGLE_SENSOR_LENGTH,
+                          toyota_prius_2010_pt_steer_angle_sensor_pack(payload, &steer, sizeof(payload)));
+
+    canmodule_invoke_rx(TOYOTA_PRIUS_2010_PT_STEER_ANGLE_SENSOR_FRAME_ID, payload, sizeof(payload));
+
+    can_decoded_signals_t signals = {0};
+    TEST_ASSERT_EQUAL(ESP_OK, canmodule_get_latest_signals(&signals));
+
+    float angle = (float)toyota_prius_2010_pt_steer_angle_sensor_steer_angle_decode(steer.steer_angle);
+    float rate = (float)toyota_prius_2010_pt_steer_angle_sensor_steer_rate_decode(steer.steer_rate);
+
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, angle, signals.steer_angle_deg);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, rate, signals.steer_rate_deg_s);
+    TEST_ASSERT_EQUAL_UINT32(1, signals.rx_frames);
+    TEST_ASSERT_EQUAL_INT(1, s_dtc_isr_calls);
+}
+
+void test_canmodule_rx_powertrain_updates_signals(void)
+{
+    twai_stub_set_results(ESP_OK, ESP_OK, ESP_OK, ESP_OK);
+    TEST_ASSERT_EQUAL(ESP_OK, canmodule_init());
+
+    struct toyota_prius_2010_pt_powertrain_t powertrain = {
+        .engine_rpm = 3333,
+    };
+    uint8_t payload[TOYOTA_PRIUS_2010_PT_POWERTRAIN_LENGTH] = {0};
+
+    TEST_ASSERT_EQUAL_INT(TOYOTA_PRIUS_2010_PT_POWERTRAIN_LENGTH,
+                          toyota_prius_2010_pt_powertrain_pack(payload, &powertrain, sizeof(payload)));
+
+    canmodule_invoke_rx(TOYOTA_PRIUS_2010_PT_POWERTRAIN_FRAME_ID, payload, sizeof(payload));
+
+    can_decoded_signals_t signals = {0};
+    TEST_ASSERT_EQUAL(ESP_OK, canmodule_get_latest_signals(&signals));
+
+    float rpm = (float)toyota_prius_2010_pt_powertrain_engine_rpm_decode(powertrain.engine_rpm);
+
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, rpm, signals.engine_rpm);
+    TEST_ASSERT_EQUAL_UINT32(1, signals.rx_frames);
+    TEST_ASSERT_EQUAL_INT(1, s_dtc_isr_calls);
+}
+
+void test_canmodule_rx_gas_brake_gear_updates_signals(void)
+{
+    twai_stub_set_results(ESP_OK, ESP_OK, ESP_OK, ESP_OK);
+    TEST_ASSERT_EQUAL(ESP_OK, canmodule_init());
+
+    struct toyota_prius_2010_pt_gas_pedal_t gas = {
+        .gas_pedal = 2222,
+    };
+    struct toyota_prius_2010_pt_brake_t brake = {
+        .brake_pedal = 1111,
+    };
+    struct toyota_prius_2010_pt_gear_packet_t gear = {
+        .gear = 5,
+    };
+
+    uint8_t gas_payload[TOYOTA_PRIUS_2010_PT_GAS_PEDAL_LENGTH] = {0};
+    uint8_t brake_payload[TOYOTA_PRIUS_2010_PT_BRAKE_LENGTH] = {0};
+    uint8_t gear_payload[TOYOTA_PRIUS_2010_PT_GEAR_PACKET_LENGTH] = {0};
+
+    TEST_ASSERT_EQUAL_INT(TOYOTA_PRIUS_2010_PT_GAS_PEDAL_LENGTH,
+                          toyota_prius_2010_pt_gas_pedal_pack(gas_payload, &gas, sizeof(gas_payload)));
+    TEST_ASSERT_EQUAL_INT(TOYOTA_PRIUS_2010_PT_BRAKE_LENGTH,
+                          toyota_prius_2010_pt_brake_pack(brake_payload, &brake, sizeof(brake_payload)));
+    TEST_ASSERT_EQUAL_INT(TOYOTA_PRIUS_2010_PT_GEAR_PACKET_LENGTH,
+                          toyota_prius_2010_pt_gear_packet_pack(gear_payload, &gear, sizeof(gear_payload)));
+
+    canmodule_invoke_rx(TOYOTA_PRIUS_2010_PT_GAS_PEDAL_FRAME_ID, gas_payload, sizeof(gas_payload));
+    canmodule_invoke_rx(TOYOTA_PRIUS_2010_PT_BRAKE_FRAME_ID, brake_payload, sizeof(brake_payload));
+    canmodule_invoke_rx(TOYOTA_PRIUS_2010_PT_GEAR_PACKET_FRAME_ID, gear_payload, sizeof(gear_payload));
+
+    can_decoded_signals_t signals = {0};
+    TEST_ASSERT_EQUAL(ESP_OK, canmodule_get_latest_signals(&signals));
+
+    float gas_value = (float)toyota_prius_2010_pt_gas_pedal_gas_pedal_decode(gas.gas_pedal);
+    float brake_value = (float)toyota_prius_2010_pt_brake_brake_pedal_decode(brake.brake_pedal);
+
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, gas_value, signals.gas_pedal);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, brake_value, signals.brake_pedal);
+    TEST_ASSERT_EQUAL_UINT8(gear.gear, signals.gear);
+    TEST_ASSERT_EQUAL_UINT32(3, signals.rx_frames);
+    TEST_ASSERT_EQUAL_INT(3, s_dtc_isr_calls);
+}
+
+void test_canmodule_rx_unknown_id_does_not_touch_signals(void)
+{
+    twai_stub_set_results(ESP_OK, ESP_OK, ESP_OK, ESP_OK);
+    TEST_ASSERT_EQUAL(ESP_OK, canmodule_init());
+
+    uint8_t payload[8] = {0xAA, 0xBB};
+
+    canmodule_invoke_rx(0x123, payload, sizeof(payload));
+
+    can_decoded_signals_t signals = {0};
+    TEST_ASSERT_EQUAL(ESP_OK, canmodule_get_latest_signals(&signals));
+
+    TEST_ASSERT_EQUAL_FLOAT(0.0f, signals.vehicle_speed_mph);
+    TEST_ASSERT_EQUAL_UINT32(1, signals.rx_frames);
+    TEST_ASSERT_EQUAL_INT(1, s_dtc_isr_calls);
+}
+
+void test_canmodule_rx_receive_error_does_not_update(void)
+{
+    twai_stub_set_results(ESP_OK, ESP_OK, ESP_OK, ESP_FAIL);
+    TEST_ASSERT_EQUAL(ESP_OK, canmodule_init());
+
+    uint8_t payload[8] = {0x11, 0x22};
+
+    canmodule_invoke_rx(TOYOTA_PRIUS_2010_PT_SPEED_FRAME_ID, payload, sizeof(payload));
+
+    can_decoded_signals_t signals = {0};
+    TEST_ASSERT_EQUAL(ESP_OK, canmodule_get_latest_signals(&signals));
+
+    TEST_ASSERT_EQUAL_FLOAT(0.0f, signals.vehicle_speed_mph);
+    TEST_ASSERT_EQUAL_UINT32(0, signals.rx_frames);
+    TEST_ASSERT_EQUAL_INT(0, s_dtc_isr_calls);
+}
+
+void test_canmodule_init_propagates_errors(void)
+{
+    twai_stub_set_results(ESP_FAIL, ESP_OK, ESP_OK, ESP_OK);
+    TEST_ASSERT_EQUAL(ESP_FAIL, canmodule_init());
+    TEST_ASSERT_EQUAL_INT(1, twai_stub_get_new_node_calls());
+    TEST_ASSERT_EQUAL_INT(0, twai_stub_get_register_calls());
+
+    canmodule_test_reset();
+    twai_stub_reset();
+
+    twai_stub_set_results(ESP_OK, ESP_FAIL, ESP_OK, ESP_OK);
+    TEST_ASSERT_EQUAL(ESP_FAIL, canmodule_init());
+    TEST_ASSERT_EQUAL_INT(1, twai_stub_get_new_node_calls());
+    TEST_ASSERT_EQUAL_INT(1, twai_stub_get_register_calls());
+    TEST_ASSERT_EQUAL_INT(0, twai_stub_get_enable_calls());
+
+    canmodule_test_reset();
+    twai_stub_reset();
+
+    twai_stub_set_results(ESP_OK, ESP_OK, ESP_FAIL, ESP_OK);
+    TEST_ASSERT_EQUAL(ESP_FAIL, canmodule_init());
+    TEST_ASSERT_EQUAL_INT(1, twai_stub_get_new_node_calls());
+    TEST_ASSERT_EQUAL_INT(1, twai_stub_get_register_calls());
+    TEST_ASSERT_EQUAL_INT(1, twai_stub_get_enable_calls());
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -145,5 +311,11 @@ int main(void)
     RUN_TEST(test_canmodule_get_latest_signals_null);
     RUN_TEST(test_canmodule_rx_speed_updates_signals);
     RUN_TEST(test_canmodule_rx_wheel_speeds_updates_signals);
+    RUN_TEST(test_canmodule_rx_steer_angle_updates_signals);
+    RUN_TEST(test_canmodule_rx_powertrain_updates_signals);
+    RUN_TEST(test_canmodule_rx_gas_brake_gear_updates_signals);
+    RUN_TEST(test_canmodule_rx_unknown_id_does_not_touch_signals);
+    RUN_TEST(test_canmodule_rx_receive_error_does_not_update);
+    RUN_TEST(test_canmodule_init_propagates_errors);
     return UNITY_END();
 }

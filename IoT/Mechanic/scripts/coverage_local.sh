@@ -11,9 +11,9 @@ ctest --test-dir build/tests --output-on-failure
 mkdir -p coverage
 
 gcovr -r . \
-  --filter "components/vehicle_comms/canmodule.c" \
-  --filter "components/vehicle_comms/dtc_reporter.c" \
-  --filter "unit_tests/.*" \
+  --filter "components/.*" \
+  --exclude "unit_tests/.*" \
+  --exclude "components/vehicle_comms/toyota_prius_2010_pt.c" \
   --html-details --html coverage/coverage.html \
   --xml-pretty --xml coverage/coverage.xml \
   --txt coverage/coverage.txt
