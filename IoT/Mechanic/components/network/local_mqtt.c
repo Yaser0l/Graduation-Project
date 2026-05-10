@@ -152,70 +152,75 @@ static void mqtt_restart_client_locked(void)
     mqtt_start_client_locked();
 }
 
+static void mqtt_publish_task_step(void)
+{
+    esp_mqtt_client_handle_t client = NULL;
+    bool should_publish = false;
+
+    xSemaphoreTake(s_lock, portMAX_DELAY);
+
+    if (wifi_manager_is_connected())
+    {
+        if (!s_client)
+        {
+            mqtt_start_client_locked();
+        }
+        if (s_client)
+        {
+            should_publish = true;
+            client = s_client;
+        }
+    }
+    else if (s_client)
+    {
+        mqtt_stop_client_locked();
+    }
+
+    xSemaphoreGive(s_lock);
+
+    if (should_publish && client)
+    {
+        char payload[512];
+        char topic[96];
+        int64_t timestamp_ms = esp_timer_get_time() / 1000;
+        can_decoded_signals_t signals = {0};
+
+        if (canmodule_get_latest_signals(&signals) != ESP_OK)
+        {
+            ESP_LOGW(TAG, "Failed to read CAN decoded signals");
+        }
+
+        snprintf(payload, sizeof(payload),
+                 "{\"device_id\":\"esp32_s3_1\",\"ts_ms\":%lld,\"rx_frames\":%lu,\"vehicle_speed_mph\":%.3f,\"wheel_speed_fl_mph\":%.3f,\"wheel_speed_fr_mph\":%.3f,\"wheel_speed_rl_mph\":%.3f,\"wheel_speed_rr_mph\":%.3f,\"steer_angle_deg\":%.3f,\"steer_rate_deg_s\":%.3f,\"engine_rpm\":%.3f,\"gas_pedal\":%.3f,\"brake_pedal\":%.3f,\"gear\":%u}",
+                 (long long)timestamp_ms,
+                 (unsigned long)signals.rx_frames,
+                 signals.vehicle_speed_mph,
+                 signals.wheel_speed_fl_mph,
+                 signals.wheel_speed_fr_mph,
+                 signals.wheel_speed_rl_mph,
+                 signals.wheel_speed_rr_mph,
+                 signals.steer_angle_deg,
+                 signals.steer_rate_deg_s,
+                 signals.engine_rpm,
+                 signals.gas_pedal,
+                 signals.brake_pedal,
+                 (unsigned int)signals.gear);
+
+        if (mqtt_build_topic_locked(MQTT_TOPIC_DATA_SUFFIX, topic, sizeof(topic)) == ESP_OK)
+        {
+            int msg_id = esp_mqtt_client_publish(client, topic, payload, 0, 1, 0);
+            ESP_LOGI(TAG, "Publish result=%d payload=%s", msg_id, payload);
+        }
+    }
+}
+
 static void mqtt_publish_task(void *arg)
 {
     (void)arg;
 
     while (true)
     {
-        esp_mqtt_client_handle_t client = NULL;
-        bool should_publish = false;
-
-        xSemaphoreTake(s_lock, portMAX_DELAY);
-
-        if (wifi_manager_is_connected())
-        {
-            if (!s_client)
-            {
-                mqtt_start_client_locked();
-            }
-            if (s_client)
-            {
-                should_publish = true;
-                client = s_client;
-            }
-        }
-        else if (s_client)
-        {
-            mqtt_stop_client_locked();
-        }
-
-        xSemaphoreGive(s_lock);
-
-        if (should_publish && client)
-        {
-            char payload[512];
-            char topic[96];
-            int64_t timestamp_ms = esp_timer_get_time() / 1000;
-            can_decoded_signals_t signals = {0};
-
-            if (canmodule_get_latest_signals(&signals) != ESP_OK)
-            {
-                ESP_LOGW(TAG, "Failed to read CAN decoded signals");
-            }
-
-            snprintf(payload, sizeof(payload),
-                     "{\"device_id\":\"esp32_s3_1\",\"ts_ms\":%lld,\"rx_frames\":%lu,\"vehicle_speed_mph\":%.3f,\"wheel_speed_fl_mph\":%.3f,\"wheel_speed_fr_mph\":%.3f,\"wheel_speed_rl_mph\":%.3f,\"wheel_speed_rr_mph\":%.3f,\"steer_angle_deg\":%.3f,\"steer_rate_deg_s\":%.3f,\"engine_rpm\":%.3f,\"gas_pedal\":%.3f,\"brake_pedal\":%.3f,\"gear\":%u}",
-                     (long long)timestamp_ms,
-                     (unsigned long)signals.rx_frames,
-                     signals.vehicle_speed_mph,
-                     signals.wheel_speed_fl_mph,
-                     signals.wheel_speed_fr_mph,
-                     signals.wheel_speed_rl_mph,
-                     signals.wheel_speed_rr_mph,
-                     signals.steer_angle_deg,
-                     signals.steer_rate_deg_s,
-                     signals.engine_rpm,
-                     signals.gas_pedal,
-                     signals.brake_pedal,
-                     (unsigned int)signals.gear);
-
-            if (mqtt_build_topic_locked(MQTT_TOPIC_DATA_SUFFIX, topic, sizeof(topic)) == ESP_OK)
-            {
-                int msg_id = esp_mqtt_client_publish(client, topic, payload, 0, 1, 0);
-                ESP_LOGI(TAG, "Publish result=%d payload=%s", msg_id, payload);
-            }
-        }
+        mqtt_publish_task_step();
 
         vTaskDelay(pdMS_TO_TICKS(MQTT_PUBLISH_INTERVAL_MS));
     }

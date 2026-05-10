@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdbool.h>
 #include <stddef.h>
 
 #include "esp_err.h"
@@ -36,3 +37,5 @@ int mqtt_client_stub_get_publish_calls(void);
 const char *mqtt_client_stub_get_last_topic(void);
 const char *mqtt_client_stub_get_last_payload(void);
 const char *mqtt_client_stub_get_last_uri(void);
+void mqtt_client_stub_set_init_should_fail(bool should_fail);
+void mqtt_client_stub_set_publish_result(int result);
