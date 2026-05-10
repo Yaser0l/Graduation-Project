@@ -20,4 +20,11 @@ static inline const char *esp_err_to_name(esp_err_t err)
     return "stub";
 }
 
+#define ESP_ERROR_CHECK(x)          \
+    do                              \
+    {                               \
+        esp_err_t __err = (x);      \
+        (void)__err;                \
+    } while (0)
+
 #endif

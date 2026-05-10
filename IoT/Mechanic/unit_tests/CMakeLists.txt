@@ -91,3 +91,20 @@ target_include_directories(test_wifi_store PRIVATE
 target_link_libraries(test_wifi_store PRIVATE unity)
 
 add_test(NAME test_wifi_store COMMAND test_wifi_store)
+
+add_executable(test_wifi_manager
+    ${CMAKE_CURRENT_LIST_DIR}/test_wifi_manager.c
+    ${CMAKE_CURRENT_LIST_DIR}/stubs/esp_event_stubs.c
+    ${CMAKE_CURRENT_LIST_DIR}/stubs/esp_wifi_stubs.c
+    ${CMAKE_CURRENT_LIST_DIR}/stubs/event_groups_stubs.c
+    ${CMAKE_CURRENT_LIST_DIR}/stubs/gpio_stubs.c
+)
+
+target_include_directories(test_wifi_manager PRIVATE
+    ${CMAKE_CURRENT_LIST_DIR}/stubs
+    ${CMAKE_CURRENT_LIST_DIR}/../components/network
+)
+
+target_link_libraries(test_wifi_manager PRIVATE unity)
+
+add_test(NAME test_wifi_manager COMMAND test_wifi_manager)
