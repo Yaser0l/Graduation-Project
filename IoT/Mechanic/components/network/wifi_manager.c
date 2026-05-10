@@ -119,27 +119,44 @@ static void try_connect_saved_aps(void)
     wifi_manager_start_config_ap();
 }
 
+static void wifi_manager_task_step(void)
+{
+    if (s_should_connect && !is_wifi_connected())
+    {
+        try_connect_saved_aps();
+    }
+
+    if (is_wifi_connected())
+    {
+        stop_config_ap();
+    }
+    else if (s_ap_store.count == 0)
+    {
+        wifi_manager_start_config_ap();
+    }
+}
+
 static void wifi_manager_task(void *arg)
 {
     (void)arg;
     while (true)
     {
-        if (s_should_connect && !is_wifi_connected())
-        {
-            try_connect_saved_aps();
-        }
-
-        if (is_wifi_connected())
-        {
-            stop_config_ap();
-        }
-        else if (s_ap_store.count == 0)
-        {
-            wifi_manager_start_config_ap();
-        }
+        wifi_manager_task_step();
 
         vTaskDelay(pdMS_TO_TICKS(WIFI_RETRY_LOOP_DELAY_MS));
     }
+}
+
+static void wifi_status_led_task_step(bool *led_on)
+{
+    if (is_wifi_connected())
+    {
+        gpio_set_level(BLINK_GPIO, LED_ON_LEVEL);
+        return;
+    }
+
+    *led_on = !*led_on;
+    gpio_set_level(BLINK_GPIO, *led_on ? LED_ON_LEVEL : LED_OFF_LEVEL);
 }
 
 static void wifi_status_led_task(void *arg)
@@ -149,15 +166,7 @@ static void wifi_status_led_task(void *arg)
 
     while (true)
     {
-        if (is_wifi_connected())
-        {
-            gpio_set_level(BLINK_GPIO, LED_ON_LEVEL);
-        }
-        else
-        {
-            led_on = !led_on;
-            gpio_set_level(BLINK_GPIO, led_on ? LED_ON_LEVEL : LED_OFF_LEVEL);
-        }
+        wifi_status_led_task_step(&led_on);
 
         vTaskDelay(pdMS_TO_TICKS(LED_BLINK_INTERVAL_MS));
     }
