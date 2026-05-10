@@ -65,6 +65,9 @@ mosquitto_log/
 Agentic_Workflow/data/chroma_db/
 Agentic_Workflow/data/users/
 Agentic_Workflow/output/
+Agentic_Workflow/benchmarks/reports/*
+!Agentic_Workflow/benchmarks/reports/.gitkeep
+Agentic_Workflow/benchmarks/.ragas_cache/
 
 # ─────────────────
 # IDEs and OS

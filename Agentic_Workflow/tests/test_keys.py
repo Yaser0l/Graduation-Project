@@ -20,14 +20,15 @@ def mask_key(key: str) -> str:
 
 def test_openai_chat() -> bool:
     print("=" * 60)
-    print("TEST: DeepSeek Chat connectivity (via OpenAI key)")
+    print("TEST: LLM chat connectivity (OpenAI-compatible client)")
     print("=" * 60)
 
-    print(f"OPENAI_API_KEY: {mask_key(config.OPENAI_API_KEY)}")
+    print(f"LLM API key: {mask_key(config.OPENAI_API_KEY)}")
     print(f"BASE_URL used: {config.base_url or '<default>'}")
+    print(f"LLM_MODEL: {config.LLM_MODEL}")
 
     llm_kwargs = {
-        "model": "deepseek-chat",
+        "model": config.LLM_MODEL,
         "temperature": 0.0,
         "api_key": config.OPENAI_API_KEY,
     }
@@ -71,7 +72,7 @@ def ask_question(question: str) -> bool:
     print(f"ASK: {question}")
     print("=" * 60)
     llm_kwargs = {
-        "model": "deepseek-chat",
+        "model": config.LLM_MODEL,
         "temperature": 0.2,
         "api_key": config.OPENAI_API_KEY,
     }

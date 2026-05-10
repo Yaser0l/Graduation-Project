@@ -9,43 +9,47 @@ ROOT_DIR = Path(__file__).resolve().parent
 load_dotenv(ROOT_DIR / ".env")
 load_dotenv(ROOT_DIR.parent / "backend" / ".env", override=False)
 
-# API Keys
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-TAVILY_API_KEY = os.getenv("TAVILY_API_KEY", "")
-base_url = os.getenv("BASE_URL", os.getenv("OPENAI_BASE_URL", ""))
+# API Keys (OpenAI-compatible providers use the same ChatOpenAI wiring)
+OPENAI_API_KEY = (
+    os.getenv("OPENAI_API_KEY", "").strip()
+    or os.getenv("BIGMODEL_API_KEY", "").strip()
+    or os.getenv("LLM_API_KEY", "").strip()
+)
+TAVILY_API_KEY = os.getenv("TAVILY_API_KEY", "").strip()
+base_url = (os.getenv("BASE_URL", os.getenv("OPENAI_BASE_URL", "")) or "").strip()
 
 # Paths
 CHROMA_DB_PATH = os.getenv("CHROMA_DB_PATH", "./data/chroma_db")
 USER_DATA_PATH = os.getenv("USER_DATA_PATH", "./data/users")
 SAMPLE_DATA_PATH = "./data/sample_obd2_data.json"
 
-# Model Configuration
-DEEPSEEK_MODEL = "deepseek-chat"
+# Model Configuration (default: Zhipu BigModel GLM — see https://docs.bigmodel.cn/)
+LLM_MODEL = os.getenv("LLM_MODEL", "glm-5.1")
 
-# If DeepSeek model is selected and no base URL is configured, use DeepSeek default endpoint.
+# Default endpoint when unset: BigModel OpenAI-compatible API
 if not base_url:
-    base_url = "https://api.deepseek.com/v1"
+    base_url = "https://open.bigmodel.cn/api/paas/v4"
 
 # Agent-specific model settings
 AGENT_MODELS = {
     "obd2_writer": {
-        "model": DEEPSEEK_MODEL,
+        "model": LLM_MODEL,
         "temperature": 0.3,
     },
     "obd2_observer": {
-        "model": DEEPSEEK_MODEL,
+        "model": LLM_MODEL,
         "temperature": 0.2,
     },
     "product_researcher": {
-        "model": DEEPSEEK_MODEL,
+        "model": LLM_MODEL,
         "temperature": 0.4,
     },
     "technical_writer": {
-        "model": DEEPSEEK_MODEL,
+        "model": LLM_MODEL,
         "temperature": 0.3,
     },
     "formatter": {
-        "model": DEEPSEEK_MODEL,
+        "model": LLM_MODEL,
         "temperature": 0.5,
     },
 }
