@@ -163,6 +163,11 @@ static void dtc_handle_vin_response(const uint8_t *data, uint32_t len)
         }
     }
     s_vin[vin_len] = '\0';
+
+    if (s_vin[0] != '\0')
+    {
+        mqtt_module_set_vin(s_vin);
+    }
 }
 
 static void dtc_handle_uds_response(const uint8_t *data, uint32_t len)

@@ -19,9 +19,9 @@
 
 #define MQTT_DEFAULT_BROKER_URI "mqtt://broker.emqx.io"
 #define MQTT_PUBLISH_INTERVAL_MS 5000
-#define MQTT_TOPIC_DATA "MechanicAI/user1/vehicle_1/data"
-#define MQTT_TOPIC_STATUS "MechanicAI/user1/vehicle_1/status"
-#define MQTT_TOPIC_DTC_PREFIX "MechanicAI/user1/"
+#define MQTT_TOPIC_PREFIX "MechanicAI/user1/"
+#define MQTT_TOPIC_DATA_SUFFIX "/data"
+#define MQTT_TOPIC_STATUS_SUFFIX "/status"
 #define MQTT_TOPIC_DTC_SUFFIX "/DTC"
 #define MQTT_NVS_NAMESPACE "mqtt_cfg"
 #define MQTT_NVS_KEY_BROKER_URI "broker_uri"
@@ -32,6 +32,40 @@ static SemaphoreHandle_t s_lock = NULL;
 static esp_mqtt_client_handle_t s_client = NULL;
 static char s_broker_uri[MQTT_BROKER_URI_MAX_LEN] = MQTT_DEFAULT_BROKER_URI;
 static char s_vehicle_fallback[24] = {0};
+static char s_vehicle_vin[20] = {0};
+
+static const char *mqtt_get_vehicle_id_locked(void)
+{
+    if (s_vehicle_vin[0] != '\0')
+    {
+        return s_vehicle_vin;
+    }
+
+    if (s_vehicle_fallback[0] == '\0')
+    {
+        uint32_t rand_val = esp_random();
+        snprintf(s_vehicle_fallback, sizeof(s_vehicle_fallback), "vehicle_%08lx", (unsigned long)rand_val);
+    }
+
+    return s_vehicle_fallback;
+}
+
+static esp_err_t mqtt_build_topic_locked(const char *suffix, char *out, size_t out_len)
+{
+    if (!suffix || !out || out_len == 0)
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    const char *id = mqtt_get_vehicle_id_locked();
+    int topic_len = snprintf(out, out_len, "%s%s%s", MQTT_TOPIC_PREFIX, id, suffix);
+    if (topic_len <= 0 || topic_len >= (int)out_len)
+    {
+        return ESP_ERR_INVALID_SIZE;
+    }
+
+    return ESP_OK;
+}
 
 static esp_err_t mqtt_store_broker_uri_locked(void)
 {
@@ -105,7 +139,11 @@ static void mqtt_start_client_locked(void)
     }
 
     esp_mqtt_client_start(s_client);
-    esp_mqtt_client_publish(s_client, MQTT_TOPIC_STATUS, "online", 0, 1, 0);
+    char topic[96];
+    if (mqtt_build_topic_locked(MQTT_TOPIC_STATUS_SUFFIX, topic, sizeof(topic)) == ESP_OK)
+    {
+        esp_mqtt_client_publish(s_client, topic, "online", 0, 1, 0);
+    }
     ESP_LOGI(TAG, "MQTT client started with broker: %s", s_broker_uri);
 }
 
@@ -148,6 +186,7 @@ static void mqtt_publish_task(void *arg)
         if (should_publish && client)
         {
             char payload[512];
+            char topic[96];
             int64_t timestamp_ms = esp_timer_get_time() / 1000;
             can_decoded_signals_t signals = {0};
 
@@ -172,8 +211,11 @@ static void mqtt_publish_task(void *arg)
                      signals.brake_pedal,
                      (unsigned int)signals.gear);
 
-            int msg_id = esp_mqtt_client_publish(client, MQTT_TOPIC_DATA, payload, 0, 1, 0);
-            ESP_LOGI(TAG, "Publish result=%d payload=%s", msg_id, payload);
+            if (mqtt_build_topic_locked(MQTT_TOPIC_DATA_SUFFIX, topic, sizeof(topic)) == ESP_OK)
+            {
+                int msg_id = esp_mqtt_client_publish(client, topic, payload, 0, 1, 0);
+                ESP_LOGI(TAG, "Publish result=%d payload=%s", msg_id, payload);
+            }
         }
 
         vTaskDelay(pdMS_TO_TICKS(MQTT_PUBLISH_INTERVAL_MS));
@@ -261,23 +303,19 @@ esp_err_t mqtt_module_publish_dtc(const char *vin, const char *payload)
 
     esp_err_t result = ESP_ERR_INVALID_STATE;
     char topic[96];
-    const char *id = vin && vin[0] ? vin : NULL;
-    if (!id)
+    xSemaphoreTake(s_lock, portMAX_DELAY);
+
+    if (vin && vin[0] != '\0' && strncmp(s_vehicle_vin, vin, sizeof(s_vehicle_vin)) != 0)
     {
-        if (s_vehicle_fallback[0] == '\0')
-        {
-            uint32_t rand_val = esp_random();
-            snprintf(s_vehicle_fallback, sizeof(s_vehicle_fallback), "vehicle_%08lx", (unsigned long)rand_val);
-        }
-        id = s_vehicle_fallback;
-    }
-    int topic_len = snprintf(topic, sizeof(topic), "%s%s%s", MQTT_TOPIC_DTC_PREFIX, id, MQTT_TOPIC_DTC_SUFFIX);
-    if (topic_len <= 0 || topic_len >= (int)sizeof(topic))
-    {
-        return ESP_ERR_INVALID_SIZE;
+        strncpy(s_vehicle_vin, vin, sizeof(s_vehicle_vin) - 1);
+        s_vehicle_vin[sizeof(s_vehicle_vin) - 1] = '\0';
     }
 
-    xSemaphoreTake(s_lock, portMAX_DELAY);
+    if (mqtt_build_topic_locked(MQTT_TOPIC_DTC_SUFFIX, topic, sizeof(topic)) != ESP_OK)
+    {
+        xSemaphoreGive(s_lock);
+        return ESP_ERR_INVALID_SIZE;
+    }
 
     if (s_client && wifi_manager_is_connected())
     {
@@ -290,4 +328,23 @@ esp_err_t mqtt_module_publish_dtc(const char *vin, const char *payload)
 
     xSemaphoreGive(s_lock);
     return result;
+}
+
+esp_err_t mqtt_module_set_vin(const char *vin)
+{
+    if (!s_lock || !vin)
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    if (vin[0] == '\0')
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    xSemaphoreTake(s_lock, portMAX_DELAY);
+    strncpy(s_vehicle_vin, vin, sizeof(s_vehicle_vin) - 1);
+    s_vehicle_vin[sizeof(s_vehicle_vin) - 1] = '\0';
+    xSemaphoreGive(s_lock);
+    return ESP_OK;
 }
