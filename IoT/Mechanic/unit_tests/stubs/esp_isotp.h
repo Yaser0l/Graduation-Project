@@ -26,6 +26,7 @@ esp_err_t esp_isotp_receive(esp_isotp_handle_t handle, uint8_t *data, uint32_t m
 void esp_isotp_poll(esp_isotp_handle_t handle);
 
 void isotp_stub_reset(void);
+void isotp_stub_set_new_transport_result(esp_err_t result);
 void isotp_stub_set_send_result(esp_err_t result);
 void isotp_stub_set_receive_result(esp_err_t result);
 int isotp_stub_get_send_calls(void);

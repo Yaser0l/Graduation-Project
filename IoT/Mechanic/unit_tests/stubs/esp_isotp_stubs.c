@@ -39,6 +39,11 @@ void isotp_stub_reset(void)
     s_rx_count = 0;
 }
 
+void isotp_stub_set_new_transport_result(esp_err_t result)
+{
+    s_new_transport_result = result;
+}
+
 void isotp_stub_set_send_result(esp_err_t result)
 {
     s_send_result = result;

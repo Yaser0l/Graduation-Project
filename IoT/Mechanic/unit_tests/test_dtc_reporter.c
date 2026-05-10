@@ -249,6 +249,14 @@ void test_dtc_init_requires_can_handle(void)
     TEST_ASSERT_FALSE(s_ready);
 }
 
+void test_dtc_init_propagates_isotp_error(void)
+{
+    isotp_stub_set_new_transport_result(ESP_FAIL);
+
+    TEST_ASSERT_EQUAL(ESP_FAIL, dtc_reporter_init());
+    TEST_ASSERT_FALSE(s_ready);
+}
+
 void test_dtc_init_is_idempotent(void)
 {
     TEST_ASSERT_EQUAL(ESP_OK, dtc_reporter_init());
@@ -275,6 +283,7 @@ int main(void)
     RUN_TEST(test_dtc_send_requests_calls_isotp_send);
     RUN_TEST(test_dtc_check_receive_parses_queue_and_stops_on_empty);
     RUN_TEST(test_dtc_init_requires_can_handle);
+    RUN_TEST(test_dtc_init_propagates_isotp_error);
     RUN_TEST(test_dtc_init_is_idempotent);
 
     return UNITY_END();
