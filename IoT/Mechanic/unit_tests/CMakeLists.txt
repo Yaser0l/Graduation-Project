@@ -42,3 +42,19 @@ target_include_directories(test_canmodule PRIVATE
 target_link_libraries(test_canmodule PRIVATE unity m)
 
 add_test(NAME test_canmodule COMMAND test_canmodule)
+
+add_executable(test_dtc_reporter
+    ${CMAKE_CURRENT_LIST_DIR}/test_dtc_reporter.c
+    ${CMAKE_CURRENT_LIST_DIR}/stubs/esp_isotp_stubs.c
+    ${CMAKE_CURRENT_LIST_DIR}/stubs/esp_timer_stubs.c
+    ${CMAKE_CURRENT_LIST_DIR}/stubs/local_mqtt_stubs.c
+)
+
+target_include_directories(test_dtc_reporter PRIVATE
+    ${CMAKE_CURRENT_LIST_DIR}/stubs
+    ${CMAKE_CURRENT_LIST_DIR}/../components/vehicle_comms
+)
+
+target_link_libraries(test_dtc_reporter PRIVATE unity)
+
+add_test(NAME test_dtc_reporter COMMAND test_dtc_reporter)
