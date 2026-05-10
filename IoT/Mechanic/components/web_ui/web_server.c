@@ -10,7 +10,7 @@
 #include "esp_log.h"
 #include "esp_wifi.h"
 
-#include "mqtt.h"
+#include "local_mqtt.h"
 #include "wifi_manager.h"
 #include "wifi_store.h"
 

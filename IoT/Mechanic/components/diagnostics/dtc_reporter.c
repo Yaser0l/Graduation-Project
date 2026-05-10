@@ -9,7 +9,7 @@
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "mqtt.h"
+#include "local_mqtt.h"
 
 #define DTC_POLL_PERIOD_MS 50
 #define DTC_POLL_INTERVAL_US (8ULL * 60ULL * 60ULL * 1000000ULL)

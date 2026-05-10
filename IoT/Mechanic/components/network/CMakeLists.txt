@@ -1,14 +1,14 @@
 idf_component_register(
     SRCS 
-        "main.c"
+        "local_mqtt.c"
+        "wifi_manager.c"
+        "wifi_store.c"
     PRIV_REQUIRES 
         "esp_http_server"
 		"nvs_flash"
 		"esp_wifi"
 		"esp_driver_gpio"
+        "esp_timer"
+        "espressif__mqtt"
         "network"
-        "diagnostics"
-        "web_ui"
-        "vehicle_comms"
-
 )
