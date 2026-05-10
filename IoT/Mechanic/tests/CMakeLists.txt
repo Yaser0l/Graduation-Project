@@ -39,3 +39,18 @@ target_include_directories(test_toyota_prius_2010_pt PRIVATE
 target_link_libraries(test_toyota_prius_2010_pt PRIVATE unity m)
 
 add_test(NAME test_toyota_prius_2010_pt COMMAND test_toyota_prius_2010_pt)
+
+add_executable(test_canmodule
+    ${CMAKE_CURRENT_LIST_DIR}/test_canmodule.c
+    ${CMAKE_CURRENT_LIST_DIR}/stubs/esp_twai_stubs.c
+    ${CMAKE_CURRENT_LIST_DIR}/../components/vehicle_comms/toyota_prius_2010_pt.c
+)
+
+target_include_directories(test_canmodule PRIVATE
+    ${CMAKE_CURRENT_LIST_DIR}/../components/vehicle_comms
+    ${CMAKE_CURRENT_LIST_DIR}/stubs
+)
+
+target_link_libraries(test_canmodule PRIVATE unity m)
+
+add_test(NAME test_canmodule COMMAND test_canmodule)
