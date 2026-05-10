@@ -14,6 +14,7 @@ from app.core.config import settings
 from app.routers import auth, vehicle, diagnostic, chat, internal, maintenance
 from app.core.mqtt import MqttService
 from app.core.sse import on_report_created, sse_service
+from app.db.session import init_db
 
 # For rate limiting
 RATE_LIMIT = 60
@@ -22,6 +23,9 @@ request_counts = defaultdict(list)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Startup: Create DB tables if they don't exist
+    await init_db()
+
     # Startup: Initialize MQTT
     mqtt_svc = MqttService(on_report_created_cb=on_report_created)
     app.state.mqtt_svc = mqtt_svc

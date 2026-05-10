@@ -1,12 +1,12 @@
 import React, { useContext, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { LanguageContext, DiagnosticContext, VehicleContext } from '../store/AppContext';
-import { AlertTriangle, Wrench, ShieldCheck, Activity, ScanLine, CarFront, PenLine, Check, X } from 'lucide-react';
+import { AlertTriangle, Wrench, ShieldCheck, Activity, CarFront, PenLine, Check, X } from 'lucide-react';
 import styles from './Dashboard.module.css';
 
 export default function Dashboard() {
   const { activeVehicle, updateVehicleMileage } = useContext(VehicleContext);
-  const { diagnostics, maintenance, startScan } = useContext(DiagnosticContext);
+  const { diagnostics, maintenance } = useContext(DiagnosticContext);
   const { language } = useContext(LanguageContext);
   const [isEditingMileage, setIsEditingMileage] = useState(false);
   const [mileageInput, setMileageInput] = useState('');
@@ -187,11 +187,6 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* Scan Trigger */}
-        <button className={`btn-primary ${styles.scanBtn}`} onClick={startScan}>
-          <ScanLine size={20} />
-          {language === 'ar' ? 'بدء فحص شامل للمركبة' : 'Run Diagnostics Scan'}
-        </button>
 
       </motion.div>
 
