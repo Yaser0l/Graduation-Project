@@ -3,4 +3,14 @@ idf_component_register(
         "local_mqtt.c"
         "wifi_manager.c"
         "wifi_store.c"
+    INCLUDE_DIRS 
+        "."
+    PRIV_REQUIRES
+        "espressif__mqtt"
+        "esp_driver_gpio"
+        "esp_event"
+        "esp_system"
+        "esp_timer"
+        "esp_wifi"
+        "nvs_flash"
 )

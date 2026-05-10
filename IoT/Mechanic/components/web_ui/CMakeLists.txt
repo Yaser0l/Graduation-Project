@@ -3,6 +3,12 @@ idf_component_register(
         "web_server.c"
     EMBED_TXTFILES 
         "index.html"
+    INCLUDE_DIRS
+        "."
+    REQUIRES
+        "network"
     PRIV_REQUIRES 
         "esp_http_server"
+        "esp_wifi"
+        "espressif__cjson"
 )
