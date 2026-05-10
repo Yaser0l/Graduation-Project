@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { LanguageContext, AuthContext } from '../store/AppContext';
 import { Mail, Lock, LogIn, UserPlus, User } from 'lucide-react';
 import styles from './Welcome.module.css';
+import logo from '../assets/logo.png';
 
 export default function Welcome() {
   const [isLogin, setIsLogin] = useState(false);
@@ -40,9 +41,9 @@ export default function Welcome() {
   return (
     <motion.div className={styles.container} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
       <div className={styles.hero}>
-        <motion.h1 initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className={styles.logo}>
-          {language === 'ar' ? 'سيارتيك' : 'SayyarTech'}
-        </motion.h1>
+        <motion.div initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className={styles.logoContainer}>
+          <img src={logo} alt="SayyarTech Logo" className={styles.logoImg} />
+        </motion.div>
         <p className={styles.subtitle}>
           {language === 'ar'
             ? 'منصتك المتقدمة لتشخيص الأعطال وتتبع صيانة مركبتك بذكاء.'

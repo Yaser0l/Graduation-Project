@@ -5,6 +5,7 @@ import { LogOut } from 'lucide-react';
 import BottomNav from './BottomNav';
 import CarSwitcherSheet from './CarSwitcherSheet';
 import styles from './Layout.module.css';
+import logo from '../assets/logo.png';
 
 export default function Layout() {
   const { language, toggleLanguage } = useContext(LanguageContext);
@@ -20,8 +21,8 @@ export default function Layout() {
             {language === 'en' ? 'عربي' : 'EN'}
           </button>
         </div>
-        <div className={styles.brand}>
-          {language === 'ar' ? 'سيارتيك' : 'SayyarTech'}
+        <div className={styles.brand} onClick={() => window.location.href = '/dashboard'}>
+          <img src={logo} alt="Logo" className={styles.logoImg} />
         </div>
         <div className={styles.rightSide}>
           <button type="button" className={styles.logoutBtn} onClick={logout}>

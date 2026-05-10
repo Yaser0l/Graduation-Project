@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { LanguageContext, VehicleContext } from '../store/AppContext';
 import { Car, Settings2, Fingerprint, GaugeCircle } from 'lucide-react';
 import styles from './Onboarding.module.css';
+import logo from '../assets/logo.png';
 
 export default function Onboarding() {
   const navigate = useNavigate();
@@ -65,9 +66,9 @@ export default function Onboarding() {
       <div className={styles.header}>
         <motion.div
           initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
-          className={styles.logo}
+          className={styles.logoContainer}
         >
-          {ar ? 'سيارتيك' : 'SayyarTech'}
+          <img src={logo} alt="Logo" className={styles.logoImg} />
         </motion.div>
         <p className={styles.subtitle}>
           {ar ? 'أدخل بيانات مركبتك' : 'Register Your Vehicle'}
