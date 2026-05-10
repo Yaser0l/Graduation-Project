@@ -77,3 +77,17 @@ target_include_directories(test_local_mqtt PRIVATE
 target_link_libraries(test_local_mqtt PRIVATE unity)
 
 add_test(NAME test_local_mqtt COMMAND test_local_mqtt)
+
+add_executable(test_wifi_store
+    ${CMAKE_CURRENT_LIST_DIR}/test_wifi_store.c
+    ${CMAKE_CURRENT_LIST_DIR}/stubs/nvs_stubs.c
+)
+
+target_include_directories(test_wifi_store PRIVATE
+    ${CMAKE_CURRENT_LIST_DIR}/stubs
+    ${CMAKE_CURRENT_LIST_DIR}/../components/network
+)
+
+target_link_libraries(test_wifi_store PRIVATE unity)
+
+add_test(NAME test_wifi_store COMMAND test_wifi_store)
