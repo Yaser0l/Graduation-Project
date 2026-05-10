@@ -206,10 +206,10 @@ void test_canmodule_rx_gas_brake_gear_updates_signals(void)
     TEST_ASSERT_EQUAL(ESP_OK, canmodule_init());
 
     struct toyota_prius_2010_pt_gas_pedal_t gas = {
-        .gas_pedal = 2222,
+        .gas_pedal = 120,
     };
     struct toyota_prius_2010_pt_brake_t brake = {
-        .brake_pedal = 1111,
+        .brake_pedal = 45,
     };
     struct toyota_prius_2010_pt_gear_packet_t gear = {
         .gear = 5,
