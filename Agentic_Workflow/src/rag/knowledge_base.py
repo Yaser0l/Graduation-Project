@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple
 from langchain_chroma import Chroma
-from langchain_openai import OpenAIEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 import config
@@ -21,11 +21,8 @@ class AutomotiveKnowledgeBase:
         self.persist_directory = persist_directory or config.CHROMA_DB_PATH
         Path(self.persist_directory).mkdir(parents=True, exist_ok=True)
         
-        # Initialize embeddings
-        embedding_params = {"openai_api_key": config.OPENAI_API_KEY}
-        if config.base_url:
-            embedding_params["openai_api_base"] = config.base_url
-        self.embeddings = OpenAIEmbeddings(**embedding_params)
+        # Initialize FREE local embeddings (DeepSeek doesn't have an embedding endpoint)
+        self.embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
         
         # Initialize or load vector store
         self.vector_store = Chroma(

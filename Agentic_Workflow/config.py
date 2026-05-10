@@ -15,29 +15,28 @@ USER_DATA_PATH = os.getenv("USER_DATA_PATH", "./data/users")
 SAMPLE_DATA_PATH = "./data/sample_obd2_data.json"
 
 # Model Configuration
-OPENAI_MODEL_GPT4 = "gpt-4o"
-OPENAI_MODEL_GPT35 = "gpt-4o-mini"
-6
+DEEPSEEK_MODEL = "deepseek-chat"
+
 # Agent-specific model settings
 AGENT_MODELS = {
     "obd2_writer": {
-        "model": OPENAI_MODEL_GPT4,
+        "model": DEEPSEEK_MODEL,
         "temperature": 0.3,
     },
     "obd2_observer": {
-        "model": OPENAI_MODEL_GPT4,
+        "model": DEEPSEEK_MODEL,
         "temperature": 0.2,
     },
     "product_researcher": {
-        "model": OPENAI_MODEL_GPT35,
+        "model": DEEPSEEK_MODEL,
         "temperature": 0.4,
     },
     "technical_writer": {
-        "model": OPENAI_MODEL_GPT4,
+        "model": DEEPSEEK_MODEL,
         "temperature": 0.3,
     },
     "formatter": {
-        "model": OPENAI_MODEL_GPT35,
+        "model": DEEPSEEK_MODEL,
         "temperature": 0.5,
     },
 }

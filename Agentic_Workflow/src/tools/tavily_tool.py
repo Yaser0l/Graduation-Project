@@ -5,9 +5,13 @@ from tavily import TavilyClient
 import config
 
 
-# Initialize Tavily client
-tavily_client = TavilyClient(api_key=config.TAVILY_API_KEY)
-
+# Initialize Tavily client safely
+tavily_client = None
+if getattr(config, 'TAVILY_API_KEY', None):
+    try:
+        tavily_client = TavilyClient(api_key=config.TAVILY_API_KEY)
+    except Exception as e:
+        print(f"Warning: Could not initialize Tavily client: {e}")
 
 @tool
 def search_web(query: str, max_results: int = 5) -> str:
@@ -21,6 +25,9 @@ def search_web(query: str, max_results: int = 5) -> str:
         Formatted search results
     """
     try:
+        if not tavily_client:
+            return "Web search is currently disabled (no API key configured)."
+            
         # Perform search
         response = tavily_client.search(
             query=query,
@@ -69,6 +76,9 @@ def search_products(product_type: str, car_info: str, max_results: int = 5) -> L
         List of product recommendations with details
     """
     try:
+        if not tavily_client:
+            return []
+            
         query = f"buy {product_type} for {car_info} price online"
         
         response = tavily_client.search(
@@ -111,6 +121,9 @@ def search_technical_info(query: str) -> str:
         Formatted technical information
     """
     try:
+        if not tavily_client:
+            return "Technical web search is disabled. Please rely on standard knowledge base."
+            
         response = tavily_client.search(
             query=query,
             max_results=3,

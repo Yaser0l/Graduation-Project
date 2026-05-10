@@ -1,0 +1,17 @@
+idf_component_register(
+    SRCS 
+        "local_mqtt.c"
+        "wifi_manager.c"
+        "wifi_store.c"
+    INCLUDE_DIRS 
+        "."
+    PRIV_REQUIRES
+        "vehicle_comms"
+        "espressif__mqtt"
+        "esp_driver_gpio"
+        "esp_event"
+        "esp_system"
+        "esp_timer"
+        "esp_wifi"
+        "nvs_flash"
+)

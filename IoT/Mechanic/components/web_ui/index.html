@@ -1,0 +1,118 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>WiFi Manager</title>
+  </head>
+  <body>
+    <h1>WiFi Manager</h1>
+
+    <form action="/wifi/save" method="post">
+      <label for="ssid">SSID:</label><br />
+      <input type="text" id="ssid" name="ssid" /><br />
+
+      <label for="passphrase">Passphrase:</label><br />
+      <input type="password" id="passphrase" name="passphrase" /><br /><br />
+
+      <input type="submit" value="Save" />
+    </form>
+
+    <button onclick="scanNetworks()">Scan Nearby Networks</button>
+
+    <h2>Scanned Networks</h2>
+    <ul id="scan-list"></ul>
+
+    <h2>Saved Networks</h2>
+    <ul id="network-list"></ul>
+
+    <h2>MQTT Broker</h2>
+    <form id="broker-form">
+      <label for="broker_uri">Broker URI:</label><br />
+      <input
+        type="text"
+        id="broker_uri"
+        name="broker_uri"
+        placeholder="mqtt://broker.example.com"
+      /><br /><br />
+      <input type="submit" value="Save Broker URI" />
+    </form>
+
+    <p id="mqtt-status"></p>
+
+    <script>
+      async function fetchNetworks() {
+        const response = await fetch("/wifi/saved");
+        const networks = await response.json();
+        const list = document.getElementById("network-list");
+        list.innerHTML = "";
+        networks.forEach((ssid) => {
+          const li = document.createElement("li");
+          li.textContent = ssid;
+          list.appendChild(li);
+        });
+      }
+
+      async function scanNetworks() {
+        const response = await fetch("/wifi/scan");
+        const networks = await response.json();
+        const list = document.getElementById("scan-list");
+        list.innerHTML = "";
+        networks.forEach((ssid) => {
+          const li = document.createElement("li");
+          li.textContent = ssid;
+          list.appendChild(li);
+        });
+      }
+
+      async function loadBrokerUri() {
+        const status = document.getElementById("mqtt-status");
+        try {
+          const response = await fetch("/mqtt/broker");
+          const data = await response.json();
+          if (data.broker_uri) {
+            document.getElementById("broker_uri").value = data.broker_uri;
+          }
+          status.textContent = "Broker URI loaded";
+        } catch (error) {
+          status.textContent = "Failed to load Broker URI";
+        }
+      }
+
+      document
+        .getElementById("broker-form")
+        .addEventListener("submit", async (event) => {
+          event.preventDefault();
+
+          const brokerUri = document.getElementById("broker_uri").value.trim();
+          const status = document.getElementById("mqtt-status");
+
+          if (!brokerUri) {
+            status.textContent = "Broker URI is required";
+            return;
+          }
+
+          try {
+            const response = await fetch("/mqtt/broker", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ broker_uri: brokerUri }),
+            });
+
+            if (!response.ok) {
+              throw new Error("Request failed");
+            }
+
+            status.textContent = "Broker URI saved";
+          } catch (error) {
+            status.textContent = "Failed to save Broker URI";
+          }
+        });
+
+      fetchNetworks();
+      loadBrokerUri();
+    </script>
+  </body>
+</html>

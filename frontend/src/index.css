@@ -1,0 +1,92 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Tajawal:wght@400;500;700&display=swap');
+
+:root {
+  /* Ultra-Premium Dark Theme */
+  --bg-app: #09090b; /* deep zinc */
+  --bg-card: rgba(24, 24, 27, 0.6); /* glassmorphism base */
+  --bg-card-hover: rgba(39, 39, 42, 0.8);
+  
+  --text-primary: #ffffff;
+  --text-secondary: #a1a1aa;
+  --text-tertiary: #52525b;
+
+  --accent-primary: #e4e4e7; /* Pure clean accent */
+  --accent-glow: rgba(228, 228, 231, 0.4);
+  
+  --status-green: #10b981;
+  --status-yellow: #f59e0b;
+  --status-red: #ef4444;
+
+  --border-color: rgba(255, 255, 255, 0.08);
+  
+  --nav-height: 80px;
+
+  /* Tech-focused typography */
+  --font-en: 'Space Grotesk', system-ui, sans-serif;
+  --font-ar: 'Tajawal', 'Space Grotesk', system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background-color: var(--bg-app);
+  background-image: radial-gradient(circle at 50% 0%, rgba(39, 39, 42, 0.4) 0%, transparent 70%);
+  background-attachment: fixed;
+  color: var(--text-primary);
+  font-family: var(--font-en);
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+
+html[dir='rtl'] body { font-family: var(--font-ar); }
+
+/* Global Glass Panel */
+.glass-panel {
+  background: var(--bg-card);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 8px 32px -8px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05);
+  border-radius: 20px;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.glass-panel:active { transform: scale(0.98); }
+
+/* Button Engine */
+.btn-primary {
+  background: var(--accent-primary);
+  color: #09090b;
+  font-family: inherit;
+  font-weight: 600;
+  border: none;
+  border-radius: 12px;
+  padding: 16px 24px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 0 16px var(--accent-glow);
+}
+.btn-primary:active { transform: scale(0.96); box-shadow: 0 0 8px var(--accent-glow); }
+
+.btn-secondary {
+  background: transparent;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-weight: 600;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 16px 24px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.btn-secondary:active, .btn-secondary:hover { background: var(--bg-card-hover); }
+
+/* Staggered Animations */
+.animate-enter {
+  animation: enterUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  opacity: 0;
+  transform: translateY(12px);
+}
+@keyframes enterUp {
+  to { opacity: 1; transform: translateY(0); }
+}
