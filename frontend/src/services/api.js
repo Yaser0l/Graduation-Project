@@ -1,17 +1,37 @@
-const RAW_API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api').replace(/\/+$/, '');
-const BASE_URL = RAW_API_BASE_URL.endsWith('/api') ? RAW_API_BASE_URL : `${RAW_API_BASE_URL}/api`;
-export const EVENTS_BASE_URL = BASE_URL.replace(/\/api$/, '');
+const RAW_API_BASE_URL = (
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api"
+).replace(/\/+$/, "");
+const BASE_URL = RAW_API_BASE_URL.endsWith("/api")
+  ? RAW_API_BASE_URL
+  : `${RAW_API_BASE_URL}/api`;
+export const EVENTS_BASE_URL = BASE_URL.replace(/\/api$/, "");
 
 const getHeaders = (isFormData = false) => {
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem("token");
   const headers = {};
   if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
+    headers["Authorization"] = `Bearer ${token}`;
   }
   if (!isFormData) {
-    headers['Content-Type'] = 'application/json';
+    headers["Content-Type"] = "application/json";
   }
   return headers;
+};
+
+const formatErrorDetail = (detail) => {
+  if (Array.isArray(detail)) {
+    return detail
+      .map((item) => {
+        const loc = Array.isArray(item?.loc) ? item.loc.join(".") : item?.loc;
+        const msg = item?.msg || JSON.stringify(item);
+        return loc ? `${loc}: ${msg}` : msg;
+      })
+      .join(" | ");
+  }
+  if (detail && typeof detail === "object") {
+    return detail.message || detail.detail || JSON.stringify(detail);
+  }
+  return detail;
 };
 
 const handleResponse = async (response) => {
@@ -20,9 +40,12 @@ const handleResponse = async (response) => {
     try {
       errorBody = await response.json();
     } catch {
-      errorBody = { detail: 'Unknown network or server error' };
+      errorBody = { detail: "Unknown network or server error" };
     }
-    throw new Error(errorBody.detail || `HTTP error! status: ${response.status}`);
+    const message =
+      formatErrorDetail(errorBody.detail) ||
+      `HTTP error! status: ${response.status}`;
+    throw new Error(message);
   }
   return response.json();
 };
@@ -35,16 +58,19 @@ const parseNdjsonStream = async (response, handlers = {}) => {
     } catch {
       errorBody = { detail: `HTTP error! status: ${response.status}` };
     }
-    throw new Error(errorBody.detail || `HTTP error! status: ${response.status}`);
+    const message =
+      formatErrorDetail(errorBody.detail) ||
+      `HTTP error! status: ${response.status}`;
+    throw new Error(message);
   }
 
   if (!response.body) {
-    throw new Error('Streaming is not supported by this browser.');
+    throw new Error("Streaming is not supported by this browser.");
   }
 
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
-  let buffer = '';
+  let buffer = "";
   let finalPayload = null;
 
   const consumeLine = (line) => {
@@ -57,16 +83,16 @@ const parseNdjsonStream = async (response, handlers = {}) => {
     }
 
     const event = eventPayload.event;
-    if (event === 'start' && handlers.onStart) {
+    if (event === "start" && handlers.onStart) {
       handlers.onStart(eventPayload);
-    } else if (event === 'token' && handlers.onToken) {
-      handlers.onToken(eventPayload.chunk || '');
-    } else if (event === 'done') {
+    } else if (event === "token" && handlers.onToken) {
+      handlers.onToken(eventPayload.chunk || "");
+    } else if (event === "done") {
       finalPayload = eventPayload;
       if (handlers.onDone) handlers.onDone(eventPayload);
-    } else if (event === 'error') {
+    } else if (event === "error") {
       if (handlers.onError) handlers.onError(eventPayload);
-      throw new Error(eventPayload.message || 'Streaming request failed.');
+      throw new Error(eventPayload.message || "Streaming request failed.");
     }
   };
 
@@ -74,8 +100,8 @@ const parseNdjsonStream = async (response, handlers = {}) => {
     const { value, done } = await reader.read();
     if (done) break;
     buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split('\n');
-    buffer = lines.pop() || '';
+    const lines = buffer.split("\n");
+    buffer = lines.pop() || "";
     lines.forEach(consumeLine);
   }
 
@@ -94,13 +120,13 @@ const fetchWithTimeout = async (resource, options = {}) => {
   try {
     const response = await fetch(resource, {
       ...options,
-      signal: controller.signal
+      signal: controller.signal,
     });
     clearTimeout(id);
     return response;
   } catch (error) {
     clearTimeout(id);
-    if (error.name === 'AbortError') {
+    if (error.name === "AbortError") {
       throw new Error(`Request timed out after ${timeout / 1000} seconds`);
     }
     throw new Error(`Network error: ${error.message}`);
@@ -112,11 +138,11 @@ export const api = {
     login: async (email, password) => {
       // The backend expects OAuth2PasswordRequestForm (form-data)
       const formData = new URLSearchParams();
-      formData.append('username', email); // backend uses 'username' for the email field
-      formData.append('password', password);
+      formData.append("username", email); // backend uses 'username' for the email field
+      formData.append("password", password);
 
       const response = await fetchWithTimeout(`${BASE_URL}/auth/login`, {
-        method: 'POST',
+        method: "POST",
         headers: getHeaders(true),
         body: formData,
       });
@@ -124,7 +150,7 @@ export const api = {
     },
     register: async (name, email, password) => {
       const response = await fetchWithTimeout(`${BASE_URL}/auth/register`, {
-        method: 'POST',
+        method: "POST",
         headers: getHeaders(),
         body: JSON.stringify({ name, email, password }),
       });
@@ -135,32 +161,38 @@ export const api = {
   vehicles: {
     list: async () => {
       const response = await fetchWithTimeout(`${BASE_URL}/vehicles/`, {
-        method: 'GET',
+        method: "GET",
         headers: getHeaders(),
       });
       return handleResponse(response);
     },
     create: async (vehicleData) => {
       const response = await fetchWithTimeout(`${BASE_URL}/vehicles/`, {
-        method: 'POST',
+        method: "POST",
         headers: getHeaders(),
         body: JSON.stringify(vehicleData),
       });
       return handleResponse(response);
     },
     update: async (vehicleId, updateData) => {
-      const response = await fetchWithTimeout(`${BASE_URL}/vehicles/${vehicleId}`, {
-        method: 'PATCH',
-        headers: getHeaders(),
-        body: JSON.stringify(updateData),
-      });
+      const response = await fetchWithTimeout(
+        `${BASE_URL}/vehicles/${vehicleId}`,
+        {
+          method: "PATCH",
+          headers: getHeaders(),
+          body: JSON.stringify(updateData),
+        },
+      );
       return handleResponse(response);
     },
     remove: async (vehicleId) => {
-      const response = await fetchWithTimeout(`${BASE_URL}/vehicles/${vehicleId}`, {
-        method: 'DELETE',
-        headers: getHeaders(),
-      });
+      const response = await fetchWithTimeout(
+        `${BASE_URL}/vehicles/${vehicleId}`,
+        {
+          method: "DELETE",
+          headers: getHeaders(),
+        },
+      );
 
       if (response.status === 204) {
         return null;
@@ -173,82 +205,128 @@ export const api = {
   diagnostics: {
     list: async () => {
       const response = await fetchWithTimeout(`${BASE_URL}/diagnostics/`, {
-        method: 'GET',
+        method: "GET",
         headers: getHeaders(),
       });
       return handleResponse(response);
     },
     listByVehicle: async (vehicleId) => {
-      const response = await fetchWithTimeout(`${BASE_URL}/diagnostics/vehicle/${vehicleId}`, {
-        method: 'GET',
-        headers: getHeaders(),
-      });
+      const response = await fetchWithTimeout(
+        `${BASE_URL}/diagnostics/vehicle/${vehicleId}`,
+        {
+          method: "GET",
+          headers: getHeaders(),
+        },
+      );
       return handleResponse(response);
     },
     get: async (reportId) => {
-      const response = await fetchWithTimeout(`${BASE_URL}/diagnostics/${reportId}`, {
-        method: 'GET',
-        headers: getHeaders(),
-      });
+      const response = await fetchWithTimeout(
+        `${BASE_URL}/diagnostics/${reportId}`,
+        {
+          method: "GET",
+          headers: getHeaders(),
+        },
+      );
       return handleResponse(response);
     },
     resolve: async (reportId) => {
-      const response = await fetchWithTimeout(`${BASE_URL}/diagnostics/${reportId}/resolve`, {
-        method: 'PATCH',
-        headers: getHeaders(),
-      });
+      const response = await fetchWithTimeout(
+        `${BASE_URL}/diagnostics/${reportId}/resolve`,
+        {
+          method: "PATCH",
+          headers: getHeaders(),
+        },
+      );
       return handleResponse(response);
     },
-    fullReport: async (reportId, language = 'en', streamOptions = {}) => {
-      const { onStart, onToken, onDone, onError, streamMode = 'word', streamChunkSize = 3 } = streamOptions;
+    fullReport: async (reportId, language = "en", streamOptions = {}) => {
+      const {
+        onStart,
+        onToken,
+        onDone,
+        onError,
+        streamMode = "word",
+        streamChunkSize = 3,
+      } = streamOptions;
       const query = new URLSearchParams({
         stream_mode: streamMode,
         stream_chunk_size: String(streamChunkSize),
       });
-      const response = await fetchWithTimeout(`${BASE_URL}/diagnostics/${reportId}/full-report?${query.toString()}`, {
-        method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify({ language }),
-        timeout: 300000,
+      const response = await fetchWithTimeout(
+        `${BASE_URL}/diagnostics/${reportId}/full-report?${query.toString()}`,
+        {
+          method: "POST",
+          headers: getHeaders(),
+          body: JSON.stringify({ language }),
+          timeout: 300000,
+        },
+      );
+      return parseNdjsonStream(response, {
+        onStart,
+        onToken,
+        onDone,
+        onError,
+        streamMode,
+        streamChunkSize,
       });
-      return parseNdjsonStream(response, { onStart, onToken, onDone, onError, streamMode, streamChunkSize });
     },
   },
 
   maintenance: {
     listByVehicle: async (vehicleId) => {
-      const response = await fetchWithTimeout(`${BASE_URL}/maintenance/vehicle/${vehicleId}`, {
-        method: 'GET',
-        headers: getHeaders(),
-      });
+      const response = await fetchWithTimeout(
+        `${BASE_URL}/maintenance/vehicle/${vehicleId}`,
+        {
+          method: "GET",
+          headers: getHeaders(),
+        },
+      );
       return handleResponse(response);
     },
     completeTask: async (vehicleId, taskId, notes = null) => {
-      const response = await fetchWithTimeout(`${BASE_URL}/maintenance/vehicle/${vehicleId}/tasks/${taskId}/complete`, {
-        method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify({ notes }),
-      });
+      const response = await fetchWithTimeout(
+        `${BASE_URL}/maintenance/vehicle/${vehicleId}/tasks/${taskId}/complete`,
+        {
+          method: "POST",
+          headers: getHeaders(),
+          body: JSON.stringify({ notes }),
+        },
+      );
       return handleResponse(response);
     },
   },
 
   chat: {
     send: async (reportId, message, streamOptions = {}) => {
-      const { onStart, onToken, onDone, onError, streamMode = 'word', streamChunkSize = 2 } = streamOptions;
+      const {
+        onStart,
+        onToken,
+        onDone,
+        onError,
+        streamMode = "word",
+        streamChunkSize = 2,
+      } = streamOptions;
       const response = await fetchWithTimeout(`${BASE_URL}/chat/${reportId}`, {
-        method: 'POST',
+        method: "POST",
         headers: getHeaders(),
-        body: JSON.stringify({ message, stream_mode: streamMode, stream_chunk_size: streamChunkSize }),
+        body: JSON.stringify({
+          message,
+          stream_mode: streamMode,
+          stream_chunk_size: streamChunkSize,
+        }),
         timeout: 300000,
       });
       return parseNdjsonStream(response, { onStart, onToken, onDone, onError });
     },
     history: async (reportId) => {
-      const response = await fetchWithTimeout(`${BASE_URL}/chat/${reportId}/history`, {
-        method: 'GET',
-        headers: getHeaders(),
-      });
+      const response = await fetchWithTimeout(
+        `${BASE_URL}/chat/${reportId}/history`,
+        {
+          method: "GET",
+          headers: getHeaders(),
+        },
+      );
       return handleResponse(response);
     },
   },

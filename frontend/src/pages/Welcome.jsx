@@ -7,6 +7,7 @@ import styles from './Welcome.module.css';
 import logo from '../assets/logo.png';
 
 export default function Welcome() {
+  const MIN_PASSWORD_LENGTH = 6;
   const [isLogin, setIsLogin] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -22,6 +23,15 @@ export default function Welcome() {
     e.preventDefault();
     setIsLoading(true);
     setLocalError(null);
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      setIsLoading(false);
+      setLocalError(
+        language === 'ar'
+          ? `يجب أن تكون كلمة المرور ${MIN_PASSWORD_LENGTH} أحرف على الأقل.`
+          : `Password must be at least ${MIN_PASSWORD_LENGTH} characters.`
+      );
+      return;
+    }
     try {
       if (isLogin) {
         await login(email, password);
@@ -74,6 +84,7 @@ export default function Welcome() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
+                autoComplete="name"
               />
             </div>
           )}
@@ -87,6 +98,7 @@ export default function Welcome() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              autoComplete="email"
             />
           </div>
           <div className={styles.inputGroup}>
@@ -98,6 +110,8 @@ export default function Welcome() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              minLength={MIN_PASSWORD_LENGTH}
+              autoComplete={isLogin ? 'current-password' : 'new-password'}
             />
           </div>
 

@@ -32,13 +32,14 @@ services:
       start_period: 20s
 
     volumes:
-      - ./mosquitto/config:/mosquitto/config
+      - ./mosquitto/config/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
       - mosquitto_data:/mosquitto/data
       - mosquitto_log:/mosquitto/log
     restart: unless-stopped
   
   sayyartech-api:
-    build: .
+    build: 
+      context: ./backend
     container_name: carbrain-api
     environment:
       PROJECT_NAME: ${PROJECT_NAME:-CarBrain Backend}
@@ -65,13 +66,53 @@ services:
       MAIL_FROM: ${MAIL_FROM:-"CarBrain Diagnostics <noreply@carbrain.app>"}
     ports:
       - "5000:5000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:5000/api/internal/health')"
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
     depends_on:
       postgres:
           condition: service_healthy
       mqtt:
           condition: service_healthy
     restart: "no"
-    
+
+  sayyartech-llm:
+    build:
+      context: ./Agentic_Workflow
+    container_name: carbrain-llm
+    environment:
+      PORT: ${LLM_PORT:-8000}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+          condition: service_healthy
+      mqtt:
+          condition: service_healthy
+    restart: "no"
+  
+  sayyartech-frontend:
+    build:
+      context: ./frontend
+    container_name: carbrain-frontend
+    ports:
+      - "5173:80"
+    restart: "no"
+    depends_on:
+      sayyartech-api:
+          condition: service_healthy
+      sayyartech-llm:
+          condition: service_started
 
 volumes:
   postgres_data:
