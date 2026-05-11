@@ -231,8 +231,7 @@ void test_mqtt_start_client_locked_requires_wifi(void) {
 
 void test_mqtt_start_client_locked_handles_init_failure(void) {
   mqtt_module_init();
-  set_network_up(true);
-
+  mqtt_client_stub_set_init_should_fail(true);
   set_network_up(true);
   mqtt_start_client_locked();
 
