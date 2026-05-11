@@ -1,29 +1,34 @@
 import uvicorn
-import asyncio
 import logging
+import time
+from collections import defaultdict
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Depends, Query, HTTPException, status
+from fastapi import FastAPI, Query, HTTPException, status, Request
+from fastapi.responses import JSONResponse
 
-# Silence the (trapped) bcrypt error from passlib
-logging.getLogger("passlib").setLevel(logging.ERROR)
 from fastapi.middleware.cors import CORSMiddleware
 from sse_starlette.sse import EventSourceResponse
 from jose import jwt, JWTError
 
 from app.core.config import settings
-from app.routers import auth, vehicle, diagnostic, chat, internal
+from app.routers import auth, vehicle, diagnostic, chat, internal, maintenance
 from app.core.mqtt import MqttService
 from app.core.sse import on_report_created, sse_service
-from app.db.init_db import init_db_schema
+from app.db.session import init_db
 
+# For rate limiting
+RATE_LIMIT = 60
+RATE_WINDOW = 60
+request_counts = defaultdict(list)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: Ensure database schema exists
-    await init_db_schema()
+    # Startup: Create DB tables if they don't exist
+    await init_db()
 
     # Startup: Initialize MQTT
     mqtt_svc = MqttService(on_report_created_cb=on_report_created)
+    app.state.mqtt_svc = mqtt_svc
     try:
         await mqtt_svc.connect()
         print("[LIFESPAN] MQTT Connected")
@@ -33,8 +38,11 @@ async def lifespan(app: FastAPI):
     yield
 
     # Shutdown: Disconnect MQTT
-    await mqtt_svc.disconnect()
-    print("[LIFESPAN] MQTT Disconnected")
+    try:
+        await mqtt_svc.disconnect()
+        print("[LIFESPAN] MQTT Disconnected")
+    except Exception as e:
+        print(f"[LIFESPAN] MQTT disconnect failed: {e}")
 
 
 app = FastAPI(
@@ -43,10 +51,31 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Rate Limiting Middleware
+MAX_TRACKED_IPS = 1000
+
+@app.middleware("http")
+async def rate_limit_middleware(request: Request, call_next):
+    client_ip = request.client.host if request.client else "127.0.0.1"
+    now = time.time()
+    
+    if len(request_counts) > MAX_TRACKED_IPS:
+        request_counts.clear()
+    
+    # clean up old reqs
+    request_counts[client_ip] = [t for t in request_counts[client_ip] if now - t < RATE_WINDOW]
+    
+    if len(request_counts[client_ip]) >= RATE_LIMIT:
+        return JSONResponse(status_code=429, content={"detail": "Too Many Requests"})
+    
+    request_counts[client_ip].append(now)
+    response = await call_next(request)
+    return response
+
 # CORS Middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -81,6 +110,7 @@ app.include_router(vehicle.router)
 app.include_router(diagnostic.router)
 app.include_router(chat.router)
 app.include_router(internal.router)
+app.include_router(maintenance.router)
 
 
 @app.get("/")

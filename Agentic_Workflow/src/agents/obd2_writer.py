@@ -18,7 +18,9 @@ class OBD2WriterAgent:
         llm_params = {
             "model": agent_config["model"],
             "temperature": agent_config["temperature"],
-            "api_key": config.OPENAI_API_KEY
+            "api_key": config.OPENAI_API_KEY,
+            "timeout": config.AGENT_LLM_TIMEOUT_SEC,
+            "max_retries": config.AGENT_LLM_MAX_RETRIES,
         }
         if config.base_url:
             llm_params["base_url"] = config.base_url
@@ -35,7 +37,7 @@ class OBD2WriterAgent:
             Dictionary with retrieval results and reflection
         """
         # StructuredTool requires invocation with named arguments
-        return retrieve_with_reflection.invoke({"query": query, "top_k": 5})
+        return retrieve_with_reflection.invoke({"query": query, "top_k": config.RAG_TOP_K})
     
     def _search_web_fallback(self, query: str) -> str:
         """Search web when RAG is insufficient (Retry step).
@@ -160,6 +162,8 @@ TECHNICAL ANALYSIS:"""
         
         # Combine all context
         combined_context = "\n\n".join(context_parts)
+        if len(combined_context) > config.MAX_CONTEXT_CHARS:
+            combined_context = combined_context[:config.MAX_CONTEXT_CHARS]
         
         # Build analysis prompt
         prompt = self._build_analysis_prompt(

@@ -1,12 +1,13 @@
 import React, { useEffect, useState, useContext } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AppContext } from '../store/AppContext';
+import { LanguageContext, DiagnosticContext } from '../store/AppContext';
 import { useNavigate } from 'react-router-dom';
 import { Activity, Cpu, Zap, CheckCircle2, Bluetooth, Usb } from 'lucide-react';
 import styles from './ScannerOverlay.module.css';
 
 export default function ScannerOverlay() {
-  const { isScanning, setIsScanning, language } = useContext(AppContext);
+  const { isScanning, setIsScanning } = useContext(DiagnosticContext);
+  const { language } = useContext(LanguageContext);
   const navigate = useNavigate();
   const [step, setStep] = useState('prompt'); // 'prompt', 'pairing', 'scanning'
   const [phase, setPhase] = useState(0);

@@ -1,6 +1,5 @@
 """Router for the multi-agent workflow."""
 from typing import Dict, Any, Literal
-from src.states.obd2_state import OBD2State
 
 
 def route_request(state: Dict[str, Any]) -> Literal["obd2_orchestration", "error"]:

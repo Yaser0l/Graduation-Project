@@ -1,7 +1,8 @@
 from pydantic import BaseModel
 from datetime import datetime
-from typing import Optional, List, Dict, Any
+from typing import Optional, List
 from uuid import UUID
+
 
 class DiagnosticReportBase(BaseModel):
     vehicle_id: UUID
@@ -11,15 +12,13 @@ class DiagnosticReportBase(BaseModel):
     estimated_cost_min: Optional[int] = None
     estimated_cost_max: Optional[int] = None
 
-class DiagnosticReportCreate(DiagnosticReportBase):
-    pass
 
 class DiagnosticReportOut(DiagnosticReportBase):
     id: UUID
     resolved: bool
     resolved_at: Optional[datetime] = None
     created_at: datetime
-    
+
     # Extended fields from JOINs
     vin: Optional[str] = None
     make: Optional[str] = None
@@ -28,3 +27,7 @@ class DiagnosticReportOut(DiagnosticReportBase):
 
     class Config:
         from_attributes = True
+
+
+class FullReportRequest(BaseModel):
+    language: Optional[str] = "en"

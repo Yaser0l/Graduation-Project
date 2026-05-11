@@ -15,7 +15,9 @@ class OBD2ObserverAgent:
         llm_params = {
             "model": agent_config["model"],
             "temperature": agent_config["temperature"],
-            "api_key": config.OPENAI_API_KEY
+            "api_key": config.OPENAI_API_KEY,
+            "timeout": config.AGENT_LLM_TIMEOUT_SEC,
+            "max_retries": config.AGENT_LLM_MAX_RETRIES,
         }
         if config.base_url:
             llm_params["base_url"] = config.base_url
@@ -151,7 +153,7 @@ def should_revise(state: OBD2State) -> str:
         return "approved"
     
     # If we've exceeded revision limit, force approval
-    if revision_count >= 3:
+    if revision_count >= config.MAX_REVISION_CYCLES:
         print(f"[OBD2 Observer] Max revisions ({revision_count}) reached, forcing approval")
         return "force_approve"
     

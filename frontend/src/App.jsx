@@ -8,6 +8,7 @@ import Diagnostics from './pages/Diagnostics';
 import Maintenance from './pages/Maintenance';
 import Chat from './pages/Chat';
 import ScannerOverlay from './components/ScannerOverlay';
+import ProtectedRoute from './components/ProtectedRoute';
 import './App.css';
 
 export default function App() {
@@ -18,15 +19,19 @@ export default function App() {
           {/* Unauthenticated / Root Bounds */}
           <Route path="/" element={<Navigate to="/welcome" replace />} />
           <Route path="/welcome" element={<Welcome />} />
-          <Route path="/onboarding" element={<Onboarding />} />
           
-          {/* Authenticated Application Layout Bounds */}
-          <Route element={<Layout />}>
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/diagnostics" element={<Diagnostics />} />
-            <Route path="/maintenance" element={<Maintenance />} />
-            <Route path="/chat" element={<Chat />} />
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          {/* Authenticated bounds */}
+          <Route element={<ProtectedRoute />}>
+            <Route path="/onboarding" element={<Onboarding />} />
+            
+            {/* Authenticated Application Layout Bounds */}
+            <Route element={<Layout />}>
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/diagnostics" element={<Diagnostics />} />
+              <Route path="/maintenance" element={<Maintenance />} />
+              <Route path="/chat" element={<Chat />} />
+              <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            </Route>
           </Route>
         </Routes>
         <ScannerOverlay />

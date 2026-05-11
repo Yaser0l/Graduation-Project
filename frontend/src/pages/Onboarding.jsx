@@ -1,177 +1,271 @@
 import React, { useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import { AppContext } from '../store/AppContext';
-import { api } from '../services/api';
-import { Scan, Settings2, Car, Calendar, GaugeCircle, Fingerprint } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { LanguageContext, VehicleContext } from '../store/AppContext';
+import { Car, Settings2, Fingerprint, GaugeCircle } from 'lucide-react';
 import styles from './Onboarding.module.css';
+import logo from '../assets/logo.png';
 
 export default function Onboarding() {
   const navigate = useNavigate();
-  const { mockData, language, setActiveVehicle, fetchAppData } = useContext(AppContext);
-  const [mode, setMode] = useState(null); // 'auto' or 'manual'
-  const [scanProgress, setScanProgress] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
-  const [localError, setLocalError] = useState(null);
+  const { language } = useContext(LanguageContext);
+  const { addVehicle } = useContext(VehicleContext);
 
-  // Manual Cascade State
-  const [step, setStep] = useState(1);
-  const [make, setMake] = useState('');
-  const [model, setModel] = useState('');
-  const [year, setYear] = useState('');
-  const [vin, setVin] = useState('');
+  const [make, setMake]       = useState('');
+  const [model, setModel]     = useState('');
+  const [year, setYear]       = useState('');
+  const [vin, setVin]         = useState('');
   const [mileage, setMileage] = useState('');
+  const [oilProgramKm, setOilProgramKm] = useState('10000');
+  const [initializeMaintenanceBaseline, setInitializeMaintenanceBaseline] = useState(true);
+  const [lastServiceKm, setLastServiceKm] = useState('');
+  const [lastServiceDate, setLastServiceDate] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError]     = useState(null);
 
-  const startAutoScan = () => {
-    setMode('auto');
-    let p = 0;
-    const interval = setInterval(() => {
-      p += 2;
-      setScanProgress(p);
-      if (p >= 100) {
-        clearInterval(interval);
-        // In a real OBD-II scan, we'd get the VIN/Make/Model here
-        // For now, we simulate success and move to dashboard
-        setTimeout(() => navigate('/dashboard'), 600);
-      }
-    }, 40);
-  };
+  const ar = language === 'ar';
 
-  const manualFinish = async () => {
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!make.trim() || !model.trim() || !year.trim() || !vin.trim() || vin.trim().length !== 17) {
+      setError(ar ? 'يرجى تعبئة جميع الحقول المطلوبة بما في ذلك رقم الهيكل (١٧ حرف/رقم).' : 'Please fill in all required fields including the 17-character VIN.');
+      return;
+    }
     setIsLoading(true);
-    setLocalError(null);
+    setError(null);
     try {
-      const vehicleData = {
-        vin: vin || `SIM-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
-        make,
-        model,
-        year: parseInt(year),
-        mileage: parseInt(mileage) || 0
-      };
-      
-      const newVehicle = await api.vehicles.create(vehicleData);
-      setActiveVehicle(newVehicle);
-      await fetchAppData(); // Refresh all data
+      await addVehicle({
+        vin:     vin.trim().toUpperCase(),
+        make:    make.trim(),
+        model:   model.trim(),
+        year:    parseInt(year, 10),
+        mileage: parseInt(mileage, 10) || 0,
+        oil_program_km: oilProgramKm === '5000' ? 5000 : 10000,
+        initialize_maintenance_baseline: initializeMaintenanceBaseline,
+        last_service_km: initializeMaintenanceBaseline
+          ? (lastServiceKm.trim() === '' ? null : (parseInt(lastServiceKm, 10) || 0))
+          : null,
+        last_service_date: initializeMaintenanceBaseline
+          ? (lastServiceDate.trim() === '' ? null : lastServiceDate)
+          : null,
+      });
       navigate('/dashboard');
     } catch (err) {
-      console.error("Failed to create vehicle:", err);
-      setLocalError(err.message || "Failed to save vehicle details");
+      console.error('Failed to register vehicle:', err);
+      setError(err.message || (ar ? 'فشل الحفظ. حاول مرة أخرى.' : 'Failed to save. Please try again.'));
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className={styles.container}>
+    <motion.div
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className={styles.container}
+    >
       <div className={styles.header}>
-        <motion.div initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className={styles.logo}>
-           Vehicle AI
+        <motion.div
+          initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
+          className={styles.logoContainer}
+        >
+          <img src={logo} alt="Logo" className={styles.logoImg} />
         </motion.div>
-        <p className={styles.subtitle}>{language === 'ar' ? 'التشخيص الذكي لسيارتك' : 'Premium Diagnostics Engine'}</p>
+        <p className={styles.subtitle}>
+          {ar ? 'أدخل بيانات مركبتك' : 'Register Your Vehicle'}
+        </p>
       </div>
 
-      <AnimatePresence mode="wait">
-        {localError && <div className={styles.errorBanner}>{localError}</div>}
+      <motion.form
+        initial={{ y: 24, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.1 }}
+        className={styles.formBox}
+        onSubmit={handleSubmit}
+      >
+        {error && <div className={styles.errorBanner}>{error}</div>}
 
-        {!mode && (
-          <motion.div key="intro" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, y: 20 }} className={styles.options}>
-            <button className={`glass-panel ${styles.bigBtn}`} onClick={startAutoScan}>
-              <Scan size={32} className={styles.btnIcon} />
-              <div className={styles.btnText}>
-                <h3>{language === 'ar' ? 'الاتصال التلقائي بـ OBD-II' : 'Auto-Detect via OBD-II'}</h3>
-                <p>{language === 'ar' ? 'مسح بلوتوث آمن' : 'Secure bluetooth scanning sequence'}</p>
-              </div>
-            </button>
-            <button className={`glass-panel ${styles.bigBtn} ${styles.secondaryLine}`} onClick={() => setMode('manual')}>
-              <Settings2 size={32} className={styles.btnIcon} />
-              <div className={styles.btnText}>
-                <h3>{language === 'ar' ? 'إدخال يدوي' : 'Enter Details Manually'}</h3>
-                <p>{language === 'ar' ? 'تحديد معلمات المركبة' : 'Select your vehicle parameters'}</p>
-              </div>
-            </button>
-          </motion.div>
+        <div className={styles.field}>
+          <label htmlFor="make" className={styles.label}>
+            <Car size={16} />
+            {ar ? 'الشركة المصنّعة' : 'Manufacturer'}
+            <span className={styles.required}>*</span>
+          </label>
+          <input
+            id="make"
+            type="text"
+            className={styles.input}
+            placeholder={ar ? 'مثال: Toyota' : 'e.g. Toyota'}
+            value={make}
+            onChange={e => setMake(e.target.value)}
+            required
+            autoFocus
+          />
+        </div>
+
+        <div className={styles.field}>
+          <label htmlFor="model" className={styles.label}>
+            <Settings2 size={16} />
+            {ar ? 'الطراز' : 'Model / Type'}
+            <span className={styles.required}>*</span>
+          </label>
+          <input
+            id="model"
+            type="text"
+            className={styles.input}
+            placeholder={ar ? 'مثال: Camry' : 'e.g. Camry'}
+            value={model}
+            onChange={e => setModel(e.target.value)}
+            required
+          />
+        </div>
+
+        <div className={styles.row}>
+          <div className={styles.field}>
+            <label htmlFor="year" className={styles.label}>
+              {ar ? 'سنة الصنع' : 'Year'}
+              <span className={styles.required}>*</span>
+            </label>
+            <input
+              id="year"
+              type="number"
+              className={styles.input}
+              placeholder={ar ? 'مثال: 2021' : 'e.g. 2021'}
+              value={year}
+              onChange={e => setYear(e.target.value)}
+              min={1980}
+              max={2026}
+              required
+            />
+          </div>
+
+          <div className={styles.field}>
+            <label htmlFor="mileage" className={styles.label}>
+              <GaugeCircle size={16} />
+              {ar ? 'الممشى (كم)' : 'Mileage (km)'}
+            </label>
+            <input
+              id="mileage"
+              type="number"
+              className={styles.input}
+              placeholder={ar ? 'مثال: 85000' : 'e.g. 85000'}
+              value={mileage}
+              onChange={e => setMileage(e.target.value)}
+              min={0}
+            />
+          </div>
+        </div>
+
+        <div className={styles.field}>
+          <label htmlFor="vin" className={styles.label}>
+            <Fingerprint size={16} />
+            {ar ? 'رقم الهيكل VIN' : 'VIN Number'}
+            <span className={styles.required}>*</span>
+          </label>
+          <input
+            id="vin"
+            type="text"
+            className={styles.input}
+            placeholder="e.g. 1HGCM82633A004352"
+            value={vin}
+            onChange={e => setVin(e.target.value.toUpperCase())}
+            minLength={17}
+            maxLength={17}
+            required
+          />
+        </div>
+
+        <div className={styles.field}>
+          <label className={styles.label}>
+            {ar ? 'خطة تغيير زيت المحرك' : 'Engine Oil Program'}
+            <span className={styles.required}>*</span>
+          </label>
+          <div className={styles.radioGroup}>
+            <label className={styles.radioOption}>
+              <input
+                type="radio"
+                name="oilProgram"
+                value="5000"
+                checked={oilProgramKm === '5000'}
+                onChange={(e) => setOilProgramKm(e.target.value)}
+              />
+              <span>{ar ? '٥,٠٠٠ كم' : '5,000 km'}</span>
+            </label>
+            <label className={styles.radioOption}>
+              <input
+                type="radio"
+                name="oilProgram"
+                value="10000"
+                checked={oilProgramKm === '10000'}
+                onChange={(e) => setOilProgramKm(e.target.value)}
+              />
+              <span>{ar ? '١٠,٠٠٠ كم' : '10,000 km'}</span>
+            </label>
+          </div>
+        </div>
+
+        <div className={styles.field}>
+          <label className={styles.label}>
+            {ar ? 'تهيئة خط أساس الصيانة' : 'Maintenance Baseline Setup'}
+          </label>
+          <label className={styles.checkboxRow}>
+            <input
+              type="checkbox"
+              checked={initializeMaintenanceBaseline}
+              onChange={(e) => setInitializeMaintenanceBaseline(e.target.checked)}
+            />
+            <span>
+              {ar
+                ? 'اعتبر أن الصيانة الأساسية تمت عند التسجيل لتجنب تنبيهات فورية كثيرة'
+                : 'Assume baseline service at registration to avoid immediate alert flood'}
+            </span>
+          </label>
+        </div>
+
+        {initializeMaintenanceBaseline && (
+          <div className={styles.row}>
+            <div className={styles.field}>
+              <label htmlFor="lastServiceKm" className={styles.label}>
+                {ar ? 'كم كان العداد عند آخر صيانة؟' : 'Odometer at last major service'}
+                <span className={styles.optional}>{ar ? '(اختياري)' : '(optional)'}</span>
+              </label>
+              <input
+                id="lastServiceKm"
+                type="number"
+                className={styles.input}
+                placeholder={ar ? 'افتراضياً سيتم استخدام الممشى الحالي' : 'Defaults to current mileage if empty'}
+                value={lastServiceKm}
+                onChange={e => setLastServiceKm(e.target.value)}
+                min={0}
+              />
+            </div>
+
+            <div className={styles.field}>
+              <label htmlFor="lastServiceDate" className={styles.label}>
+                {ar ? 'تاريخ آخر صيانة' : 'Date of last major service'}
+                <span className={styles.optional}>{ar ? '(اختياري)' : '(optional)'}</span>
+              </label>
+              <input
+                id="lastServiceDate"
+                type="date"
+                className={styles.input}
+                value={lastServiceDate}
+                onChange={e => setLastServiceDate(e.target.value)}
+                max={new Date().toISOString().split('T')[0]}
+              />
+            </div>
+          </div>
         )}
 
-        {mode === 'auto' && (
-          <motion.div key="auto" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className={styles.scannerBox}>
-            <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 2, ease: "linear" }} className={styles.scanRing}>
-              <div className={styles.scanCore} style={{ background: `conic-gradient(var(--status-green) ${scanProgress}%, transparent 0)` }} />
-            </motion.div>
-            <h2 className={styles.scanData}>{scanProgress}%</h2>
-            <p className={styles.scanText}>{language === 'ar' ? 'جاري الاتصال بوحدة المحرك...' : 'Interfacing with Engine Control Unit...'}</p>
-          </motion.div>
-        )}
-
-        {mode === 'manual' && (
-          <motion.div key="manual" initial={{ x: 30, opacity: 0 }} animate={{ x: 0, opacity: 1 }} className={styles.manualBox}>
-             
-             {step === 1 && (
-               <motion.div initial={{opacity: 0}} animate={{opacity: 1}} exit={{opacity:0}} className={styles.stepBlock}>
-                 <label><Car size={18}/> {language === 'ar' ? 'الشركة المُصنعة' : 'Select Make'}</label>
-                 <div className={styles.gridList}>
-                   {mockData.brands.map(b => (
-                     <button key={b} className={styles.gridItem} onClick={() => { setMake(b); setStep(2); }}>{b}</button>
-                   ))}
-                 </div>
-               </motion.div>
-             )}
-
-             {step === 2 && (
-               <motion.div initial={{opacity: 0, x: 20}} animate={{opacity: 1, x: 0}} className={styles.stepBlock}>
-                 <label><Settings2 size={18}/> {language === 'ar' ? 'الموديل' : 'Select Model'}</label>
-                 <div className={styles.gridList}>
-                   {mockData.models[make]?.map(m => (
-                     <button key={m} className={styles.gridItem} onClick={() => { setModel(m); setStep(3); }}>{m}</button>
-                   ))}
-                 </div>
-               </motion.div>
-             )}
-
-             {step === 3 && (
-               <motion.div initial={{opacity: 0, x: 20}} animate={{opacity: 1, x: 0}} className={styles.stepBlock}>
-                 <label><Calendar size={18}/> {language === 'ar' ? 'سنة الصنع' : 'Select Year'}</label>
-                 <div className={styles.gridList}>
-                   {[2024, 2023, 2022, 2021, 2020, 2018].map(y => (
-                     <button key={y} className={styles.gridItem} onClick={() => { setYear(y); setStep(4); }}>{y}</button>
-                   ))}
-                 </div>
-               </motion.div>
-             )}
-
-             {step === 4 && (
-               <motion.div initial={{opacity: 0, x: 20}} animate={{opacity: 1, x: 0}} className={styles.stepBlock}>
-                 <label><Fingerprint size={18}/> {language === 'ar' ? 'رقم الهيكل (VIN)' : 'Vehicle ID Number (VIN)'}</label>
-                 <input 
-                   type="text" 
-                   className={styles.inputField} 
-                   placeholder="e.g. 1HGCM82633A..." 
-                   value={vin} 
-                   onChange={e => setVin(e.target.value.toUpperCase())} 
-                 />
-                 <button className="btn-primary" style={{ width: '100%', marginTop: 24 }} onClick={() => setStep(5)}>
-                   {language === 'ar' ? 'التالي' : 'Next'}
-                 </button>
-               </motion.div>
-             )}
-
-             {step === 5 && (
-               <motion.div initial={{opacity: 0, x: 20}} animate={{opacity: 1, x: 0}} className={styles.stepBlock}>
-                 <label><GaugeCircle size={18}/> {language === 'ar' ? 'الممشى الحالي (كم)' : 'Current Mileage (km)'}</label>
-                 <input 
-                   type="number" 
-                   className={styles.inputField} 
-                   placeholder="e.g. 85000" 
-                   value={mileage} 
-                   onChange={e => setMileage(e.target.value)} 
-                 />
-                 <button className="btn-primary" style={{ width: '100%', marginTop: 24 }} onClick={manualFinish} disabled={isLoading}>
-                   {isLoading ? (language === 'ar' ? 'جاري الحفظ...' : 'Saving Details...') : (language === 'ar' ? 'إتمام التحليل' : 'Analyze Vehicle Details')}
-                 </button>
-               </motion.div>
-             )}
-          </motion.div>
-        )}
-      </AnimatePresence>
+        <button
+          type="submit"
+          className={`btn-primary ${styles.submitBtn}`}
+          disabled={isLoading}
+        >
+          {isLoading
+            ? (ar ? 'جاري الحفظ...' : 'Saving...')
+            : (ar ? 'تسجيل المركبة' : 'Register Vehicle')}
+        </button>
+      </motion.form>
     </motion.div>
   );
 }

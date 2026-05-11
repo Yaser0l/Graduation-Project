@@ -1,45 +1,118 @@
 import React, { useContext } from 'react';
 import { motion } from 'framer-motion';
-import { AppContext } from '../store/AppContext';
-import { CheckCircle2, AlertCircle, Clock } from 'lucide-react';
+import { LanguageContext, DiagnosticContext, VehicleContext } from '../store/AppContext';
+import { CheckCircle2, AlertCircle, Clock, Wrench } from 'lucide-react';
 import styles from './Maintenance.module.css';
 
 export default function Maintenance() {
-  const { maintenance, language } = useContext(AppContext);
+  const { maintenance, maintenanceError, isMaintenanceLoading, completeMaintenanceTask } = useContext(DiagnosticContext);
+  const { activeVehicle } = useContext(VehicleContext);
+  const { language } = useContext(LanguageContext);
+  const [resolvingId, setResolvingId] = React.useState(null);
 
   const containerVars = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.1 } } };
   const itemVars = { hidden: { x: -20, opacity: 0 }, show: { x: 0, opacity: 1 } };
+
+  const handleComplete = async (taskId) => {
+    if (resolvingId || !taskId) return;
+    setResolvingId(taskId);
+    try {
+      await completeMaintenanceTask(taskId);
+    } catch (err) {
+      console.error('Failed to complete maintenance task:', err);
+    } finally {
+      setResolvingId(null);
+    }
+  };
 
   return (
     <motion.div className={styles.container} variants={containerVars} initial="hidden" animate="show" exit={{ opacity: 0 }}>
       <motion.div variants={itemVars} className={styles.header}>
         <h1 className={styles.title}>{language === 'ar' ? 'الجدول الزمني للصيانة' : 'Service Timeline'}</h1>
       </motion.div>
-      
+
       <div className={styles.timeline}>
-        {maintenance.map((item, idx) => (
-          <motion.div variants={itemVars} key={item.id} className={styles.timelineWrapper}>
-            <div className={styles.timelineLine}>
-              <div className={`${styles.timelineDot} ${styles[item.status]}`}>
-                 {item.status === 'overdue' ? <AlertCircle size={16}/> : item.status === 'due-soon' ? <Clock size={16}/> : <CheckCircle2 size={16}/>}
+        {!activeVehicle ? (
+          <div className={styles.emptyState}>
+            <AlertCircle size={48} color="var(--status-yellow)" />
+            <h2>{language === 'ar' ? 'لا توجد مركبة نشطة' : 'No Active Vehicle'}</h2>
+            <p>{language === 'ar' ? 'اختر مركبة أولاً لعرض خطة الصيانة.' : 'Select a vehicle first to view maintenance timeline.'}</p>
+          </div>
+        ) : maintenanceError ? (
+          <div className={styles.emptyState}>
+            <AlertCircle size={48} color="var(--status-red)" />
+            <h2>{language === 'ar' ? 'تعذر تحميل بيانات الصيانة' : 'Failed to Load Maintenance'}</h2>
+            <p>{language === 'ar' ? 'حدث خطأ في جلب البيانات. حاول التحديث مرة أخرى.' : 'There was an error loading maintenance data. Please refresh and try again.'}</p>
+          </div>
+        ) : isMaintenanceLoading && maintenance.length === 0 ? (
+          <div className={styles.emptyState}>
+            <Clock size={48} color="var(--status-yellow)" className={styles.spin} style={{ animation: 'spin 2s linear infinite' }} />
+            <h2>{language === 'ar' ? 'جاري تحميل بيانات الصيانة...' : 'Loading Maintenance Data...'}</h2>
+            <p>{language === 'ar' ? 'يرجى الانتظار...' : 'Please wait...'}</p>
+          </div>
+        ) : maintenance.length === 0 ? (
+          <div className={styles.emptyState}>
+            <AlertCircle size={48} color="var(--status-yellow)" />
+            <h2>{language === 'ar' ? 'لا توجد مهام صيانة معرفة' : 'No Maintenance Tasks Configured'}</h2>
+            <p>
+              {language === 'ar'
+                ? 'يجب إضافة بيانات مهام الصيانة في قاعدة البيانات أولاً حتى يظهر المخطط.'
+                : 'Maintenance task definitions are missing in the database, so the timeline has nothing to render.'}
+            </p>
+          </div>
+        ) : (
+          maintenance.map((item, idx) => (
+            <motion.div variants={itemVars} key={item.id} className={styles.timelineWrapper}>
+              <div className={styles.timelineLine}>
+                <div className={`${styles.timelineDot} ${styles[item.status]}`}>
+                  {item.status === 'overdue' ? <AlertCircle size={16} /> : item.status === 'due-soon' ? <Clock size={16} /> : <CheckCircle2 size={16} />}
+                </div>
+                {idx !== maintenance.length - 1 && <div className={styles.lineTrail} />}
               </div>
-              {idx !== maintenance.length - 1 && <div className={styles.lineTrail} />}
-            </div>
-            
-            <div className={`glass-panel ${styles.itemContent}`}>
-              <div className={styles.itemTop}>
-                <span className={styles.catLabel}>{item.category}</span>
-                <span className={`${styles.statusPill} ${styles[item.status]}`}>
-                  {item.dueInKm > 0 ? `${item.dueInKm} km` : (language === 'ar' ? 'متأخر' : 'Overdue')}
-                </span>
+
+              <div className={`glass-panel ${styles.itemContent}`}>
+                <div className={styles.itemTop}>
+                  <span className={styles.catLabel}>{item.category}</span>
+                  <div className={styles.dueBadges}>
+                    {item.dueInKm !== null && item.dueInKm !== undefined && (
+                      <span className={`${styles.statusPill} ${styles[item.status]}`}>
+                        {item.dueInKm > 0
+                          ? (language === 'ar' ? `متبقي ${item.dueInKm} كم` : `${item.dueInKm} km left`)
+                          : (language === 'ar' ? 'مستحق الآن' : 'Due now')}
+                      </span>
+                    )}
+                    {item.dueInDays !== null && item.dueInDays !== undefined && (
+                      <span className={`${styles.statusPill} ${styles[item.status]}`}>
+                        {item.dueInDays > 0
+                          ? (language === 'ar' ? `متبقي ${item.dueInDays} يوم` : `${item.dueInDays} days left`)
+                          : (language === 'ar' ? 'مستحق زمنياً' : 'Time due')}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <h3>{language === 'ar' ? item.titleAr : item.titleEn}</h3>
+                <div className={styles.progressContainer}>
+                  <div className={`${styles.progressBar} ${styles[item.status]}`} style={{ width: `${Math.min(item.progress, 100)}%` }} />
+                </div>
+                <div className={styles.itemActions}>
+                  <button
+                    type="button"
+                    className={styles.resolveBtn}
+                    onClick={() => handleComplete(item.id)}
+                    disabled={resolvingId === item.id}
+                  >
+                    <Wrench size={16} />
+                    <span>
+                      {resolvingId === item.id
+                        ? (language === 'ar' ? 'جارٍ التحديث...' : 'Updating...')
+                        : (language === 'ar' ? 'تمت الصيانة' : 'Mark Completed')}
+                    </span>
+                  </button>
+                </div>
               </div>
-              <h3>{language === 'ar' ? item.titleAr : item.titleEn}</h3>
-              <div className={styles.progressContainer}>
-                <div className={`${styles.progressBar} ${styles[item.status]}`} style={{ width: `${Math.min(item.progress, 100)}%` }} />
-              </div>
-            </div>
-          </motion.div>
-        ))}
+            </motion.div>
+          ))
+        )}
       </div>
     </motion.div>
   );

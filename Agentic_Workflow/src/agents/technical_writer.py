@@ -15,7 +15,9 @@ class TechnicalWriterAgent:
         llm_params = {
             "model": agent_config["model"],
             "temperature": agent_config["temperature"],
-            "api_key": config.OPENAI_API_KEY
+            "api_key": config.OPENAI_API_KEY,
+            "timeout": config.AGENT_LLM_TIMEOUT_SEC,
+            "max_retries": config.AGENT_LLM_MAX_RETRIES,
         }
         if config.base_url:
             llm_params["base_url"] = config.base_url
@@ -120,7 +122,7 @@ COMPREHENSIVE REPORT:"""
             Updated state dictionary
         """
         # Extract data from state
-        obd2_analysis = state["obd2_analysis"]
+        obd2_analysis = (state["obd2_analysis"] or "")[:config.TECH_WRITER_ANALYSIS_CHARS]
         car_metadata = state["car_metadata"]
         products = state.get("product_recommendations", [])
         

@@ -19,6 +19,7 @@ class ProductRecommendation(BaseModel):
 class WriterState(TypedDict):
     """State for Writer orchestration layer."""
     user_id: str  # User identifier
+    language: Optional[str]  # Output language preference (e.g., en, ar)
     car_metadata: CarMetadata  # Car information
     obd2_analysis: str  # Input from OBD2 orchestration
     product_recommendations: Optional[List[Dict]]  # Web search results for products

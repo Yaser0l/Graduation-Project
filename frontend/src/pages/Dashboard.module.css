@@ -1,32 +1,258 @@
-.container { display: flex; flex-direction: column; gap: 24px; }
-.header { margin-bottom: 8px; }
-.title { font-size: 2rem; font-weight: 700; letter-spacing: -1px; }
-.subtitle { color: var(--text-secondary); font-size: 1.1rem; }
+.container {
+	display: flex;
+	flex-direction: column;
+	gap: 24px;
+}
 
-.hudCard { display: flex; flex-direction: column; align-items: center; padding: 32px 24px; gap: 24px; position: relative; overflow: hidden; }
-.hudCard::before { content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(circle, rgba(228,228,231,0.03) 0%, transparent 60%); pointer-events: none; }
-.hudRingWrap { position: relative; display: flex; justify-content: center; }
-.hudOuterRing { width: 180px; height: 180px; border-radius: 50%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; position: relative; box-shadow: inset 0 0 40px rgba(0,0,0,0.8); overflow: hidden; }
-.hudFill { position: absolute; inset: 0; border-radius: 50%; transition: background 0.1s linear; }
-.hudInner { position: absolute; inset: 8px; border-radius: 50%; background: var(--bg-app); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 2; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
-.hudScore { font-size: 3rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; text-shadow: 0 0 16px rgba(255,255,255,0.2); }
-.hudMeta { font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+.header {
+	margin-bottom: 8px;
+}
 
-.hudDetails { display: flex; flex-direction: column; align-items: center; gap: 12px; z-index: 2; }
-.statusBadge { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 1rem; padding: 8px 16px; border-radius: 20px; text-transform: uppercase; letter-spacing: 1px; }
-.green { background: rgba(16, 185, 129, 0.1); color: var(--status-green); box-shadow: 0 0 20px rgba(16, 185, 129, 0.1); }
-.yellow { background: rgba(245, 158, 11, 0.1); color: var(--status-yellow); box-shadow: 0 0 20px rgba(245, 158, 11, 0.1); }
-.red { background: rgba(239, 68, 68, 0.1); color: var(--status-red); box-shadow: 0 0 20px rgba(239, 68, 68, 0.1); }
-.mileage { display: flex; align-items: center; gap: 8px; color: var(--text-secondary); font-family: inherit; font-size: 1.1rem; }
+.headerTop {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+}
 
-.alertCard { display: flex; align-items: stretch; padding: 0; overflow: hidden; }
-.alertIconBlock { background: rgba(239, 68, 68, 0.1); padding: 24px; display: flex; align-items: center; justify-content: center; }
-.alertIcon { color: var(--status-red); }
-.alertData { padding: 20px; display: flex; flex-direction: column; justify-content: center; flex: 1; }
-.alertData h3 { font-size: 0.85rem; color: var(--status-red); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
-.alertData p { font-size: 1.1rem; font-weight: 600; margin-bottom: 8px; }
-.urgencyBadge { align-self: flex-start; padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; background: var(--bg-app); border: 1px solid var(--border-color); text-transform: uppercase; letter-spacing: 0.5px; }
-.alertData .overdue { color: var(--status-red); border-color: rgba(239, 68, 68, 0.3); box-shadow: 0 0 10px rgba(239,68,68,0.2) }
-.alertData .due-soon { color: var(--status-yellow); border-color: rgba(245, 158, 11, 0.3); }
+.title {
+	font-size: 2rem;
+	font-weight: 700;
+	letter-spacing: -1px;
+}
 
-.scanBtn { display: flex; align-items: center; justify-content: center; gap: 12px; width: 100%; margin-top: 12px; }
+.subtitle {
+	color: var(--text-secondary);
+	font-size: 1.1rem;
+}
+
+
+.hudCard {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	padding: 32px 24px;
+	gap: 24px;
+	position: relative;
+	overflow: hidden;
+}
+
+.hudCard::before {
+	content: '';
+	position: absolute;
+	top: -50%;
+	left: -50%;
+	width: 200%;
+	height: 200%;
+	background: radial-gradient(circle, rgba(228, 228, 231, 0.03) 0%, transparent 60%);
+	pointer-events: none;
+}
+
+.hudRingWrap {
+	position: relative;
+	display: flex;
+	justify-content: center;
+}
+
+.hudOuterRing {
+	width: 180px;
+	height: 180px;
+	border-radius: 50%;
+	background: rgba(0, 0, 0, 0.5);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	position: relative;
+	box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.8);
+	overflow: hidden;
+}
+
+.hudFill {
+	position: absolute;
+	inset: 0;
+	border-radius: 50%;
+	transition: background 0.1s linear;
+}
+
+.hudInner {
+	position: absolute;
+	inset: 8px;
+	border-radius: 50%;
+	background: var(--bg-app);
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	z-index: 2;
+	box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+.hudScore {
+	font-size: 3rem;
+	font-weight: 700;
+	font-variant-numeric: tabular-nums;
+	line-height: 1;
+	text-shadow: 0 0 16px rgba(255, 255, 255, 0.2);
+}
+
+.hudMeta {
+	font-size: 0.75rem;
+	color: var(--text-secondary);
+	text-transform: uppercase;
+	letter-spacing: 1px;
+	margin-top: 4px;
+}
+
+.hudDetails {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 12px;
+	z-index: 2;
+}
+
+.statusBadge {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-weight: 600;
+	font-size: 1rem;
+	padding: 8px 16px;
+	border-radius: 20px;
+	text-transform: uppercase;
+	letter-spacing: 1px;
+}
+
+.green {
+	background: rgba(16, 185, 129, 0.1);
+	color: var(--status-green);
+	box-shadow: 0 0 20px rgba(16, 185, 129, 0.1);
+}
+
+.yellow {
+	background: rgba(245, 158, 11, 0.1);
+	color: var(--status-yellow);
+	box-shadow: 0 0 20px rgba(245, 158, 11, 0.1);
+}
+
+.red {
+	background: rgba(239, 68, 68, 0.1);
+	color: var(--status-red);
+	box-shadow: 0 0 20px rgba(239, 68, 68, 0.1);
+}
+
+.mileage {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	color: var(--text-secondary);
+	font-family: inherit;
+	font-size: 1.1rem;
+}
+
+.mileageRow {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.mileageEditBtn,
+.mileageActionBtn {
+	width: 28px;
+	height: 28px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 8px;
+	border: 1px solid var(--border-color);
+	background: rgba(255, 255, 255, 0.03);
+	color: var(--text-secondary);
+	cursor: pointer;
+	transition: all 0.2s ease;
+}
+
+.mileageEditBtn:hover,
+.mileageActionBtn:hover {
+	border-color: var(--accent-primary);
+	color: var(--accent-primary);
+}
+
+.mileageEditor {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.mileageInput {
+	width: 120px;
+	background: rgba(0, 0, 0, 0.35);
+	border: 1px solid var(--border-color);
+	border-radius: 8px;
+	color: var(--text-primary);
+	padding: 6px 10px;
+	font-size: 0.95rem;
+	font-family: inherit;
+}
+
+.mileageUnit {
+	font-size: 0.85rem;
+	color: var(--text-secondary);
+}
+
+.issueGrid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 14px;
+}
+
+.issueCard {
+	padding: 18px;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.issueCardHead {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	color: var(--text-secondary);
+}
+
+.issueCardHead h3 {
+	font-size: 0.9rem;
+	font-weight: 700;
+	letter-spacing: 0.4px;
+}
+
+.issueCount {
+	font-size: 2rem;
+	line-height: 1;
+	font-weight: 800;
+	margin: 2px 0;
+}
+
+.issueMeta {
+	color: var(--text-secondary);
+	font-size: 0.9rem;
+}
+
+.dtcCard .issueCardHead,
+.dtcCard .issueCount {
+	color: var(--status-red);
+}
+
+.maintenanceCard .issueCardHead,
+.maintenanceCard .issueCount {
+	color: var(--status-yellow);
+}
+
+@media (max-width: 768px) {
+	.headerTop {
+		align-items: flex-start;
+	}
+
+	.issueGrid {
+		grid-template-columns: 1fr;
+	}
+}
