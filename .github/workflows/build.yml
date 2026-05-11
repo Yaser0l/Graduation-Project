@@ -25,6 +25,10 @@ jobs:
             context: Agentic_Workflow
             dockerfile: Agentic_Workflow/Dockerfile
             image: agentic_workflow
+          - name: esp32s3simulator
+            context: IoT/Mechanic
+            dockerfile: IoT/Mechanic/Dockerfile
+            image: esp32s3simulator
     steps:
       - name: Checkout
         uses: actions/checkout@v4
