@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import json
 from typing import Dict, Set
 
 logger = logging.getLogger(__name__)
@@ -31,7 +32,8 @@ class SseService:
     async def broadcast_to_user(self, user_id: str, data: dict):
         queues = self.connected_clients.get(user_id)
         if queues:
-            event = {"event": "diagnostic:new", "data": data}
+            # Always serialize as JSON so browser-side JSON.parse works reliably.
+            event = {"event": "diagnostic:new", "data": json.dumps(data, default=str)}
             for queue in list(queues):
                 await queue.put(event)
             logger.info("[SSE] Broadcast to user %s (%d clients)", user_id, len(queues))

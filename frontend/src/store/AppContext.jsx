@@ -99,7 +99,7 @@ export const AppProvider = ({ children }) => {
           if (refreshed) return refreshed;
         }
         if (savedId) {
-          const saved = vList.find((v) => v.id === savedId);
+          const saved = vList.find((v) => String(v.id) === String(savedId));
           if (saved) return saved;
         }
         return vList[0] || null;
@@ -271,24 +271,36 @@ export const AppProvider = ({ children }) => {
 
       if (!isReportCreated || !report) return;
 
-      if (activeVehicle && report.vehicle_id === activeVehicle.id) {
-        setDiagnostics((prev) => [report, ...prev]);
+      const reportVehicleId = report?.vehicle_id ?? report?.vehicleId ?? report?.vehicle?.id;
+
+      if (activeVehicle && reportVehicleId != null && String(reportVehicleId) === String(activeVehicle.id)) {
+        setDiagnostics((prev) => {
+          const existingIdx = prev.findIndex((r) => String(r.id) === String(report.id));
+          if (existingIdx === -1) return [report, ...prev];
+
+          const next = prev.slice();
+          next[existingIdx] = { ...next[existingIdx], ...report };
+          return next;
+        });
 
         const reportMileage = Number(report.mileage_at_fault ?? report.mileage);
         if (Number.isFinite(reportMileage) && reportMileage >= 0) {
           setVehicles((prev) =>
             prev.map((v) =>
-              v.id === activeVehicle.id ? { ...v, mileage: Math.max(Number(v.mileage || 0), reportMileage) } : v
+              String(v.id) === String(activeVehicle.id)
+                ? { ...v, mileage: Math.max(Number(v.mileage || 0), reportMileage) }
+                : v
             )
           );
           setActiveVehicleState((prev) =>
-            prev && prev.id === activeVehicle.id
+            prev && String(prev.id) === String(activeVehicle.id)
               ? { ...prev, mileage: Math.max(Number(prev.mileage || 0), reportMileage) }
               : prev
           );
         }
 
-        // Keep maintenance timeline in sync with latest backend mileage/state after new DTC.
+        // Ensure Dashboard + lists reflect authoritative backend state.
+        fetchDiagnosticsForVehicle(activeVehicle);
         fetchMaintenanceForVehicle(activeVehicle);
       }
       setIsScanning(false);
@@ -318,7 +330,7 @@ export const AppProvider = ({ children }) => {
       if (es) es.close();
       if (reconnectTimer) clearTimeout(reconnectTimer);
     };
-  }, [token, activeVehicle, fetchMaintenanceForVehicle]);
+  }, [token, activeVehicle, fetchDiagnosticsForVehicle, fetchMaintenanceForVehicle]);
 
   // Provide composed contexts
   return (

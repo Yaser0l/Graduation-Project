@@ -1,5 +1,5 @@
 import React, { useContext, useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useNavigate } from 'react-router-dom';
 import { LanguageContext, AuthContext } from '../store/AppContext';
 import { LogOut } from 'lucide-react';
 import BottomNav from './BottomNav';
@@ -11,6 +11,7 @@ export default function Layout() {
   const { language, toggleLanguage } = useContext(LanguageContext);
   const { logout } = useContext(AuthContext);
   const [carsSheetOpen, setCarsSheetOpen] = useState(false);
+  const navigate = useNavigate();
 
   return (
     <div className={styles.layout}>
@@ -21,7 +22,7 @@ export default function Layout() {
             {language === 'en' ? 'عربي' : 'EN'}
           </button>
         </div>
-        <div className={styles.brand} onClick={() => window.location.href = '/dashboard'}>
+        <div className={styles.brand} onClick={() => navigate('/dashboard')}>
           <img src={logo} alt="Logo" className={styles.logoImg} />
         </div>
         <div className={styles.rightSide}>
