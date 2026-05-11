@@ -14,4 +14,11 @@ WORKDIR /project
 
 COPY . .
 
+# Disable PHY calibration and data storage to avoid issues in QEMU
+RUN echo "CONFIG_ESP_PHY_CALIBRATION_AND_DATA_STORAGE=n" >> sdkconfig.defaults
+RUN echo "CONFIG_ESP_PHY_INIT_DATA_IN_PARTITION=n" >> sdkconfig.defaults
+
+#build the project
+RUN /bin/bash -c "source $IDF_PATH/export.sh && idf.py build"
+
 CMD ["sh", "-c", "idf.py qemu monitor"]
