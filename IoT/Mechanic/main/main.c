@@ -7,6 +7,7 @@
 #include "canmodule.h"
 #include "dtc_reporter.h"
 #include "local_mqtt.h"
+#include "network_events.h"
 #include "web_server.h"
 #include "wifi_manager.h"
 #include "wifi_store.h"
@@ -43,13 +44,8 @@ void app_main(void) {
   ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
   ESP_ERROR_CHECK(esp_wifi_start());
 
-  if (s_ap_store.count == 0) {
-    ESP_LOGI(TAG, "No saved APs found. Starting configuration AP...");
-    wifi_manager_start_config_ap();
-  } else {
-    ESP_LOGI(TAG, "Saved APs found. Auto-connecting...");
-    wifi_manager_request_connect();
-  }
+  ESP_LOGI(TAG, "Requesting network connection");
+  network_events_post(NETWORK_EVENT_REQUEST, NULL, 0);
 
   web_server_start(&s_ap_store);
   wifi_manager_start_task();

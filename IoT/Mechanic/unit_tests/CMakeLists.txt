@@ -61,11 +61,12 @@ add_test(NAME test_dtc_reporter COMMAND test_dtc_reporter)
 
 add_executable(test_local_mqtt
     ${CMAKE_CURRENT_LIST_DIR}/test_local_mqtt.c
+    ${CMAKE_CURRENT_LIST_DIR}/stubs/esp_event_stubs.c
     ${CMAKE_CURRENT_LIST_DIR}/stubs/esp_timer_stubs.c
     ${CMAKE_CURRENT_LIST_DIR}/stubs/esp_random_stubs.c
     ${CMAKE_CURRENT_LIST_DIR}/stubs/mqtt_client_stubs.c
     ${CMAKE_CURRENT_LIST_DIR}/stubs/nvs_stubs.c
-    ${CMAKE_CURRENT_LIST_DIR}/stubs/wifi_manager_stubs.c
+    ${CMAKE_CURRENT_LIST_DIR}/../components/network/network_events.c
 )
 
 target_include_directories(test_local_mqtt PRIVATE
@@ -98,6 +99,9 @@ add_executable(test_wifi_manager
     ${CMAKE_CURRENT_LIST_DIR}/stubs/esp_wifi_stubs.c
     ${CMAKE_CURRENT_LIST_DIR}/stubs/event_groups_stubs.c
     ${CMAKE_CURRENT_LIST_DIR}/stubs/gpio_stubs.c
+    ${CMAKE_CURRENT_LIST_DIR}/stubs/nvs_stubs.c
+    ${CMAKE_CURRENT_LIST_DIR}/../components/network/network_events.c
+    ${CMAKE_CURRENT_LIST_DIR}/../components/network/wifi_store.c
 )
 
 target_include_directories(test_wifi_manager PRIVATE

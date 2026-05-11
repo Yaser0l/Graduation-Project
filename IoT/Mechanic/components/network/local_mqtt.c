@@ -14,7 +14,7 @@
 #include "freertos/task.h"
 
 #include "canmodule.h"
-#include "wifi_manager.h"
+#include "network_events.h"
 
 #define MQTT_DEFAULT_BROKER_URI "mqtt://broker.emqx.io"
 #define MQTT_PUBLISH_INTERVAL_MS 5000
@@ -32,6 +32,8 @@ static esp_mqtt_client_handle_t s_client = NULL;
 static char s_broker_uri[MQTT_BROKER_URI_MAX_LEN] = MQTT_DEFAULT_BROKER_URI;
 static char s_vehicle_fallback[24] = {0};
 static char s_vehicle_vin[20] = {0};
+static bool s_network_up = false;
+static bool s_network_events_registered = false;
 
 static const char *mqtt_get_vehicle_id_locked(void) {
   if (s_vehicle_vin[0] != '\0') {
@@ -109,7 +111,7 @@ static void mqtt_stop_client_locked(void) {
 }
 
 static void mqtt_start_client_locked(void) {
-  if (s_client || !wifi_manager_is_connected()) {
+  if (s_client || !s_network_up) {
     return;
   }
 
@@ -143,7 +145,7 @@ static void mqtt_publish_task_step(void) {
 
   xSemaphoreTake(s_lock, portMAX_DELAY);
 
-  if (wifi_manager_is_connected()) {
+  if (s_network_up) {
     if (!s_client) {
       mqtt_start_client_locked();
     }
@@ -199,12 +201,45 @@ static void mqtt_publish_task(void *arg) {
   }
 }
 
+static void mqtt_network_event_handler(void *arg, esp_event_base_t event_base,
+                                       int32_t event_id, void *event_data) {
+  (void)arg;
+  (void)event_base;
+  (void)event_data;
+
+  if (!s_lock) {
+    return;
+  }
+
+  xSemaphoreTake(s_lock, portMAX_DELAY);
+  if (event_id == NETWORK_EVENT_UP) {
+    s_network_up = true;
+    mqtt_start_client_locked();
+  } else if (event_id == NETWORK_EVENT_DOWN) {
+    s_network_up = false;
+    if (s_client) {
+      mqtt_stop_client_locked();
+    }
+  }
+  xSemaphoreGive(s_lock);
+}
+
 esp_err_t mqtt_module_init(void) {
   if (!s_lock) {
     s_lock = xSemaphoreCreateMutex();
     if (!s_lock) {
       return ESP_ERR_NO_MEM;
     }
+  }
+
+  if (!s_network_events_registered) {
+    esp_err_t err = esp_event_handler_instance_register(
+        NETWORK_EVENT, ESP_EVENT_ANY_ID, &mqtt_network_event_handler, NULL,
+        NULL);
+    if (err != ESP_OK) {
+      return err;
+    }
+    s_network_events_registered = true;
   }
 
   xSemaphoreTake(s_lock, portMAX_DELAY);
@@ -281,7 +316,7 @@ esp_err_t mqtt_module_publish_dtc(const char *vin, const char *payload) {
     return ESP_ERR_INVALID_SIZE;
   }
 
-  if (s_client && wifi_manager_is_connected()) {
+  if (s_client && s_network_up) {
     int msg_id = esp_mqtt_client_publish(s_client, topic, payload, 0, 1, 0);
     if (msg_id >= 0) {
       result = ESP_OK;

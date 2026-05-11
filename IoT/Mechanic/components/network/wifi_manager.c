@@ -11,6 +11,8 @@
 #include "freertos/event_groups.h"
 #include "freertos/task.h"
 
+#include "network_events.h"
+
 #define WIFI_CONNECT_TIMEOUT_MS 10000
 #define WIFI_RETRY_LOOP_DELAY_MS 2000
 #define LED_BLINK_INTERVAL_MS 300
@@ -26,6 +28,13 @@ static const int WIFI_CONNECTED_BIT = BIT0;
 static saved_ap_store_t s_ap_store = {0};
 static bool s_config_ap = false;
 static bool s_should_connect = false;
+
+static void wifi_manager_refresh_store_from_nvs(void) {
+  saved_ap_store_t store = {0};
+  if (wifi_store_load(&store) == ESP_OK) {
+    s_ap_store = store;
+  }
+}
 
 static void wifi_status_led_init(void) {
   gpio_reset_pin(BLINK_GPIO);
@@ -158,13 +167,25 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
 
   if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
     xEventGroupClearBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
+    network_events_post(NETWORK_EVENT_DOWN, NULL, 0);
     if (s_ap_store.count > 0) {
       s_should_connect = true;
     }
   } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
     xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
+    network_events_post(NETWORK_EVENT_UP, NULL, 0);
     s_should_connect = false;
   }
+}
+
+static void network_request_handler(void *arg, esp_event_base_t event_base,
+                                    int32_t event_id, void *event_data) {
+  (void)arg;
+  (void)event_base;
+  (void)event_id;
+  (void)event_data;
+
+  wifi_manager_request_connect();
 }
 
 void wifi_manager_init(const saved_ap_store_t *initial_store) {
@@ -179,6 +200,9 @@ void wifi_manager_init(const saved_ap_store_t *initial_store) {
       WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler, NULL, NULL));
   ESP_ERROR_CHECK(esp_event_handler_instance_register(
       IP_EVENT, IP_EVENT_STA_GOT_IP, &wifi_event_handler, NULL, NULL));
+  ESP_ERROR_CHECK(esp_event_handler_instance_register(
+      NETWORK_EVENT, NETWORK_EVENT_REQUEST, &network_request_handler, NULL,
+      NULL));
 }
 
 void wifi_manager_start_task(void) {
@@ -196,6 +220,9 @@ void wifi_manager_notify_store_changed(const saved_ap_store_t *store) {
   memcpy(&s_ap_store, store, sizeof(s_ap_store));
 }
 
-void wifi_manager_request_connect(void) { s_should_connect = true; }
+void wifi_manager_request_connect(void) {
+  wifi_manager_refresh_store_from_nvs();
+  s_should_connect = true;
+}
 
 bool wifi_manager_is_connected(void) { return is_wifi_connected(); }

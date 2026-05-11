@@ -6,17 +6,19 @@
 #include <string.h>
 
 #include "cJSON.h"
+#include "esp_err.h"
 #include "esp_http_server.h"
 #include "esp_log.h"
 #include "esp_wifi.h"
 
 #include "local_mqtt.h"
-#include "wifi_manager.h"
+#include "network_events.h"
 #include "wifi_store.h"
 
 static const char *TAG = "web_server";
 static httpd_handle_t s_http_server = NULL;
 static saved_ap_store_t *s_ap_store = NULL;
+static bool s_network_up = false;
 
 extern const uint8_t index_html_start[] asm("_binary_index_html_start");
 extern const uint8_t index_html_end[] asm("_binary_index_html_end");
@@ -30,6 +32,19 @@ static void send_json(httpd_req_t *req, int status_code,
                              : status_code == 500 ? "500 Internal Server Error"
                                                   : "200 OK");
   httpd_resp_sendstr(req, json_body);
+}
+
+static void network_event_handler(void *arg, esp_event_base_t event_base,
+                                  int32_t event_id, void *event_data) {
+  (void)arg;
+  (void)event_base;
+  (void)event_data;
+
+  if (event_id == NETWORK_EVENT_UP) {
+    s_network_up = true;
+  } else if (event_id == NETWORK_EVENT_DOWN) {
+    s_network_up = false;
+  }
 }
 
 static void url_decode(char *dst, const char *src, size_t dst_len) {
@@ -153,7 +168,7 @@ static esp_err_t ap_adder_handler(httpd_req_t *req) {
     return ESP_OK;
   }
 
-  wifi_manager_notify_store_changed(s_ap_store);
+  network_events_post(NETWORK_EVENT_REQUEST, NULL, 0);
   send_json(req, 200, "{\"status\":\"success\"}");
   return ESP_OK;
 }
@@ -214,20 +229,19 @@ static esp_err_t ap_reset_handler(httpd_req_t *req) {
     return ESP_OK;
   }
 
-  wifi_manager_notify_store_changed(s_ap_store);
-  wifi_manager_start_config_ap();
+  network_events_post(NETWORK_EVENT_REQUEST, NULL, 0);
   send_json(req, 200, "{\"status\":\"success\"}");
   return ESP_OK;
 }
 
 static esp_err_t connect_endpoint_handler(httpd_req_t *req) {
-  wifi_manager_request_connect();
+  network_events_post(NETWORK_EVENT_REQUEST, NULL, 0);
   send_json(req, 200, "{\"status\":\"connecting\"}");
   return ESP_OK;
 }
 
 static esp_err_t internet_check_handler(httpd_req_t *req) {
-  if (wifi_manager_is_connected()) {
+  if (s_network_up) {
     send_json(req, 200, "{\"status\":\"connected\"}");
   } else {
     send_json(req, 200, "{\"status\":\"disconnected\"}");
@@ -398,6 +412,13 @@ void web_server_start(saved_ap_store_t *store) {
   }
 
   s_ap_store = store;
+
+  esp_err_t err = esp_event_handler_instance_register(
+      NETWORK_EVENT, ESP_EVENT_ANY_ID, &network_event_handler, NULL, NULL);
+  if (err != ESP_OK) {
+    ESP_LOGW(TAG, "Failed to register network event handler: %s",
+             esp_err_to_name(err));
+  }
 
   httpd_config_t config = HTTPD_DEFAULT_CONFIG();
   if (httpd_start(&s_http_server, &config) != ESP_OK) {
