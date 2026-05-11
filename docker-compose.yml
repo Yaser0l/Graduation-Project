@@ -32,7 +32,7 @@ services:
       start_period: 20s
 
     volumes:
-      - ./mosquitto/config:/mosquitto/config
+      - ./mosquitto/config/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
       - mosquitto_data:/mosquitto/data
       - mosquitto_log:/mosquitto/log
     restart: unless-stopped
@@ -66,6 +66,11 @@ services:
       MAIL_FROM: ${MAIL_FROM:-"CarBrain Diagnostics <noreply@carbrain.app>"}
     ports:
       - "5000:5000"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5000/api/internal/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
     depends_on:
       postgres:
           condition: service_healthy
@@ -100,7 +105,7 @@ services:
       sayyartech-api:
           condition: service_healthy
       sayyartech-llm:
-          condition: service_healthy
+          condition: service_started
 
 volumes:
   postgres_data:
