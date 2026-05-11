@@ -34,9 +34,9 @@ async def lifespan(app: FastAPI):
         print("[LIFESPAN] MQTT Connected")
     except Exception as e:
         print(f"[LIFESPAN] MQTT connection failed: {e}")
-    
+
     yield
-    
+
     # Shutdown: Disconnect MQTT
     try:
         await mqtt_svc.disconnect()
@@ -44,10 +44,11 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[LIFESPAN] MQTT disconnect failed: {e}")
 
+
 app = FastAPI(
     title=settings.PROJECT_NAME,
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # Rate Limiting Middleware
@@ -80,14 +81,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 # SSE events endpoint (mirrors app.js GET /api/events)
 @app.get(f"{settings.API_V1_STR}/events")
 async def events_handler(token: str = Query(...)):
     if not token:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token required")
-    
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Token required"
+        )
+
     try:
-        payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
+        payload = jwt.decode(
+            token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM]
+        )
         user_id_str = payload.get("sub")
         if not user_id_str:
             raise HTTPException(status_code=401, detail="Invalid token")
@@ -97,6 +103,7 @@ async def events_handler(token: str = Query(...)):
 
     return EventSourceResponse(sse_service.subscribe(user_id))
 
+
 # Mount Routers
 app.include_router(auth.router)
 app.include_router(vehicle.router)
@@ -105,9 +112,11 @@ app.include_router(chat.router)
 app.include_router(internal.router)
 app.include_router(maintenance.router)
 
+
 @app.get("/")
 async def root():
     return {"message": "CarBrain Backend is running (FastAPI)"}
+
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=settings.PORT, reload=True)

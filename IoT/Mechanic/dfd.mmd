@@ -1,0 +1,54 @@
+%%{init: {"flowchart": {"htmlLabels": false}} }%%
+graph TD
+    %% --- External Entities ---
+    VEHICLE[("Vehicle\nCAN Bus")]
+    BROKER[("MQTT Broker")]
+
+    %% --- IoT Device Boundaries ---
+    subgraph ESP32S3_DEVICE["IoT Device (ESP32-S3)"]
+        
+        subgraph Layer1_Ingestion["1. Ingestion"]
+            TWAI_DRV["TWAI Driver\n(Native CAN)"]
+            ISOTP_LIB["ISO-TP Stack\n(esp-idf)"]
+        end
+
+        subgraph Layer2_Core["2. Processing"]
+            MSG_CLASS{{"Message\nClassifier"}}
+            
+            subgraph Interpreters
+                RT_INT[["Real-Time\nInterpreter"]]
+                DTC_INT[["DTC Response\nParser"]]
+            end
+
+            payload_Gen["JSON Payload\nGenerator"]
+        end
+
+        subgraph Layer3_Egress["3. Egress"]
+            MQTT_CLIENT["MQTT Client"]
+            WIFI_DRV["Wi-Fi Stack"]
+        end
+    end
+
+    %% --- External Physical Connections ---
+    VEHICLE -- "Raw CAN Traffic" --> TWAI_DRV
+    VEHICLE <-. "ISO 15765-4 (CAN)" .-> TWAI_DRV
+
+    %% --- Internal Logic Flow ---
+    TWAI_DRV --> MSG_CLASS
+    TWAI_DRV <--> ISOTP_LIB
+    ISOTP_LIB --> MSG_CLASS
+
+    MSG_CLASS -- "Native Frames" --> RT_INT
+    MSG_CLASS -- "UDS/DTC Payloads" --> DTC_INT
+
+    RT_INT --> payload_Gen
+    DTC_INT --> payload_Gen
+
+    payload_Gen --> MQTT_CLIENT
+    MQTT_CLIENT --> WIFI_DRV
+    WIFI_DRV -- "PUBLISH" --> BROKER
+
+    %% --- Styling ---
+    style VEHICLE fill:#f9f,stroke:#333
+    style BROKER fill:#f9f,stroke:#333
+    style ESP32S3_DEVICE fill:#fff,stroke:#000

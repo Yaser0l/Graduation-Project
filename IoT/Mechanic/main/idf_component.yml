@@ -1,0 +1,4 @@
+dependencies:
+  espressif/mqtt: '*'
+  espressif/esp_isotp: '*'
+  espressif/cjson: '*'
