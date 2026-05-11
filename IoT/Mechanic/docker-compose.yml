@@ -6,6 +6,8 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: esp32s3simulator
+    tty: true
+    stdin_open: true
     environment:
       MQTT_HOST: ${MQTT_HOST:-mqtt}
       MQTT_PORT: ${MQTT_PORT:-1883}

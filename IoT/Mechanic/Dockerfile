@@ -14,6 +14,4 @@ WORKDIR /project
 
 COPY . .
 
-RUN idf.py qemu
-
-CMD ["sh", "-c", "idf.py monitor --no-interactive"]
+CMD ["sh", "-c", "idf.py qemu monitor"]
