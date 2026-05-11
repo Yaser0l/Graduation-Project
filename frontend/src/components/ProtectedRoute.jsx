@@ -4,8 +4,9 @@ import { AuthContext } from '../store/AppContext';
 
 export default function ProtectedRoute() {
   const { token } = useContext(AuthContext);
+  const effectiveToken = token || localStorage.getItem('token');
 
-  if (!token) {
+  if (!effectiveToken) {
     return <Navigate to="/welcome" replace />;
   }
 

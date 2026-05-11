@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LanguageContext, DiagnosticContext } from '../store/AppContext';
 import { useNavigate } from 'react-router-dom';
@@ -12,6 +12,12 @@ export default function Diagnostics() {
   const [resolvingReportId, setResolvingReportId] = useState(null);
   const [showResolved, setShowResolved] = useState(false);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (expandedReport) return;
+    if (!diagnostics || diagnostics.length === 0) return;
+    setExpandedReport(diagnostics[0].id);
+  }, [diagnostics, expandedReport]);
 
   const getExplanationText = (report) => {
     const explanation = report?.llm_explanation?.trim();
@@ -64,7 +70,7 @@ export default function Diagnostics() {
           <Calendar size={18} />
           <span>{new Date(report.created_at).toLocaleDateString(language === 'ar' ? 'ar-SA' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
           <div className={styles.dtcCounts}>
-            <span className={styles.dtcBadge}>{report.dtc_codes.length} {language === 'ar' ? 'أكواد' : 'Codes'}</span>
+            <span className={styles.dtcBadge}>{(Array.isArray(report.dtc_codes) ? report.dtc_codes.length : 0)} {language === 'ar' ? 'أكواد' : 'Codes'}</span>
           </div>
         </div>
         <ChevronDown className={`${styles.chevron} ${expandedReport === report.id ? styles.rotated : ''}`} />
@@ -81,7 +87,7 @@ export default function Diagnostics() {
             <div className={styles.issueCard}>
               <div className={styles.issueTop}>
                 <div className={styles.dtcChips}>
-                  {report.dtc_codes.map(code => (
+                  {(Array.isArray(report.dtc_codes) ? report.dtc_codes : []).map(code => (
                     <div key={code} className={styles.dtcChipItem}>
                       <span className={styles.codeTag}>{code}</span>
                     </div>

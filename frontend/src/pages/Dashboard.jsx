@@ -145,7 +145,7 @@ export default function Dashboard() {
 
           {!isEditingMileage ? (
             <div className={styles.mileageRow}>
-              <p className={styles.mileage}><Activity size={16}/> {activeVehicle.mileage.toLocaleString()} {language === 'ar' ? 'كم' : 'km'}</p>
+              <p className={styles.mileage}><Activity size={16}/> {Number(activeVehicle.mileage ?? 0).toLocaleString()} {language === 'ar' ? 'كم' : 'km'}</p>
               <button
                 type="button"
                 className={styles.mileageEditBtn}
