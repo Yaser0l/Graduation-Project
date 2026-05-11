@@ -1,22 +1,18 @@
 # SayyarTech IoT
 
-This is the IoT Module which holds all the parts neccessary to build the IoT Device
-We use an ESP32-S3 Microcontroller
-our development framework is esp-idf and it is also our build system
-our testing framework is unity
+This folder contains the IoT modules used to build and test the device. The firmware targets an ESP32-S3 microcontroller, uses ESP-IDF as the build system, and relies on Unity for embedded tests.
 
-## Installation
+## Modules
 
-install the vscode extension
-https://docs.espressif.com/projects/esp-idf/en/v4.2.1/esp32/get-started/vscode-setup.html
+- Mechanic/ - ESP-IDF firmware project (CMakeLists, components, main, sdkconfig, unit_tests).
+- cantools_env/ - Python tooling workspace for CAN decoding and experiments (pyproject.toml, main.py).
+- cars/ - Vehicle-specific CAN resources (DBC/C/H), currently Toyota Prius 2010.
 
-and then install the eim using the extension
-open the vscode command pallete by Pressing Ctrl+Shift+P
-then Paste
-`>ESP-IDF: Open ESP-IDF Installation Manager`
-into the command pallete to open the eim
-then press
-custom installation
-install optional additions
-wait until installation completes
-then you just use the esp-idf extension to build, flash and monitor the project on an esp32-S3 device
+## Setup (Firmware)
+
+1. Install the VS Code ESP-IDF extension:
+   https://docs.espressif.com/projects/esp-idf/en/v4.2.1/esp32/get-started/vscode-setup.html
+2. Open the ESP-IDF Installation Manager from the Command Palette:
+   `>ESP-IDF: Open ESP-IDF Installation Manager`
+3. Choose Custom Installation and include optional additions.
+4. Use the ESP-IDF extension to build, flash, and monitor the ESP32-S3 device from the Mechanic/ project.
