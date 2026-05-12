@@ -1,11 +1,16 @@
+set (srcs)
+set (include_dirs "include")
+set (requires)
+
+list(APPEND srcs
+    "local_mqtt.c"
+    "wifi_manager.c"
+    "wifi_store.c"
+)
+
 idf_component_register(
-    SRCS 
-        "network_events.c"
-        "local_mqtt.c"
-        "wifi_manager.c"
-        "wifi_store.c"
-    INCLUDE_DIRS 
-        "."
+    SRCS "${srcs}"
+    INCLUDE_DIRS "${include_dirs}"
     REQUIRES
         "esp_event"
     PRIV_REQUIRES
@@ -16,4 +21,5 @@ idf_component_register(
         "esp_timer"
         "esp_wifi"
         "nvs_flash"
+        "network_wrapper"
 )

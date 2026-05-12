@@ -7,6 +7,7 @@ idf_component_register(
         "."
     REQUIRES
         "network"
+        "network_wrapper"
     PRIV_REQUIRES 
         "esp_http_server"
         "esp_wifi"
