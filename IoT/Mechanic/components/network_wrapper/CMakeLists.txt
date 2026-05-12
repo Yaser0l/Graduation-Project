@@ -1,10 +1,7 @@
 set(srcs)
 set(include_dirs "include")
 set(requires)
-
-if(CONFIG_WIFI_CONNECT)
-    list(APPEND requires "wifi_manager")
-endif()
+list(APPEND requires "wifi_manager")
 
 if(CONFIG_ETHERNET_QEMU_CONNECT)
     list(APPEND requires "ethernet_qemu")

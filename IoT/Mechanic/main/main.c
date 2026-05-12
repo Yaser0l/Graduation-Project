@@ -8,8 +8,8 @@
 #include "dtc_reporter.h"
 #include "local_mqtt.h"
 #include "network_events.h"
+#include "network_wrapper.h"
 #include "web_server.h"
-#include "wifi_manager.h"
 #include "wifi_store.h"
 
 static const char *TAG = "main";
@@ -38,7 +38,7 @@ void app_main(void) {
 
   ESP_ERROR_CHECK(wifi_store_load(&s_ap_store));
 
-  wifi_manager_init(&s_ap_store);
+  network_wrapper_init(&s_ap_store);
   ESP_ERROR_CHECK(mqtt_module_init());
 
   ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
@@ -48,7 +48,7 @@ void app_main(void) {
   network_events_post(NETWORK_EVENT_REQUEST, NULL, 0);
 
   web_server_start(&s_ap_store);
-  wifi_manager_start_task();
+  network_wrapper_start_task();
   mqtt_module_start_task();
   dtc_reporter_start_task();
 }
