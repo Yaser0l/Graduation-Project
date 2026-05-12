@@ -6,9 +6,11 @@ if(CONFIG_WIFI_CONNECT)
     list(APPEND requires "wifi_manager")
 endif()
 
-list(APPEND srcs "network_wrapper.c" "network_events.c")
+if(CONFIG_ETHERNET_QEMU_CONNECT)
+    list(APPEND requires "ethernet_qemu")
+endif()
 
-list(APPEND requires "esp_event")
+list(APPEND srcs "network_wrapper.c")
 
 
 idf_component_register(

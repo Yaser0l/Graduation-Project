@@ -4,6 +4,7 @@ idf_component_register(
     PRIV_REQUIRES 
         "vehicle_comms"
         "wifi_manager"
+        "network_events"
         "web_ui"
         "esp_event"
         "esp_netif"

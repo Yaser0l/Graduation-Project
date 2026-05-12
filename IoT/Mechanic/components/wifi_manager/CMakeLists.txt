@@ -19,5 +19,5 @@ idf_component_register(
         "esp_timer"
         "esp_wifi"
         "nvs_flash"
-        "network_wrapper"
+        "network_events"
 )

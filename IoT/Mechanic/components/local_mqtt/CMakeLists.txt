@@ -16,5 +16,5 @@ idf_component_register(
         "espressif__mqtt"
         "esp_timer"
         "nvs_flash"
-        "network_wrapper"
+        "network_events"
 )
