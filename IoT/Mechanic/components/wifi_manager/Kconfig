@@ -1,5 +1,12 @@
 menu "WiFi Manager"
 
+	config WIFI_CONNECT
+		bool "Connect using WiFi (station)"
+		default y
+		help
+			Enable WiFi station connectivity for the network wrapper. Disable this
+			when using the QEMU Ethernet driver.
+
 	config WIFI_MANAGER_CONNECT_TIMEOUT_MS
 		int "Connection timeout (ms)"
 		default 10000

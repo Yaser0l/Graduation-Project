@@ -58,6 +58,18 @@
 #define WIFI_MANAGER_STA_AUTHMODE WIFI_AUTH_WPA2_PSK
 #endif
 
+#if CONFIG_WIFI_MANAGER_STA_PMF_CAPABLE
+#define WIFI_MANAGER_STA_PMF_CAPABLE 1
+#else
+#define WIFI_MANAGER_STA_PMF_CAPABLE 0
+#endif
+
+#if CONFIG_WIFI_MANAGER_STA_PMF_REQUIRED
+#define WIFI_MANAGER_STA_PMF_REQUIRED 1
+#else
+#define WIFI_MANAGER_STA_PMF_REQUIRED 0
+#endif
+
 static const char *TAG = "wifi_manager";
 static EventGroupHandle_t s_wifi_event_group;
 static const int WIFI_CONNECTED_BIT = BIT0;
@@ -100,8 +112,10 @@ void wifi_manager_start_config_ap(void) {
   }
 
   wifi_config_t ap_config = {0};
-  size_t ssid_len =
-      strnlen(CONFIG_WIFI_MANAGER_AP_SSID, sizeof(ap_config.ap.ssid) - 1);
+  size_t ssid_len = strlen(CONFIG_WIFI_MANAGER_AP_SSID);
+  if (ssid_len >= sizeof(ap_config.ap.ssid)) {
+    ssid_len = sizeof(ap_config.ap.ssid) - 1;
+  }
 
   strncpy((char *)ap_config.ap.ssid, CONFIG_WIFI_MANAGER_AP_SSID,
           sizeof(ap_config.ap.ssid) - 1);
@@ -135,8 +149,8 @@ static void try_connect_saved_aps(void) {
     strncpy((char *)sta_config.sta.password, s_ap_store.entries[i].passphrase,
             sizeof(sta_config.sta.password) - 1);
     sta_config.sta.threshold.authmode = WIFI_MANAGER_STA_AUTHMODE;
-    sta_config.sta.pmf_cfg.capable = CONFIG_WIFI_MANAGER_STA_PMF_CAPABLE;
-    sta_config.sta.pmf_cfg.required = CONFIG_WIFI_MANAGER_STA_PMF_REQUIRED;
+    sta_config.sta.pmf_cfg.capable = WIFI_MANAGER_STA_PMF_CAPABLE;
+    sta_config.sta.pmf_cfg.required = WIFI_MANAGER_STA_PMF_REQUIRED;
 
     ESP_LOGI(TAG, "Trying AP: %s", s_ap_store.entries[i].ssid);
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &sta_config));
