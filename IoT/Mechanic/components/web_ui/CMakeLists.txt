@@ -8,6 +8,7 @@ idf_component_register(
     REQUIRES
         "network"
         "network_wrapper"
+        "local_mqtt"
     PRIV_REQUIRES 
         "esp_http_server"
         "esp_wifi"

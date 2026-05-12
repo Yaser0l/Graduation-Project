@@ -3,8 +3,7 @@ set (include_dirs "include")
 set (requires)
 
 list(APPEND srcs
-    "wifi_manager.c"
-    "wifi_store.c"
+    "local_mqtt.c"
 )
 
 idf_component_register(
@@ -14,10 +13,8 @@ idf_component_register(
         "esp_event"
     PRIV_REQUIRES
         "vehicle_comms"
-        "esp_driver_gpio"
-        "esp_system"
+        "espressif__mqtt"
         "esp_timer"
-        "esp_wifi"
         "nvs_flash"
         "network_wrapper"
 )
