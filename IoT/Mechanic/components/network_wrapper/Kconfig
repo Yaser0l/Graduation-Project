@@ -1,0 +1,5 @@
+config CONFIG_ESP_ETH_ENABLED
+    bool "Ethernet"
+    default n
+    help
+      Enable Ethernet support.
