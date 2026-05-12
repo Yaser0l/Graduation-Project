@@ -4,15 +4,20 @@
 
 #if CONFIG_WIFI_CONNECT && !CONFIG_ETHERNET_QEMU_CONNECT
 
-#include "wifi_manager.h"
+void wifi_manager_init(const struct saved_ap_store *initial_store);
+void wifi_manager_start_task(void);
+void wifi_manager_notify_store_changed(const struct saved_ap_store *store);
+void wifi_manager_request_connect(void);
+bool wifi_manager_is_connected(void);
+void wifi_manager_start_config_ap(void);
 
-void network_wrapper_init(const saved_ap_store_t *initial_store) {
+void network_wrapper_init(const struct saved_ap_store *initial_store) {
   wifi_manager_init(initial_store);
 }
 
 void network_wrapper_start_task(void) { wifi_manager_start_task(); }
 
-void network_wrapper_notify_store_changed(const saved_ap_store_t *store) {
+void network_wrapper_notify_store_changed(const struct saved_ap_store *store) {
   wifi_manager_notify_store_changed(store);
 }
 
@@ -28,7 +33,7 @@ void network_wrapper_start_config_ap(void) { wifi_manager_start_config_ap(); }
 
 static const char *TAG = "network_wrapper";
 
-void network_wrapper_init(const saved_ap_store_t *initial_store) {
+void network_wrapper_init(const struct saved_ap_store *initial_store) {
   (void)initial_store;
   ESP_LOGW(TAG, "Ethernet QEMU backend is not implemented");
 }
@@ -37,7 +42,7 @@ void network_wrapper_start_task(void) {
   ESP_LOGW(TAG, "Ethernet QEMU backend is not implemented");
 }
 
-void network_wrapper_notify_store_changed(const saved_ap_store_t *store) {
+void network_wrapper_notify_store_changed(const struct saved_ap_store *store) {
   (void)store;
   ESP_LOGW(TAG, "Ethernet QEMU backend is not implemented");
 }

@@ -17,7 +17,7 @@ typedef struct {
   char passphrase[65];
 } saved_ap_t;
 
-typedef struct {
+typedef struct saved_ap_store {
   uint8_t count;
   saved_ap_t entries[MAX_SAVED_APS];
 } saved_ap_store_t;
