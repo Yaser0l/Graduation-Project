@@ -1,8 +1,12 @@
 #include "esp_event.h"
 #include "esp_log.h"
 #include "esp_netif.h"
-#include "esp_wifi.h"
 #include "nvs_flash.h"
+#include "sdkconfig.h"
+
+#if CONFIG_WIFI_CONNECT
+#include "esp_wifi.h"
+#endif
 
 #include "canmodule.h"
 #include "dtc_reporter.h"
@@ -26,11 +30,14 @@ void app_main(void) {
 
   ESP_ERROR_CHECK(esp_netif_init());
   ESP_ERROR_CHECK(esp_event_loop_create_default());
+
+#if CONFIG_WIFI_CONNECT
   esp_netif_create_default_wifi_sta();
   esp_netif_create_default_wifi_ap();
 
   wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
   ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+#endif
 
   ESP_ERROR_CHECK(canmodule_init());
   ESP_ERROR_CHECK(dtc_reporter_init());
@@ -41,8 +48,10 @@ void app_main(void) {
   network_wrapper_init(&s_ap_store);
   ESP_ERROR_CHECK(mqtt_module_init());
 
+#if CONFIG_WIFI_CONNECT
   ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
   ESP_ERROR_CHECK(esp_wifi_start());
+#endif
 
   ESP_LOGI(TAG, "Requesting network connection");
   network_events_post(NETWORK_EVENT_REQUEST, NULL, 0);

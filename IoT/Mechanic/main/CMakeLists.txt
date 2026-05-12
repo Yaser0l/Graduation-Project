@@ -1,7 +1,7 @@
 idf_component_register(
-    SRCS 
+    SRCS
         "main.c"
-    PRIV_REQUIRES 
+    PRIV_REQUIRES
         "network_wrapper"
         "vehicle_comms"
         "wifi_manager"
