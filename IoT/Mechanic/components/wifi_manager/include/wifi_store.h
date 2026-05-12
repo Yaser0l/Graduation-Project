@@ -4,8 +4,13 @@
 #include <stdint.h>
 
 #include "esp_err.h"
+#include "sdkconfig.h"
 
-#define MAX_SAVED_APS 10
+#ifndef CONFIG_WIFI_MANAGER_MAX_SAVED_APS
+#define CONFIG_WIFI_MANAGER_MAX_SAVED_APS 10
+#endif
+
+#define MAX_SAVED_APS CONFIG_WIFI_MANAGER_MAX_SAVED_APS
 
 typedef struct {
   char ssid[33];

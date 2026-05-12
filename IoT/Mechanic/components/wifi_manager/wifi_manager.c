@@ -10,16 +10,53 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
 #include "freertos/task.h"
+#include "sdkconfig.h"
 
 #include "network_events.h"
 
-#define WIFI_CONNECT_TIMEOUT_MS 10000
-#define WIFI_RETRY_LOOP_DELAY_MS 2000
-#define LED_BLINK_INTERVAL_MS 300
+#define WIFI_CONNECT_TIMEOUT_MS CONFIG_WIFI_MANAGER_CONNECT_TIMEOUT_MS
+#define WIFI_RETRY_LOOP_DELAY_MS CONFIG_WIFI_MANAGER_RETRY_LOOP_DELAY_MS
+#define LED_BLINK_INTERVAL_MS CONFIG_WIFI_MANAGER_LED_BLINK_INTERVAL_MS
 
-#define BLINK_GPIO GPIO_NUM_48
-#define LED_ON_LEVEL 0
-#define LED_OFF_LEVEL 1
+#define BLINK_GPIO CONFIG_WIFI_MANAGER_STATUS_LED_GPIO
+#define LED_ON_LEVEL CONFIG_WIFI_MANAGER_LED_ON_LEVEL
+#define LED_OFF_LEVEL CONFIG_WIFI_MANAGER_LED_OFF_LEVEL
+
+#if CONFIG_WIFI_MANAGER_AP_AUTH_OPEN
+#define WIFI_MANAGER_AP_AUTHMODE WIFI_AUTH_OPEN
+#elif CONFIG_WIFI_MANAGER_AP_AUTH_WPA_PSK
+#define WIFI_MANAGER_AP_AUTHMODE WIFI_AUTH_WPA_PSK
+#elif CONFIG_WIFI_MANAGER_AP_AUTH_WPA2_PSK
+#define WIFI_MANAGER_AP_AUTHMODE WIFI_AUTH_WPA2_PSK
+#elif CONFIG_WIFI_MANAGER_AP_AUTH_WPA_WPA2_PSK
+#define WIFI_MANAGER_AP_AUTHMODE WIFI_AUTH_WPA_WPA2_PSK
+#elif CONFIG_WIFI_MANAGER_AP_AUTH_WPA3_PSK
+#define WIFI_MANAGER_AP_AUTHMODE WIFI_AUTH_WPA3_PSK
+#elif CONFIG_WIFI_MANAGER_AP_AUTH_WPA2_WPA3_PSK
+#define WIFI_MANAGER_AP_AUTHMODE WIFI_AUTH_WPA2_WPA3_PSK
+#else
+#define WIFI_MANAGER_AP_AUTHMODE WIFI_AUTH_OPEN
+#endif
+
+#if CONFIG_WIFI_MANAGER_STA_AUTH_OPEN
+#define WIFI_MANAGER_STA_AUTHMODE WIFI_AUTH_OPEN
+#elif CONFIG_WIFI_MANAGER_STA_AUTH_WEP
+#define WIFI_MANAGER_STA_AUTHMODE WIFI_AUTH_WEP
+#elif CONFIG_WIFI_MANAGER_STA_AUTH_WPA_PSK
+#define WIFI_MANAGER_STA_AUTHMODE WIFI_AUTH_WPA_PSK
+#elif CONFIG_WIFI_MANAGER_STA_AUTH_WPA2_PSK
+#define WIFI_MANAGER_STA_AUTHMODE WIFI_AUTH_WPA2_PSK
+#elif CONFIG_WIFI_MANAGER_STA_AUTH_WPA_WPA2_PSK
+#define WIFI_MANAGER_STA_AUTHMODE WIFI_AUTH_WPA_WPA2_PSK
+#elif CONFIG_WIFI_MANAGER_STA_AUTH_WPA3_PSK
+#define WIFI_MANAGER_STA_AUTHMODE WIFI_AUTH_WPA3_PSK
+#elif CONFIG_WIFI_MANAGER_STA_AUTH_WPA2_WPA3_PSK
+#define WIFI_MANAGER_STA_AUTHMODE WIFI_AUTH_WPA2_WPA3_PSK
+#elif CONFIG_WIFI_MANAGER_STA_AUTH_WAPI_PSK
+#define WIFI_MANAGER_STA_AUTHMODE WIFI_AUTH_WAPI_PSK
+#else
+#define WIFI_MANAGER_STA_AUTHMODE WIFI_AUTH_WPA2_PSK
+#endif
 
 static const char *TAG = "wifi_manager";
 static EventGroupHandle_t s_wifi_event_group;
@@ -62,17 +99,22 @@ void wifi_manager_start_config_ap(void) {
     return;
   }
 
-  wifi_config_t ap_config = {
-      .ap =
-          {
-              .ssid = "ESP32_Config",
-              .ssid_len = 0,
-              .channel = 1,
-              .password = "",
-              .max_connection = 4,
-              .authmode = WIFI_AUTH_OPEN,
-          },
-  };
+  wifi_config_t ap_config = {0};
+  size_t ssid_len =
+      strnlen(CONFIG_WIFI_MANAGER_AP_SSID, sizeof(ap_config.ap.ssid) - 1);
+
+  strncpy((char *)ap_config.ap.ssid, CONFIG_WIFI_MANAGER_AP_SSID,
+          sizeof(ap_config.ap.ssid) - 1);
+  ap_config.ap.ssid_len = (uint8_t)ssid_len;
+
+  strncpy((char *)ap_config.ap.password, CONFIG_WIFI_MANAGER_AP_PASSWORD,
+          sizeof(ap_config.ap.password) - 1);
+  ap_config.ap.channel = CONFIG_WIFI_MANAGER_AP_CHANNEL;
+  ap_config.ap.max_connection = CONFIG_WIFI_MANAGER_AP_MAX_CONNECTIONS;
+  ap_config.ap.authmode = WIFI_MANAGER_AP_AUTHMODE;
+  if (ap_config.ap.password[0] == '\0') {
+    ap_config.ap.authmode = WIFI_AUTH_OPEN;
+  }
 
   ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
   ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &ap_config));
@@ -92,9 +134,9 @@ static void try_connect_saved_aps(void) {
             sizeof(sta_config.sta.ssid) - 1);
     strncpy((char *)sta_config.sta.password, s_ap_store.entries[i].passphrase,
             sizeof(sta_config.sta.password) - 1);
-    sta_config.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
-    sta_config.sta.pmf_cfg.capable = true;
-    sta_config.sta.pmf_cfg.required = false;
+    sta_config.sta.threshold.authmode = WIFI_MANAGER_STA_AUTHMODE;
+    sta_config.sta.pmf_cfg.capable = CONFIG_WIFI_MANAGER_STA_PMF_CAPABLE;
+    sta_config.sta.pmf_cfg.required = CONFIG_WIFI_MANAGER_STA_PMF_REQUIRED;
 
     ESP_LOGI(TAG, "Trying AP: %s", s_ap_store.entries[i].ssid);
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &sta_config));

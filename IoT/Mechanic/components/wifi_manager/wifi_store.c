@@ -4,9 +4,10 @@
 
 #include "esp_log.h"
 #include "nvs.h"
+#include "sdkconfig.h"
 
-#define NVS_NAMESPACE "wifi_mgr"
-#define NVS_KEY_AP_LIST "ap_list"
+#define NVS_NAMESPACE CONFIG_WIFI_MANAGER_NVS_NAMESPACE
+#define NVS_KEY_AP_LIST CONFIG_WIFI_MANAGER_NVS_KEY_AP_LIST
 
 static const char *TAG = "wifi_store";
 
