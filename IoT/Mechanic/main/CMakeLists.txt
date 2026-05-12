@@ -3,7 +3,7 @@ idf_component_register(
         "main.c"
     PRIV_REQUIRES 
         "vehicle_comms"
-        "network"
+        "wifi_manager"
         "web_ui"
         "esp_event"
         "esp_netif"

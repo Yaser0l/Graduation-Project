@@ -6,7 +6,7 @@ idf_component_register(
     INCLUDE_DIRS
         "."
     REQUIRES
-        "network"
+        "wifi_manager"
         "network_wrapper"
         "local_mqtt"
     PRIV_REQUIRES 
