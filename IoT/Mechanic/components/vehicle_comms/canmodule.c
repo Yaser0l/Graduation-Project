@@ -1,15 +1,15 @@
 #include "canmodule.h"
 
+#include "dtc_reporter.h"
 #include "esp_log.h"
+#include "esp_rom_sys.h"
 #include "esp_twai.h"
 #include "esp_twai_onchip.h"
-#include <string.h>
-
-#include "dtc_reporter.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 #include "freertos/task.h"
 #include "toyota_prius_2010_pt.h"
+#include <string.h>
 
 static const char *TAG = "canmodule";
 
@@ -27,10 +27,11 @@ typedef struct {
 } can_queue_msg_t;
 
 static const twai_onchip_node_config_t s_node_config = {
-    .io_cfg.tx = 43,
-    .io_cfg.rx = 44,
-    .bit_timing.bitrate = 200000,
+    .io_cfg.tx = 4,
+    .io_cfg.rx = 5,
+    .bit_timing.bitrate = 500000,
     .tx_queue_depth = 5,
+    .flags.enable_self_test = 1,
 };
 
 // Safe decoding out of the ISR
@@ -129,20 +130,30 @@ static bool twai_rx_cb(twai_node_handle_t handle,
   (void)edata;
   (void)user_ctx;
 
-  uint8_t recv_buff[8] = {0};
-  twai_frame_t rx_frame = {
-      .buffer = recv_buff,
-      .buffer_len = sizeof(recv_buff),
-  };
-
   bool higher_priority_task_woken = false;
 
-  if (twai_node_receive_from_isr(handle, &rx_frame) == ESP_OK) {
+  // Loop indefinitely until the hardware FIFO is completely drained
+  while (1) {
+    // CRITICAL: Initialize this INSIDE the loop.
+    // The driver dynamically shrinks buffer_len, so it must be reset to 8 every
+    // iteration!
+    uint8_t recv_buff[8] = {0};
+    twai_frame_t rx_frame = {
+        .buffer = recv_buff,
+        .buffer_len = sizeof(recv_buff),
+    };
+
+    // If it doesn't return ESP_OK, the hardware queue is empty. Break the loop.
+    if (twai_node_receive_from_isr(handle, &rx_frame) != ESP_OK) {
+      break;
+    }
+
     if (s_can_rx_queue) {
       can_queue_msg_t q_msg;
       q_msg.id = rx_frame.header.id;
-      q_msg.dlc = rx_frame.buffer_len;
-      memcpy(q_msg.data, rx_frame.buffer, rx_frame.buffer_len);
+      q_msg.dlc =
+          rx_frame.header.dlc; // <-- Fix: Read actual DLC from the header
+      memcpy(q_msg.data, rx_frame.buffer, q_msg.dlc);
 
       xQueueSendFromISR(s_can_rx_queue, &q_msg,
                         (BaseType_t *)&higher_priority_task_woken);
@@ -171,7 +182,46 @@ static void can_rx_router_task(void *arg) {
     }
   }
 }
+// Callback for when the TWAI controller changes state (e.g., Active -> Bus-Off)
+static bool IRAM_ATTR twai_state_change_cb(
+    twai_node_handle_t handle, const twai_state_change_event_data_t *edata,
+    void *user_ctx) {
 
+  esp_rom_printf("TWAI State Changed! Old: %d, New: %d\n", edata->old_sta,
+                 edata->new_sta);
+
+  // States: 0 = Active, 1 = Warning, 2 = Passive, 3 = Bus-Off
+  if (edata->new_sta == TWAI_ERROR_BUS_OFF) {
+    esp_rom_printf(
+        "CRITICAL: TWAI entered BUS-OFF state! Disconnected from bus.\n");
+    // NOTE: You cannot call twai_node_recover() here. You must signal a
+    // FreeRTOS task to do it using xQueueSendFromISR or a Task Notification.
+  }
+
+  return false; // Return false since we didn't unblock a higher-priority task
+}
+
+// Callback for specific bus errors (e.g., missing ACK, stuff error, format
+// error)
+static bool IRAM_ATTR twai_error_cb(twai_node_handle_t handle,
+                                    const twai_error_event_data_t *edata,
+                                    void *user_ctx) {
+
+  // Print the raw hex value of the error flag
+  esp_rom_printf("TWAI Error Flag Triggered: 0x%lx\n", edata->err_flags.val);
+
+  // You can check specific bitfields for granular debugging:
+  if (edata->err_flags.ack_err) {
+    esp_rom_printf(" -> ACK Error: Frame transmitted but no other node "
+                   "acknowledged it.\n");
+  }
+  if (edata->err_flags.stuff_err) {
+    esp_rom_printf(
+        " -> Stuff Error: Physical bus interference or baud rate mismatch.\n");
+  }
+
+  return false;
+}
 esp_err_t canmodule_init(void) {
   if (s_node_hdl != NULL) {
     return ESP_OK;
@@ -187,9 +237,17 @@ esp_err_t canmodule_init(void) {
     return err;
   }
 
-  const twai_event_callbacks_t user_cbs = {
-      .on_rx_done = twai_rx_cb,
+  twai_mask_filter_config_t filter_cfg = {
+      .id = 0,
+      .mask = 0, // A mask of 0 means ignore the ID bits and accept everything
+      .is_ext = false,
   };
+  twai_node_config_mask_filter(s_node_hdl, 0, &filter_cfg);
+
+  const twai_event_callbacks_t user_cbs = {.on_rx_done = twai_rx_cb,
+                                           .on_state_change =
+                                               twai_state_change_cb,
+                                           .on_error = twai_error_cb};
 
   err = twai_node_register_event_callbacks(s_node_hdl, &user_cbs, NULL);
   if (err != ESP_OK) {
