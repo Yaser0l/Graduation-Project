@@ -22,6 +22,7 @@
 #define MQTT_TOPIC_DATA_SUFFIX "/data"
 #define MQTT_TOPIC_STATUS_SUFFIX "/status"
 #define MQTT_TOPIC_DTC_SUFFIX "/DTC"
+#define MQTT_TOPIC_MAX_LEN 128
 #define MQTT_NVS_NAMESPACE "mqtt_cfg"
 #define MQTT_NVS_KEY_BROKER_URI "broker_uri"
 
@@ -34,6 +35,18 @@ static char s_vehicle_fallback[24] = {0};
 static char s_vehicle_vin[20] = {0};
 static bool s_network_up = false;
 static bool s_network_events_registered = false;
+static char s_status_topic[MQTT_TOPIC_MAX_LEN] = {0};
+
+static void mqtt_event_handler_cb(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data) {
+  if (event_id == MQTT_EVENT_CONNECTED) {
+    int msg_id = esp_mqtt_client_publish(s_client, s_status_topic, "online", 0, 1, 1);
+    if (msg_id < 0) {
+      ESP_LOGW(TAG, "Failed to publish online status");
+    } else {
+      ESP_LOGI(TAG, "Published online status");
+    }
+  }
+}
 
 static const char *mqtt_get_vehicle_id_locked(void) {
   if (s_vehicle_vin[0] != '\0') {
@@ -105,6 +118,12 @@ static void mqtt_stop_client_locked(void) {
     return;
   }
 
+  if (s_status_topic[0] != '\0') {
+    esp_mqtt_client_publish(s_client, s_status_topic, "offline", 0, 1, 1);
+    // Brief delay to allow publish to flush if needed
+    vTaskDelay(pdMS_TO_TICKS(50));
+  }
+
   esp_mqtt_client_stop(s_client);
   esp_mqtt_client_destroy(s_client);
   s_client = NULL;
@@ -115,15 +134,14 @@ static void mqtt_start_client_locked(void) {
     return;
   }
 
-  char status_topic[96];
-  if (mqtt_build_topic_locked(MQTT_TOPIC_STATUS_SUFFIX, status_topic, sizeof(status_topic)) != ESP_OK) {
+  if (mqtt_build_topic_locked(MQTT_TOPIC_STATUS_SUFFIX, s_status_topic, sizeof(s_status_topic)) != ESP_OK) {
     ESP_LOGE(TAG, "Failed to build status topic");
     return;
   }
 
   esp_mqtt_client_config_t mqtt_cfg = {
       .broker.address.uri = s_broker_uri,
-      .session.last_will.topic = status_topic,
+      .session.last_will.topic = s_status_topic,
       .session.last_will.msg = "offline",
       .session.last_will.msg_len = 7,
       .session.last_will.qos = 1,
@@ -135,19 +153,19 @@ static void mqtt_start_client_locked(void) {
     ESP_LOGE(TAG, "Failed to initialize MQTT client");
     return;
   }
+  
+  esp_mqtt_client_register_event(s_client, ESP_EVENT_ANY_ID, mqtt_event_handler_cb, NULL);
 
   esp_mqtt_client_start(s_client);
   
-  // Publish "online" with QoS 1 and Retain 1 so late subscribers also see it
-  esp_mqtt_client_publish(s_client, status_topic, "online", 0, 1, 1);
   ESP_LOGI(TAG, "MQTT client started with broker: %s", s_broker_uri);
 
-  char topic_log[96];
+  char topic_log[MQTT_TOPIC_MAX_LEN];
   if (mqtt_build_topic_locked(MQTT_TOPIC_DATA_SUFFIX, topic_log,
                               sizeof(topic_log)) == ESP_OK) {
     ESP_LOGI(TAG, "  Data topic:   %s", topic_log);
   }
-  ESP_LOGI(TAG, "  Status topic: %s", status_topic);
+  ESP_LOGI(TAG, "  Status topic: %s", s_status_topic);
   if (mqtt_build_topic_locked(MQTT_TOPIC_DTC_SUFFIX, topic_log,
                               sizeof(topic_log)) == ESP_OK) {
     ESP_LOGI(TAG, "  DTC topic:    %s", topic_log);
@@ -181,7 +199,7 @@ static void mqtt_publish_task_step(void) {
 
   if (should_publish && client) {
     char payload[512];
-    char topic[96];
+    char topic[MQTT_TOPIC_MAX_LEN];
     int64_t timestamp_ms = esp_timer_get_time() / 1000;
     can_decoded_signals_t signals = {0};
 
@@ -206,8 +224,12 @@ static void mqtt_publish_task_step(void) {
     if (mqtt_build_topic_locked(MQTT_TOPIC_DATA_SUFFIX, topic, sizeof(topic)) ==
         ESP_OK) {
       int msg_id = esp_mqtt_client_publish(client, topic, payload, 0, 1, 0);
-      ESP_LOGI(TAG, "Publish topic=%s result=%d payload=%s", topic, msg_id,
-               payload);
+      if (msg_id < 0) {
+        ESP_LOGW(TAG, "Failed to publish data message");
+      } else {
+        ESP_LOGI(TAG, "Publish topic=%s result=%d payload=%s", topic, msg_id,
+                 payload);
+      }
     }
   }
 }
@@ -322,13 +344,14 @@ esp_err_t mqtt_module_publish_dtc(const char *vin, const char *payload) {
   }
 
   esp_err_t result = ESP_ERR_INVALID_STATE;
-  char topic[96];
+  char topic[MQTT_TOPIC_MAX_LEN];
   xSemaphoreTake(s_lock, portMAX_DELAY);
 
   if (vin && vin[0] != '\0' &&
       strncmp(s_vehicle_vin, vin, sizeof(s_vehicle_vin)) != 0) {
     strncpy(s_vehicle_vin, vin, sizeof(s_vehicle_vin) - 1);
     s_vehicle_vin[sizeof(s_vehicle_vin) - 1] = '\0';
+    mqtt_restart_client_locked();
   }
 
   if (mqtt_build_topic_locked(MQTT_TOPIC_DTC_SUFFIX, topic, sizeof(topic)) !=
@@ -358,8 +381,12 @@ esp_err_t mqtt_module_set_vin(const char *vin) {
   }
 
   xSemaphoreTake(s_lock, portMAX_DELAY);
-  strncpy(s_vehicle_vin, vin, sizeof(s_vehicle_vin) - 1);
-  s_vehicle_vin[sizeof(s_vehicle_vin) - 1] = '\0';
+  bool changed = strncmp(s_vehicle_vin, vin, sizeof(s_vehicle_vin)) != 0;
+  if (changed) {
+    strncpy(s_vehicle_vin, vin, sizeof(s_vehicle_vin) - 1);
+    s_vehicle_vin[sizeof(s_vehicle_vin) - 1] = '\0';
+    mqtt_restart_client_locked();
+  }
   xSemaphoreGive(s_lock);
   return ESP_OK;
 }
