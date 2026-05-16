@@ -175,9 +175,16 @@ void ethernet_qemu_init(const struct saved_ap_store *initial_store) {
 
 void ethernet_qemu_start_task(void) {
   /* Start the ethernet driver – this is all that's needed; DHCP is
-     handled automatically by the netif/LWIP layer. */
-  ESP_ERROR_CHECK(esp_eth_start(s_eth_handle));
-  ESP_LOGI(TAG, "Ethernet driver started, waiting for link...");
+     handled automatically by the netif/LWIP layer.
+     Guard against ESP_ERR_INVALID_STATE in case an earlier
+     NETWORK_EVENT_REQUEST already started the driver. */
+  esp_err_t err = esp_eth_start(s_eth_handle);
+  if (err == ESP_ERR_INVALID_STATE) {
+    ESP_LOGI(TAG, "Ethernet driver already started, skipping.");
+  } else {
+    ESP_ERROR_CHECK(err);
+    ESP_LOGI(TAG, "Ethernet driver started, waiting for link...");
+  }
 }
 
 void ethernet_qemu_notify_store_changed(const struct saved_ap_store *store) {
@@ -198,7 +205,12 @@ void ethernet_qemu_request_connect(void) {
 
   /* Just (re)start the driver if it was stopped */
   s_should_connect = true;
-  esp_eth_start(s_eth_handle);
+  esp_err_t err = esp_eth_start(s_eth_handle);
+  if (err == ESP_ERR_INVALID_STATE) {
+    ESP_LOGI(TAG, "Ethernet driver already running.");
+  } else if (err != ESP_OK) {
+    ESP_LOGE(TAG, "esp_eth_start failed: %s", esp_err_to_name(err));
+  }
 }
 
 bool ethernet_qemu_is_connected(void) {

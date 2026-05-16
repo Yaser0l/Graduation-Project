@@ -421,6 +421,7 @@ void web_server_start(saved_ap_store_t *store) {
   }
 
   httpd_config_t config = HTTPD_DEFAULT_CONFIG();
+  config.max_uri_handlers = 10; /* We register 9 handlers; default 8 is too few */
   if (httpd_start(&s_http_server, &config) != ESP_OK) {
     ESP_LOGE(TAG, "Failed to start HTTP server");
     return;
