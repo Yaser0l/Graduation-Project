@@ -1,0 +1,9 @@
+menu "Local MQTT Configuration"
+
+    config MQTT_DEFAULT_BROKER_URI
+        string "Default MQTT Broker URI"
+        default "mqtt://broker.emqx.io"
+        help
+            The default URI of the MQTT broker to connect to.
+
+endmenu

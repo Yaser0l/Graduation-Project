@@ -16,7 +16,11 @@
 #include "canmodule.h"
 #include "network_events.h"
 
+#ifdef CONFIG_MQTT_DEFAULT_BROKER_URI
+#define MQTT_DEFAULT_BROKER_URI CONFIG_MQTT_DEFAULT_BROKER_URI
+#else
 #define MQTT_DEFAULT_BROKER_URI "mqtt://broker.emqx.io"
+#endif
 #define MQTT_PUBLISH_INTERVAL_MS 5000
 #define MQTT_TOPIC_PREFIX "MechanicAI/user1/"
 #define MQTT_TOPIC_DATA_SUFFIX "/data"
