@@ -132,6 +132,20 @@ static void mqtt_start_client_locked(void) {
     esp_mqtt_client_publish(s_client, topic, "online", 0, 1, 0);
   }
   ESP_LOGI(TAG, "MQTT client started with broker: %s", s_broker_uri);
+
+  char topic_log[96];
+  if (mqtt_build_topic_locked(MQTT_TOPIC_DATA_SUFFIX, topic_log,
+                              sizeof(topic_log)) == ESP_OK) {
+    ESP_LOGI(TAG, "  Data topic:   %s", topic_log);
+  }
+  if (mqtt_build_topic_locked(MQTT_TOPIC_STATUS_SUFFIX, topic_log,
+                              sizeof(topic_log)) == ESP_OK) {
+    ESP_LOGI(TAG, "  Status topic: %s", topic_log);
+  }
+  if (mqtt_build_topic_locked(MQTT_TOPIC_DTC_SUFFIX, topic_log,
+                              sizeof(topic_log)) == ESP_OK) {
+    ESP_LOGI(TAG, "  DTC topic:    %s", topic_log);
+  }
 }
 
 static void mqtt_restart_client_locked(void) {
@@ -186,7 +200,8 @@ static void mqtt_publish_task_step(void) {
     if (mqtt_build_topic_locked(MQTT_TOPIC_DATA_SUFFIX, topic, sizeof(topic)) ==
         ESP_OK) {
       int msg_id = esp_mqtt_client_publish(client, topic, payload, 0, 1, 0);
-      ESP_LOGI(TAG, "Publish result=%d payload=%s", msg_id, payload);
+      ESP_LOGI(TAG, "Publish topic=%s result=%d payload=%s", topic, msg_id,
+               payload);
     }
   }
 }
