@@ -5,13 +5,14 @@ services:
     build: 
       context: .
       dockerfile: Dockerfile
+      args:
+        MQTT_HOST: ${MQTT_HOST:-}
+        MQTT_PORT: ${MQTT_PORT:-}
+        MQTT_USER: ${MQTT_USER:-}
+        MQTT_PASSWORD: ${MQTT_PASSWORD:-}
     container_name: esp32s3simulator
+    ports:
+      - "5001:80"
     tty: true
     stdin_open: true
-    environment:
-      MQTT_HOST: ${MQTT_HOST:-mqtt}
-      MQTT_PORT: ${MQTT_PORT:-1883}
-      MQTT_USER: ${MQTT_USER:-}
-      MQTT_PASSWORD: ${MQTT_PASSWORD:-}
-      MQTT_TOPIC_DTC: ${MQTT_TOPIC_DTC:-vehicle/+/dtc}
     restart: no

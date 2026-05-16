@@ -1,9 +1,11 @@
 idf_component_register(
-    SRCS 
+    SRCS
         "main.c"
-    PRIV_REQUIRES 
+    PRIV_REQUIRES
+        "network_wrapper"
         "vehicle_comms"
-        "network"
+        "wifi_manager"
+        "network_events"
         "web_ui"
         "esp_event"
         "esp_netif"

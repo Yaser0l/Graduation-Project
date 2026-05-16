@@ -10,5 +10,5 @@ idf_component_register(
     PRIV_REQUIRES
         "espressif__esp_isotp"
         "esp_timer"
-        "network"
+        "local_mqtt"
 )

@@ -1,0 +1,159 @@
+menu "WiFi Manager"
+
+	config WIFI_CONNECT
+		bool "Connect using WiFi (station)"
+		default y
+		help
+			Enable WiFi station connectivity for the network wrapper. Disable this
+			when using the QEMU Ethernet driver.
+
+	config WIFI_MANAGER_CONNECT_TIMEOUT_MS
+		int "Connection timeout (ms)"
+		default 10000
+		range 1000 60000
+		help
+			Maximum time to wait for a station connection attempt.
+
+	config WIFI_MANAGER_RETRY_LOOP_DELAY_MS
+		int "Retry loop delay (ms)"
+		default 2000
+		range 500 60000
+		help
+			Delay between connection retry cycles.
+
+	config WIFI_MANAGER_LED_BLINK_INTERVAL_MS
+		int "Status LED blink interval (ms)"
+		default 300
+		range 50 5000
+		help
+			Blink interval used when WiFi is disconnected.
+
+	config WIFI_MANAGER_STATUS_LED_GPIO
+		int "Status LED GPIO"
+		default 48
+		help
+			GPIO number used for the status LED.
+
+	config WIFI_MANAGER_LED_ON_LEVEL
+		int "Status LED active level"
+		default 0
+		range 0 1
+		help
+			Use 0 for active-low LEDs and 1 for active-high LEDs.
+
+	config WIFI_MANAGER_LED_OFF_LEVEL
+		int "Status LED inactive level"
+		default 1
+		range 0 1
+		help
+			Output level used when the LED should be off.
+
+	menu "Configuration AP"
+
+		config WIFI_MANAGER_AP_SSID
+			string "Config AP SSID"
+			default "ESP32_Config"
+			help
+				SSID broadcast by the configuration access point.
+
+		config WIFI_MANAGER_AP_PASSWORD
+			string "Config AP password"
+			default ""
+			help
+				Leave empty for an open network.
+
+		config WIFI_MANAGER_AP_CHANNEL
+			int "Config AP channel"
+			default 1
+			range 1 14
+			help
+				WiFi channel used for the configuration AP.
+
+		config WIFI_MANAGER_AP_MAX_CONNECTIONS
+			int "Config AP max connections"
+			default 4
+			range 1 10
+			help
+				Maximum number of clients that can connect to the AP.
+
+		choice WIFI_MANAGER_AP_AUTH_MODE
+			prompt "Config AP authentication mode"
+			default WIFI_MANAGER_AP_AUTH_OPEN
+			help
+				Authentication mode used by the configuration AP.
+			config WIFI_MANAGER_AP_AUTH_OPEN
+				bool "OPEN"
+			config WIFI_MANAGER_AP_AUTH_WPA_PSK
+				bool "WPA PSK"
+			config WIFI_MANAGER_AP_AUTH_WPA2_PSK
+				bool "WPA2 PSK"
+			config WIFI_MANAGER_AP_AUTH_WPA_WPA2_PSK
+				bool "WPA/WPA2 PSK"
+			config WIFI_MANAGER_AP_AUTH_WPA3_PSK
+				bool "WPA3 PSK"
+			config WIFI_MANAGER_AP_AUTH_WPA2_WPA3_PSK
+				bool "WPA2/WPA3 PSK"
+		endchoice
+	endmenu
+
+	menu "Station Settings"
+
+		choice WIFI_MANAGER_STA_AUTH_MODE
+			prompt "Minimum WiFi authentication mode"
+			default WIFI_MANAGER_STA_AUTH_WPA2_PSK
+			help
+				Weakest authentication mode allowed for station connections.
+			config WIFI_MANAGER_STA_AUTH_OPEN
+				bool "OPEN"
+			config WIFI_MANAGER_STA_AUTH_WEP
+				bool "WEP"
+			config WIFI_MANAGER_STA_AUTH_WPA_PSK
+				bool "WPA PSK"
+			config WIFI_MANAGER_STA_AUTH_WPA2_PSK
+				bool "WPA2 PSK"
+			config WIFI_MANAGER_STA_AUTH_WPA_WPA2_PSK
+				bool "WPA/WPA2 PSK"
+			config WIFI_MANAGER_STA_AUTH_WPA3_PSK
+				bool "WPA3 PSK"
+			config WIFI_MANAGER_STA_AUTH_WPA2_WPA3_PSK
+				bool "WPA2/WPA3 PSK"
+			config WIFI_MANAGER_STA_AUTH_WAPI_PSK
+				bool "WAPI PSK"
+		endchoice
+
+		config WIFI_MANAGER_STA_PMF_CAPABLE
+			bool "Enable PMF capability"
+			default y
+			help
+				Advertise PMF capability when connecting as a station.
+
+		config WIFI_MANAGER_STA_PMF_REQUIRED
+			bool "Require PMF"
+			default n
+			help
+				Require PMF for station connections.
+	endmenu
+
+	menu "WiFi Store (NVS)"
+
+		config WIFI_MANAGER_NVS_NAMESPACE
+			string "NVS namespace"
+			default "wifi_mgr"
+			help
+				NVS namespace used for storing the AP list.
+
+		config WIFI_MANAGER_NVS_KEY_AP_LIST
+			string "NVS key for AP list"
+			default "ap_list"
+			help
+				NVS key used for the serialized AP list.
+
+		config WIFI_MANAGER_MAX_SAVED_APS
+			int "Max saved AP entries"
+			default 10
+			range 1 50
+			help
+				Maximum number of access points stored in NVS.
+	endmenu
+
+endmenu

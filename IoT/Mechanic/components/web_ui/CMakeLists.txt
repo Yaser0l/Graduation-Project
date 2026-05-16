@@ -6,7 +6,9 @@ idf_component_register(
     INCLUDE_DIRS
         "."
     REQUIRES
-        "network"
+        "wifi_manager"
+        "network_events"
+        "local_mqtt"
     PRIV_REQUIRES 
         "esp_http_server"
         "esp_wifi"
