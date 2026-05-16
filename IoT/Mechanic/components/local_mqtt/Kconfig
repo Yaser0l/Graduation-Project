@@ -6,4 +6,10 @@ menu "Local MQTT Configuration"
         help
             The default URI of the MQTT broker to connect to.
 
+    config MQTT_DEFAULT_VEHICLE_ID
+        string "Default Vehicle ID (Fallback)"
+        default "vehicle_default"
+        help
+            The default vehicle ID to use when VIN is not set. Empty string will use a randomized ID.
+
 endmenu

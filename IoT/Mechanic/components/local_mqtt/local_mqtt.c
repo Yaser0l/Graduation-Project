@@ -69,9 +69,17 @@ static const char *mqtt_get_vehicle_id_locked(void) {
   }
 
   if (s_vehicle_fallback[0] == '\0') {
-    uint32_t rand_val = esp_random();
-    snprintf(s_vehicle_fallback, sizeof(s_vehicle_fallback), "vehicle_%08lx",
-             (unsigned long)rand_val);
+#ifdef CONFIG_MQTT_DEFAULT_VEHICLE_ID
+    if (strlen(CONFIG_MQTT_DEFAULT_VEHICLE_ID) > 0) {
+      strncpy(s_vehicle_fallback, CONFIG_MQTT_DEFAULT_VEHICLE_ID, sizeof(s_vehicle_fallback) - 1);
+      s_vehicle_fallback[sizeof(s_vehicle_fallback) - 1] = '\0';
+    } else
+#endif
+    {
+      uint32_t rand_val = esp_random();
+      snprintf(s_vehicle_fallback, sizeof(s_vehicle_fallback), "vehicle_%08lx",
+               (unsigned long)rand_val);
+    }
   }
 
   return s_vehicle_fallback;
