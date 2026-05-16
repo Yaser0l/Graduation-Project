@@ -47,4 +47,4 @@ RUN --mount=type=cache,target=/root/.espressif \
     --mount=type=cache,target=/project/build \
     /bin/bash -c "source $IDF_PATH/export.sh && idf.py build"
 
-CMD ["/bin/bash", "-c", "source $IDF_PATH/export.sh && idf.py qemu --qemu-extra-args='-nic user,model=open_eth,hostfwd=tcp::5001-:80 -object can-bus,id=canbus0 -object can-host-socketcan,id=canhost0,if=vcan0,canbus=canbus0 -global esp32s3-twai.canbus=canbus0' monitor"]
+CMD ["/bin/bash", "-c", "source $IDF_PATH/export.sh && idf.py qemu --qemu-extra-args='-nic user,model=open_eth,hostfwd=tcp::5001-:80 -object can-bus,id=canbus0 -object can-host-socketcan,id=canhost0,if=vcan0,canbus=canbus0 -global esp32.twai.canbus=canbus0 -global esp32s3.twai.canbus=canbus0  -global esp32-twai.canbus=canbus0  -global esp32s3.twai.canbus=canbus0 -trace \"can_*\" -trace \"sja1000_*\"' monitor"]

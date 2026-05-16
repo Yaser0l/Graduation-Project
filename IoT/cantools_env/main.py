@@ -30,7 +30,7 @@ def periodic_sender(bus):
                 'ENCODER': counter % 256,
                 'CHECKSUM': 0
             })
-            bus.send(can.Message(arbitration_id=180, data=data, is_extended_id=False))
+            bus.send(can.Message(arbitration_id=0x180, data=data, is_extended_id=False))
 
             # WHEEL_SPEEDS (ID: 170)
             data = db.encode_message('WHEEL_SPEEDS', {
@@ -39,7 +39,7 @@ def periodic_sender(bus):
                 'WHEEL_SPEED_RL': speed_mph,
                 'WHEEL_SPEED_RR': speed_mph
             })
-            bus.send(can.Message(arbitration_id=170, data=data, is_extended_id=False))
+            bus.send(can.Message(arbitration_id=0x170, data=data, is_extended_id=False))
 
             # STEER_ANGLE_SENSOR (ID: 37)
             data = db.encode_message('STEER_ANGLE_SENSOR', {
@@ -47,27 +47,27 @@ def periodic_sender(bus):
                 'STEER_FRACTION': 0.0,
                 'STEER_RATE': 0.0
             })
-            bus.send(can.Message(arbitration_id=37, data=data, is_extended_id=False))
+            bus.send(can.Message(arbitration_id=0x25, data=data, is_extended_id=False))
 
             # POWERTRAIN (ID: 452)
             data = db.encode_message('POWERTRAIN', {
                 'ENGINE_RPM': 2500,
                 'CHECKSUM': 0
             })
-            bus.send(can.Message(arbitration_id=452, data=data, is_extended_id=False))
+            bus.send(can.Message(arbitration_id=0x1C4, data=data, is_extended_id=False))
 
             # GAS_PEDAL (ID: 581)
             data = db.encode_message('GAS_PEDAL', {
                 'GAS_PEDAL': 0.15
             })
-            bus.send(can.Message(arbitration_id=581, data=data, is_extended_id=False))
+            bus.send(can.Message(arbitration_id=0x245, data=data, is_extended_id=False))
 
             # BRAKE (ID: 166)
             data = db.encode_message('BRAKE', {
                 'BRAKE_AMOUNT': 0,
                 'BRAKE_PEDAL': 0
             })
-            bus.send(can.Message(arbitration_id=166, data=data, is_extended_id=False))
+            bus.send(can.Message(arbitration_id=0x166, data=data, is_extended_id=False))
 
             # GEAR_PACKET (ID: 295)
             data = db.encode_message('GEAR_PACKET', {
@@ -76,7 +76,7 @@ def periodic_sender(bus):
                 'CHECKSUM': 0,
                 'GEAR': 3 # Drive
             })
-            bus.send(can.Message(arbitration_id=295, data=data, is_extended_id=False))
+            bus.send(can.Message(arbitration_id=0x127, data=data, is_extended_id=False))
 
             counter += 1
             time.sleep(0.05) # 50ms = 20Hz

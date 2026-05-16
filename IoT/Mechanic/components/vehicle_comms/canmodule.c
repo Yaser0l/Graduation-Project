@@ -32,7 +32,7 @@ static const twai_onchip_node_config_t s_node_config = {
     .io_cfg.rx = 5,
     .bit_timing.bitrate = 500000,
     .tx_queue_depth = 5,
-    .flags.enable_self_test = 1,
+    .flags.enable_self_test = 0,
 };
 
 // Safe decoding out of the ISR
@@ -173,20 +173,16 @@ static void can_rx_router_task(void *arg) {
   can_queue_msg_t q_msg;
 
   while (1) {
-    // Wait indefinitely for a frame from the ISR
     if (xQueueReceive(s_can_rx_queue, &q_msg, portMAX_DELAY) == pdTRUE) {
 
-      // 1. Send frame to dtc_reporter for ISO-TP inspection
+      // Send frame to dtc_reporter for ISO-TP inspection
       dtc_reporter_feed_frame(q_msg.id, q_msg.data, q_msg.dlc);
 
-      ESP_LOGI(TAG,
-               "Router RX: ID=0x%lx DLC=%d DATA=%02X %02X %02X %02X %02X %02X "
-               "%02X %02X",
-               q_msg.id, q_msg.dlc, q_msg.data[0], q_msg.data[1], q_msg.data[2],
-               q_msg.data[3], q_msg.data[4], q_msg.data[5], q_msg.data[6],
-               q_msg.data[7]);
+      // UNCONDITIONAL INFO LOG: Prove QEMU is receiving!
+      ESP_LOGI(TAG, "QEMU RX -> ID: %ld (0x%lx) | DLC: %d", q_msg.id, q_msg.id,
+               q_msg.dlc);
 
-      // 2. Decode native telemetry variables
+      // Decode native telemetry variables
       taskENTER_CRITICAL(&s_signals_lock);
       decode_prius_frame(&q_msg);
       s_signals.rx_frames++;
