@@ -11,6 +11,7 @@
 #include "toyota_prius_2010_pt.h"
 #include <string.h>
 
+static volatile uint32_t s_rx_count = 0;
 static const char *TAG = "canmodule";
 
 static twai_node_handle_t s_node_hdl = NULL;
@@ -42,6 +43,7 @@ static void decode_prius_frame(const can_queue_msg_t *msg) {
     if (toyota_prius_2010_pt_speed_unpack(&speed, msg->data, msg->dlc) == 0) {
       s_signals.vehicle_speed_mph =
           (float)toyota_prius_2010_pt_speed_speed_decode(speed.speed);
+      ESP_LOGI(TAG, "Vehicle Speed = %.2f mph", s_signals.vehicle_speed_mph);
     }
     break;
   }
@@ -120,6 +122,7 @@ static void decode_prius_frame(const can_queue_msg_t *msg) {
   }
 
   default:
+    ESP_LOGW(TAG, "Unhandled CAN ID: 0x%lx", msg->id);
     break;
   }
 }
@@ -147,6 +150,8 @@ static bool twai_rx_cb(twai_node_handle_t handle,
     if (twai_node_receive_from_isr(handle, &rx_frame) != ESP_OK) {
       break;
     }
+    esp_rom_printf("RX ISR: ID=0x%lx DLC=%d\n", rx_frame.header.id,
+                   rx_frame.header.dlc);
 
     if (s_can_rx_queue) {
       can_queue_msg_t q_msg;
@@ -173,6 +178,13 @@ static void can_rx_router_task(void *arg) {
 
       // 1. Send frame to dtc_reporter for ISO-TP inspection
       dtc_reporter_feed_frame(q_msg.id, q_msg.data, q_msg.dlc);
+
+      ESP_LOGI(TAG,
+               "Router RX: ID=0x%lx DLC=%d DATA=%02X %02X %02X %02X %02X %02X "
+               "%02X %02X",
+               q_msg.id, q_msg.dlc, q_msg.data[0], q_msg.data[1], q_msg.data[2],
+               q_msg.data[3], q_msg.data[4], q_msg.data[5], q_msg.data[6],
+               q_msg.data[7]);
 
       // 2. Decode native telemetry variables
       taskENTER_CRITICAL(&s_signals_lock);

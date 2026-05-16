@@ -82,7 +82,7 @@ int isotp_user_send_can(const uint32_t arbitration_id, const uint8_t *data,
 
   twai_frame_t tx_msg = {0};
   tx_msg.header.id = arbitration_id;
-  tx_msg.header.ide = false; // Standard 11-bit ID
+  tx_msg.header.ide = false;
   tx_msg.header.rtr = false;
   tx_msg.header.dlc = size;
   tx_msg.buffer = (uint8_t *)data;
@@ -92,9 +92,6 @@ int isotp_user_send_can(const uint32_t arbitration_id, const uint8_t *data,
   esp_err_t ret = twai_node_transmit(node, &tx_msg, pdMS_TO_TICKS(10));
 
   if (ret == ESP_OK) {
-    // CRITICAL: Block until transmission is completely finished.
-    // This prevents the stack-allocated tx_msg and data buffers from being
-    // destroyed before the TWAI hardware interrupt actually reads them!
     twai_node_transmit_wait_all_done(node, pdMS_TO_TICKS(100));
   }
 
