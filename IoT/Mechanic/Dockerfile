@@ -35,4 +35,4 @@ RUN if [ -n "$MQTT_HOST" ]; then \
 #build the project
 RUN /bin/bash -c "source $IDF_PATH/export.sh && idf.py build"
 
-CMD ["/bin/bash", "-c", "source $IDF_PATH/export.sh && idf.py qemu monitor --qemu-extra-args='-nic user,model=open_eth,hostfwd=tcp::5001-:80'"]
+CMD ["/bin/bash", "-c", "source $IDF_PATH/export.sh && idf.py qemu --qemu-extra-args='-nic user,model=open_eth,hostfwd=tcp::5001-:80' monitor"]
