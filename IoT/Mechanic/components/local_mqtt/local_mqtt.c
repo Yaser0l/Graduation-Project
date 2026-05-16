@@ -115,8 +115,19 @@ static void mqtt_start_client_locked(void) {
     return;
   }
 
+  char status_topic[96];
+  if (mqtt_build_topic_locked(MQTT_TOPIC_STATUS_SUFFIX, status_topic, sizeof(status_topic)) != ESP_OK) {
+    ESP_LOGE(TAG, "Failed to build status topic");
+    return;
+  }
+
   esp_mqtt_client_config_t mqtt_cfg = {
       .broker.address.uri = s_broker_uri,
+      .session.last_will.topic = status_topic,
+      .session.last_will.msg = "offline",
+      .session.last_will.msg_len = 7,
+      .session.last_will.qos = 1,
+      .session.last_will.retain = 1,
   };
 
   s_client = esp_mqtt_client_init(&mqtt_cfg);
@@ -126,11 +137,9 @@ static void mqtt_start_client_locked(void) {
   }
 
   esp_mqtt_client_start(s_client);
-  char topic[96];
-  if (mqtt_build_topic_locked(MQTT_TOPIC_STATUS_SUFFIX, topic, sizeof(topic)) ==
-      ESP_OK) {
-    esp_mqtt_client_publish(s_client, topic, "online", 0, 1, 0);
-  }
+  
+  // Publish "online" with QoS 1 and Retain 1 so late subscribers also see it
+  esp_mqtt_client_publish(s_client, status_topic, "online", 0, 1, 1);
   ESP_LOGI(TAG, "MQTT client started with broker: %s", s_broker_uri);
 
   char topic_log[96];
@@ -138,10 +147,7 @@ static void mqtt_start_client_locked(void) {
                               sizeof(topic_log)) == ESP_OK) {
     ESP_LOGI(TAG, "  Data topic:   %s", topic_log);
   }
-  if (mqtt_build_topic_locked(MQTT_TOPIC_STATUS_SUFFIX, topic_log,
-                              sizeof(topic_log)) == ESP_OK) {
-    ESP_LOGI(TAG, "  Status topic: %s", topic_log);
-  }
+  ESP_LOGI(TAG, "  Status topic: %s", status_topic);
   if (mqtt_build_topic_locked(MQTT_TOPIC_DTC_SUFFIX, topic_log,
                               sizeof(topic_log)) == ESP_OK) {
     ESP_LOGI(TAG, "  DTC topic:    %s", topic_log);
