@@ -6,6 +6,8 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: esp32s3simulator
+    ports:
+      - "5001:80"
     tty: true
     stdin_open: true
     environment:
