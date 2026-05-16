@@ -35,4 +35,4 @@ RUN if [ -n "$MQTT_HOST" ]; then \
 #build the project
 RUN /bin/bash -c "source $IDF_PATH/export.sh && idf.py build"
 
-CMD ["/bin/bash", "-c", "source $IDF_PATH/export.sh && idf.py qemu --qemu-extra-args='-nic user,model=open_eth,hostfwd=tcp::5001-:80' monitor"]
+CMD ["/bin/bash", "-c", "source $IDF_PATH/export.sh && idf.py qemu --qemu-extra-args='-nic user,model=open_eth,hostfwd=tcp::5001-:80 -object can-bus,id=canbus0 -object can-host-socketcan,id=canhost0,if=vcan0,canbus=canbus0 -global esp32s3-twai.canbus=canbus0' monitor"]

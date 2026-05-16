@@ -140,6 +140,13 @@ def main():
     try:
         bus = can.interface.Bus(channel=channel, interface='socketcan')
         print(f"Successfully opened CAN bus on {channel}")
+        
+        original_send = bus.send
+        def verbose_send(msg, *args, **kwargs):
+            original_send(msg, *args, **kwargs)
+            print(f"Sent CAN frame: ID={hex(msg.arbitration_id)} Data={msg.data.hex() if msg.data else ''}")
+        bus.send = verbose_send
+        
     except OSError as e:
         print(f"Failed to open CAN bus on {channel}. Error: {e}")
         print("To setup: sudo modprobe vcan && sudo ip link add dev vcan0 type vcan && sudo ip link set up vcan0")
