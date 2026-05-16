@@ -39,11 +39,22 @@ static char s_status_topic[MQTT_TOPIC_MAX_LEN] = {0};
 
 static void mqtt_event_handler_cb(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data) {
   if (event_id == MQTT_EVENT_CONNECTED) {
-    int msg_id = esp_mqtt_client_publish(s_client, s_status_topic, "online", 0, 1, 1);
-    if (msg_id < 0) {
-      ESP_LOGW(TAG, "Failed to publish online status");
-    } else {
-      ESP_LOGI(TAG, "Published online status");
+    esp_mqtt_event_handle_t event = (esp_mqtt_event_handle_t)event_data;
+    
+    char status_topic[MQTT_TOPIC_MAX_LEN] = {0};
+    if (s_lock) {
+      xSemaphoreTake(s_lock, portMAX_DELAY);
+      strncpy(status_topic, s_status_topic, sizeof(status_topic) - 1);
+      xSemaphoreGive(s_lock);
+    }
+
+    if (status_topic[0] != '\0') {
+      int msg_id = esp_mqtt_client_publish(event->client, status_topic, "online", 0, 1, 1);
+      if (msg_id < 0) {
+        ESP_LOGW(TAG, "Failed to publish online status");
+      } else {
+        ESP_LOGI(TAG, "Published online status");
+      }
     }
   }
 }
@@ -120,8 +131,6 @@ static void mqtt_stop_client_locked(void) {
 
   if (s_status_topic[0] != '\0') {
     esp_mqtt_client_publish(s_client, s_status_topic, "offline", 0, 1, 1);
-    // Brief delay to allow publish to flush if needed
-    vTaskDelay(pdMS_TO_TICKS(50));
   }
 
   esp_mqtt_client_stop(s_client);
@@ -154,7 +163,10 @@ static void mqtt_start_client_locked(void) {
     return;
   }
   
-  esp_mqtt_client_register_event(s_client, ESP_EVENT_ANY_ID, mqtt_event_handler_cb, NULL);
+  esp_err_t err = esp_mqtt_client_register_event(s_client, MQTT_EVENT_CONNECTED, mqtt_event_handler_cb, NULL);
+  if (err != ESP_OK) {
+    ESP_LOGW(TAG, "Failed to register MQTT event handler: %d", err);
+  }
 
   esp_mqtt_client_start(s_client);
   
@@ -227,7 +239,7 @@ static void mqtt_publish_task_step(void) {
       if (msg_id < 0) {
         ESP_LOGW(TAG, "Failed to publish data message");
       } else {
-        ESP_LOGI(TAG, "Publish topic=%s result=%d payload=%s", topic, msg_id,
+        ESP_LOGD(TAG, "Publish topic=%s result=%d payload=%s", topic, msg_id,
                  payload);
       }
     }
