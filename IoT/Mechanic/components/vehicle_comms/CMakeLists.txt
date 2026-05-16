@@ -7,8 +7,8 @@ idf_component_register(
         "."
     REQUIRES
         "esp_driver_twai"
+        "isotp"
     PRIV_REQUIRES
-        "espressif__esp_isotp"
         "esp_timer"
         "local_mqtt"
 )
