@@ -1,4 +1,4 @@
-name: Docker Build
+name: Project Build
 
 on:
   push:
@@ -8,6 +8,19 @@ on:
       - "v*"
   pull_request:
 jobs:
+  iot-mechanic-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: esp-idf build
+        uses: espressif/esp-idf-ci-action@v1
+        with:
+          esp_idf_version: v6.0.1
+          target: esp32s3
+          path: "IoT/Mechanic"
   docker-build:
     runs-on: ubuntu-latest
     strategy:
@@ -69,17 +82,3 @@ jobs:
           tags: ${{ secrets.DOCKER_USERNAME }}/${{ matrix.image }}:${{ github.ref_name }}
           cache-from: type=gha,scope=${{ matrix.name }}
           cache-to: type=gha,mode=max,scope=${{ matrix.name }}
-
-  iot-mechanic-build:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-
-      - name: esp-idf build
-        uses: espressif/esp-idf-ci-action@v1
-        with:
-          esp_idf_version: v6.0.1
-          target: esp32s3
-          path: "IoT/Mechanic"
