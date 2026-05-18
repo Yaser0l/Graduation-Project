@@ -36,16 +36,15 @@ static const twai_onchip_node_config_t s_node_config = {
 };
 
 // Safe decoding out of the ISR
-static void decode_prius_frame(const can_queue_msg_t *msg) {
+static bool decode_prius_frame(const can_queue_msg_t *msg) {
   switch (msg->id) {
   case TOYOTA_PRIUS_2010_PT_SPEED_FRAME_ID: {
     struct toyota_prius_2010_pt_speed_t speed = {0};
     if (toyota_prius_2010_pt_speed_unpack(&speed, msg->data, msg->dlc) == 0) {
       s_signals.vehicle_speed_mph =
           (float)toyota_prius_2010_pt_speed_speed_decode(speed.speed);
-      ESP_LOGI(TAG, "Vehicle Speed = %.2f mph", s_signals.vehicle_speed_mph);
     }
-    break;
+    return true;
   }
 
   case TOYOTA_PRIUS_2010_PT_WHEEL_SPEEDS_FRAME_ID: {
@@ -65,7 +64,7 @@ static void decode_prius_frame(const can_queue_msg_t *msg) {
           (float)toyota_prius_2010_pt_wheel_speeds_wheel_speed_rr_decode(
               ws.wheel_speed_rr);
     }
-    break;
+    return true;
   }
 
   case TOYOTA_PRIUS_2010_PT_STEER_ANGLE_SENSOR_FRAME_ID: {
@@ -79,7 +78,7 @@ static void decode_prius_frame(const can_queue_msg_t *msg) {
           (float)toyota_prius_2010_pt_steer_angle_sensor_steer_rate_decode(
               steer.steer_rate);
     }
-    break;
+    return true;
   }
 
   case TOYOTA_PRIUS_2010_PT_POWERTRAIN_FRAME_ID: {
@@ -90,7 +89,7 @@ static void decode_prius_frame(const can_queue_msg_t *msg) {
           (float)toyota_prius_2010_pt_powertrain_engine_rpm_decode(
               powertrain.engine_rpm);
     }
-    break;
+    return true;
   }
 
   case TOYOTA_PRIUS_2010_PT_GAS_PEDAL_FRAME_ID: {
@@ -99,7 +98,7 @@ static void decode_prius_frame(const can_queue_msg_t *msg) {
       s_signals.gas_pedal =
           (float)toyota_prius_2010_pt_gas_pedal_gas_pedal_decode(gas.gas_pedal);
     }
-    break;
+    return true;
   }
 
   case TOYOTA_PRIUS_2010_PT_BRAKE_FRAME_ID: {
@@ -109,7 +108,7 @@ static void decode_prius_frame(const can_queue_msg_t *msg) {
           (float)toyota_prius_2010_pt_brake_brake_pedal_decode(
               brake.brake_pedal);
     }
-    break;
+    return true;
   }
 
   case TOYOTA_PRIUS_2010_PT_GEAR_PACKET_FRAME_ID: {
@@ -118,13 +117,14 @@ static void decode_prius_frame(const can_queue_msg_t *msg) {
         0) {
       s_signals.gear = gear.gear;
     }
-    break;
+    return true;
   }
 
   default:
-    ESP_LOGW(TAG, "Unhandled CAN ID: 0x%lx", msg->id);
-    break;
+    return false;
   }
+
+  return false;
 }
 
 // Keep the ISR fast: copy data and yield.
@@ -133,7 +133,7 @@ static bool twai_rx_cb(twai_node_handle_t handle,
   (void)edata;
   (void)user_ctx;
 
-  bool higher_priority_task_woken = false;
+  BaseType_t higher_priority_task_woken = pdFALSE;
 
   // Loop indefinitely until the hardware FIFO is completely drained
   while (1) {
@@ -156,16 +156,18 @@ static bool twai_rx_cb(twai_node_handle_t handle,
     if (s_can_rx_queue) {
       can_queue_msg_t q_msg;
       q_msg.id = rx_frame.header.id;
-      q_msg.dlc =
-          rx_frame.header.dlc; // <-- Fix: Read actual DLC from the header
-      memcpy(q_msg.data, rx_frame.buffer, q_msg.dlc);
+      size_t data_len = rx_frame.buffer_len;
+      if (data_len > sizeof(q_msg.data)) {
+        data_len = sizeof(q_msg.data);
+      }
+      q_msg.dlc = (uint8_t)data_len;
+      memcpy(q_msg.data, rx_frame.buffer, data_len);
 
-      xQueueSendFromISR(s_can_rx_queue, &q_msg,
-                        (BaseType_t *)&higher_priority_task_woken);
+      xQueueSendFromISR(s_can_rx_queue, &q_msg, &higher_priority_task_woken);
     }
   }
 
-  return higher_priority_task_woken;
+  return higher_priority_task_woken == pdTRUE;
 }
 
 // The Central Dispatcher Task
@@ -183,10 +185,16 @@ static void can_rx_router_task(void *arg) {
                q_msg.dlc);
 
       // Decode native telemetry variables
+      bool handled = false;
+
       taskENTER_CRITICAL(&s_signals_lock);
-      decode_prius_frame(&q_msg);
+      handled = decode_prius_frame(&q_msg);
       s_signals.rx_frames++;
       taskEXIT_CRITICAL(&s_signals_lock);
+
+      if (!handled) {
+        ESP_LOGW(TAG, "Unhandled CAN ID: 0x%lx", q_msg.id);
+      }
     }
   }
 }
