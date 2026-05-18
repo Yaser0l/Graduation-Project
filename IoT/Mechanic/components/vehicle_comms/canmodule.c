@@ -12,6 +12,8 @@
 #include <string.h>
 
 static volatile uint32_t s_rx_count = 0;
+static volatile uint32_t s_rx_dropped = 0;
+static volatile uint32_t s_rx_invalid_dlc = 0;
 static const char *TAG = "canmodule";
 
 static twai_node_handle_t s_node_hdl = NULL;
@@ -150,8 +152,10 @@ static bool twai_rx_cb(twai_node_handle_t handle,
     if (twai_node_receive_from_isr(handle, &rx_frame) != ESP_OK) {
       break;
     }
-    esp_rom_printf("RX ISR: ID=0x%lx DLC=%d\n", rx_frame.header.id,
-                   rx_frame.header.dlc);
+    if (rx_frame.header.dlc > 8) {
+      s_rx_invalid_dlc++;
+      continue;
+    }
 
     if (s_can_rx_queue) {
       can_queue_msg_t q_msg;
@@ -163,7 +167,10 @@ static bool twai_rx_cb(twai_node_handle_t handle,
       q_msg.dlc = (uint8_t)data_len;
       memcpy(q_msg.data, rx_frame.buffer, data_len);
 
-      xQueueSendFromISR(s_can_rx_queue, &q_msg, &higher_priority_task_woken);
+      if (xQueueSendFromISR(s_can_rx_queue, &q_msg,
+                            &higher_priority_task_woken) != pdTRUE) {
+        s_rx_dropped++;
+      }
     }
   }
 
@@ -180,9 +187,14 @@ static void can_rx_router_task(void *arg) {
       // Send frame to dtc_reporter for ISO-TP inspection
       dtc_reporter_feed_frame(q_msg.id, q_msg.data, q_msg.dlc);
 
-      // UNCONDITIONAL INFO LOG: Prove QEMU is receiving!
-      ESP_LOGI(TAG, "QEMU RX -> ID: %ld (0x%lx) | DLC: %d", q_msg.id, q_msg.id,
-               q_msg.dlc);
+      s_rx_count++;
+      if ((s_rx_count % 200U) == 0U) {
+        ESP_LOGI(
+            TAG,
+            "CAN RX: %lu frames (dropped=%lu invalid_dlc=%lu) last id=0x%lx",
+            (unsigned long)s_rx_count, (unsigned long)s_rx_dropped,
+            (unsigned long)s_rx_invalid_dlc, (unsigned long)q_msg.id);
+      }
 
       // Decode native telemetry variables
       bool handled = false;
