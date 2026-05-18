@@ -1,4 +1,5 @@
 # Git and IDE
+
 .git/
 .vscode/
 .devcontainer/
@@ -6,6 +7,7 @@
 .clangd
 
 # Local ESP-IDF Build/Cache
+
 build/
 managed_components/
 sdkconfig
@@ -14,12 +16,15 @@ coverage/
 .cache/
 
 # Agent/LLM directories
+
 .gemini/
 .agents/
 
 # Logs and unrelated files
-*.log
-*.pdf
-*.mmd
+
+_.log
+_.pdf
+_.mmd
+_.txt
 mmdcconf.json
 docker-compose.yml
