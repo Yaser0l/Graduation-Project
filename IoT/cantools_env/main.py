@@ -30,7 +30,7 @@ def periodic_sender(bus):
                 'ENCODER': counter % 256,
                 'CHECKSUM': 0
             })
-            bus.send(can.Message(arbitration_id=0x180, data=data, is_extended_id=False))
+            bus.send(can.Message(arbitration_id=180, data=data, is_extended_id=False))
 
             # WHEEL_SPEEDS (ID: 170)
             data = db.encode_message('WHEEL_SPEEDS', {
@@ -39,7 +39,7 @@ def periodic_sender(bus):
                 'WHEEL_SPEED_RL': speed_mph,
                 'WHEEL_SPEED_RR': speed_mph
             })
-            bus.send(can.Message(arbitration_id=0x170, data=data, is_extended_id=False))
+            bus.send(can.Message(arbitration_id=170, data=data, is_extended_id=False))
 
             # STEER_ANGLE_SENSOR (ID: 37)
             data = db.encode_message('STEER_ANGLE_SENSOR', {
@@ -67,7 +67,7 @@ def periodic_sender(bus):
                 'BRAKE_AMOUNT': 0,
                 'BRAKE_PEDAL': 0
             })
-            bus.send(can.Message(arbitration_id=0x166, data=data, is_extended_id=False))
+            bus.send(can.Message(arbitration_id=166, data=data, is_extended_id=False))
 
             # GEAR_PACKET (ID: 295)
             data = db.encode_message('GEAR_PACKET', {
