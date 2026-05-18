@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y \
     && python3 $IDF_PATH/tools/idf_tools.py install-python-env
 
 # QEMU binaries
-ENV PATH="/root/.espressif/tools/qemu-xtensa/esp-develop-20220919-v4.2.0/qemu/bin:/root/.espressif/tools/qemu-riscv32/esp-develop-20220919-v4.2.0/qemu/bin:${PATH}"
+ENV PATH="/root/.espressif/tools/qemu-xtensa/esp_develop_9.2.2_20250817/qemu/bin:/root/.espressif/tools/qemu-riscv32/esp_develop_9.2.2_20250817/qemu/bin:${PATH}"
 
 ENV IDF_TARGET=esp32s3
 
