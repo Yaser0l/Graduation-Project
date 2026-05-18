@@ -3,6 +3,7 @@
 #include "dtc_reporter.h"
 #include "esp_log.h"
 #include "esp_rom_sys.h"
+#include "esp_timer.h"
 #include "esp_twai.h"
 #include "esp_twai_onchip.h"
 #include "freertos/FreeRTOS.h"
@@ -36,6 +37,9 @@ static const twai_onchip_node_config_t s_node_config = {
     .tx_queue_depth = 5,
     .flags.enable_self_test = 0,
 };
+
+#define CAN_RX_MAX_FRAMES_PER_ISR 16U
+#define CAN_RX_LOG_INTERVAL_US 1000000ULL
 
 // Safe decoding out of the ISR
 static bool decode_prius_frame(const can_queue_msg_t *msg) {
@@ -125,8 +129,6 @@ static bool decode_prius_frame(const can_queue_msg_t *msg) {
   default:
     return false;
   }
-
-  return false;
 }
 
 // Keep the ISR fast: copy data and yield.
@@ -137,8 +139,8 @@ static bool twai_rx_cb(twai_node_handle_t handle,
 
   BaseType_t higher_priority_task_woken = pdFALSE;
 
-  // Loop indefinitely until the hardware FIFO is completely drained
-  while (1) {
+  // Limit per-ISR work to avoid starving other tasks.
+  for (uint32_t i = 0; i < CAN_RX_MAX_FRAMES_PER_ISR; ++i) {
     // CRITICAL: Initialize this INSIDE the loop.
     // The driver dynamically shrinks buffer_len, so it must be reset to 8 every
     // iteration!
@@ -180,6 +182,7 @@ static bool twai_rx_cb(twai_node_handle_t handle,
 // The Central Dispatcher Task
 static void can_rx_router_task(void *arg) {
   can_queue_msg_t q_msg;
+  uint64_t last_log_us = 0;
 
   while (1) {
     if (xQueueReceive(s_can_rx_queue, &q_msg, portMAX_DELAY) == pdTRUE) {
@@ -188,7 +191,9 @@ static void can_rx_router_task(void *arg) {
       dtc_reporter_feed_frame(q_msg.id, q_msg.data, q_msg.dlc);
 
       s_rx_count++;
-      if ((s_rx_count % 200U) == 0U) {
+      uint64_t now_us = esp_timer_get_time();
+      if ((now_us - last_log_us) >= CAN_RX_LOG_INTERVAL_US) {
+        last_log_us = now_us;
         ESP_LOGI(
             TAG,
             "CAN RX: %lu frames (dropped=%lu invalid_dlc=%lu) last id=0x%lx",
@@ -256,7 +261,7 @@ esp_err_t canmodule_init(void) {
   }
 
   // Initialize queue and task
-  s_can_rx_queue = xQueueCreate(32, sizeof(can_queue_msg_t));
+  s_can_rx_queue = xQueueCreate(128, sizeof(can_queue_msg_t));
   xTaskCreate(can_rx_router_task, "can_rx_router", 4096, NULL, 5, NULL);
 
   esp_err_t err = twai_new_node_onchip(&s_node_config, &s_node_hdl);
