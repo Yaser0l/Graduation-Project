@@ -40,6 +40,10 @@
 
     <p id="mqtt-status"></p>
 
+    <h2>DTC Check</h2>
+    <button onclick="requestDtcScan()">Run DTC Scan</button>
+    <p id="dtc-status"></p>
+
     <script>
       async function fetchNetworks() {
         const response = await fetch("/wifi/saved");
@@ -110,6 +114,22 @@
             status.textContent = "Failed to save Broker URI";
           }
         });
+
+      async function requestDtcScan() {
+        const status = document.getElementById("dtc-status");
+        status.textContent = "Requesting DTC scan...";
+        try {
+          const response = await fetch("/dtc/scan", { method: "POST" });
+          const data = await response.json();
+          if (response.ok) {
+            status.textContent = "DTC scan queued";
+          } else {
+            status.textContent = data.message || "DTC scan request failed";
+          }
+        } catch (error) {
+          status.textContent = "Failed to request DTC scan";
+        }
+      }
 
       fetchNetworks();
       loadBrokerUri();

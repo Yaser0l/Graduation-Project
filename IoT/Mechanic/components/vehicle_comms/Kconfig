@@ -1,0 +1,11 @@
+menu "Vehicle Communications"
+
+    config DTC_POLL_INTERVAL_MINUTES
+        int "DTC scan interval (minutes)"
+        default 480
+        range 1 1440
+        help
+            How often to automatically scan for DTCs and publish results
+            via MQTT, in minutes. Default is 480 (8 hours).
+
+endmenu

@@ -4,11 +4,11 @@ idf_component_register(
         "dtc_reporter.c"
         "toyota_prius_2010_pt.c"
     INCLUDE_DIRS 
-        "."
+        "include"
     REQUIRES
         "esp_driver_twai"
+        "isotp"
     PRIV_REQUIRES
-        "espressif__esp_isotp"
         "esp_timer"
         "local_mqtt"
 )
