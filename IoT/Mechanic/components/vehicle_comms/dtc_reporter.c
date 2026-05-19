@@ -189,8 +189,9 @@ static void dtc_handle_vin_response(const uint8_t *data, uint32_t len) {
   if (!data || len < 3 || data[0] != OBD_SERVICE_VEHICLE_INFO_RESP ||
       data[1] != OBD_PID_VIN)
     return;
+  // Single-frame format: 49 02 <VIN bytes> (no padding byte)
   size_t vin_len = 0;
-  for (uint32_t i = 3; i < len && vin_len < sizeof(s_vin) - 1; ++i) {
+  for (uint32_t i = 2; i < len && vin_len < sizeof(s_vin) - 1; ++i) {
     uint8_t ch = data[i];
     if (ch == 0 || ch == ' ')
       continue;

@@ -120,11 +120,9 @@ def isotp_server(bus):
                 
             # OBD Service 09, PID 02 (VIN)
             elif len(req) >= 2 and req[0] == 0x09 and req[1] == 0x02:
-                # Response 49 02 01 + VIN
-                vin = b"SIMULATEDPRIUS"
-                # pad to 17 bytes
-                vin = vin.ljust(17, b'X')
-                stack.send(bytes([0x49, 0x02, 0x01]) + vin)
+                # Single-frame VIN: 49 02 + short VIN (max 5 chars to fit in 7 bytes)
+                vin = b"SIM01"
+                stack.send(bytes([0x49, 0x02]) + vin)
                 print(f"Sent VIN response: {vin}")
                 
             # UDS Service 19 02 FF (Read DTC by status)
