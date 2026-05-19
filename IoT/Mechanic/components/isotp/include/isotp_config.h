@@ -41,7 +41,7 @@
 /* Private: Value to use when padding frames if enabled by ISO_TP_FRAME_PADDING
  */
 #ifndef ISO_TP_FRAME_PADDING_VALUE
-    #define ISO_TP_FRAME_PADDING_VALUE 0xAA
+#define ISO_TP_FRAME_PADDING_VALUE 0xAA
 #endif
 
 /* Private: Determines if by default, an additional argument is present in the

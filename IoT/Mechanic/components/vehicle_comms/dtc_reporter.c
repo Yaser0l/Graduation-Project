@@ -297,13 +297,7 @@ static void dtc_reporter_task(void *arg) {
   (void)arg;
 
   // A simple state machine to prevent sending requests simultaneously
-  enum {
-    REQ_IDLE,
-    REQ_OBD,
-    REQ_UDS,
-    REQ_ODO,
-    REQ_VIN
-  } req_state = REQ_IDLE;
+  enum { REQ_IDLE, REQ_OBD, REQ_UDS, REQ_ODO, REQ_VIN } req_state = REQ_IDLE;
 
   while (true) {
     if (!s_ready) {

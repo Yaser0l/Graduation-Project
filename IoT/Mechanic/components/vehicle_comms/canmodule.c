@@ -242,11 +242,10 @@ static void can_rx_router_task(void *arg) {
     uint64_t now_us = esp_timer_get_time();
     if ((now_us - last_log_us) >= CAN_RX_LOG_INTERVAL_US) {
       last_log_us = now_us;
-      ESP_LOGI(
-          TAG,
-          "CAN RX: %lu frames (dropped=%lu invalid_dlc=%lu) last id=0x%lx",
-          (unsigned long)s_rx_count, (unsigned long)s_rx_dropped,
-          (unsigned long)s_rx_invalid_dlc, (unsigned long)q_msg.id);
+      ESP_LOGI(TAG,
+               "CAN RX: %lu frames (dropped=%lu invalid_dlc=%lu) last id=0x%lx",
+               (unsigned long)s_rx_count, (unsigned long)s_rx_dropped,
+               (unsigned long)s_rx_invalid_dlc, (unsigned long)q_msg.id);
     }
 
     // Decode native telemetry variables
@@ -312,7 +311,8 @@ esp_err_t canmodule_init(void) {
 
   // Initialize queue and task
   s_can_rx_queue = xQueueCreate(CAN_RX_QUEUE_LEN, sizeof(can_queue_msg_t));
-  s_can_isotp_queue = xQueueCreate(CAN_ISOTP_QUEUE_LEN, sizeof(can_queue_msg_t));
+  s_can_isotp_queue =
+      xQueueCreate(CAN_ISOTP_QUEUE_LEN, sizeof(can_queue_msg_t));
   xTaskCreate(can_rx_router_task, "can_rx_router", 4096, NULL, 5, NULL);
 
   esp_err_t err = twai_new_node_onchip(&s_node_config, &s_node_hdl);
