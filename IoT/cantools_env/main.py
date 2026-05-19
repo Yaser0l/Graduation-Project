@@ -144,7 +144,6 @@ def main():
         original_send = bus.send
         def verbose_send(msg, *args, **kwargs):
             original_send(msg, *args, **kwargs)
-            print(f"Sent CAN frame: ID={hex(msg.arbitration_id)} Data={msg.data.hex() if msg.data else ''}")
         bus.send = verbose_send
         
     except OSError as e:
