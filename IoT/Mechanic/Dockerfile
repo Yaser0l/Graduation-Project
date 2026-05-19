@@ -33,7 +33,8 @@ RUN touch sdkconfig.defaults \
     && sed -i '/^CONFIG_ESP_PHY_CALIBRATION_AND_DATA_STORAGE=/d' sdkconfig.defaults \
     && sed -i '/^CONFIG_ESP_PHY_INIT_DATA_IN_PARTITION=/d' sdkconfig.defaults \
     && echo "CONFIG_ESP_PHY_CALIBRATION_AND_DATA_STORAGE=n" >> sdkconfig.defaults \
-    && echo "CONFIG_ESP_PHY_INIT_DATA_IN_PARTITION=n" >> sdkconfig.defaults
+    && echo "CONFIG_ESP_PHY_INIT_DATA_IN_PARTITION=n" >> sdkconfig.defaults \
+    && echo "CONFIG_DTC_POLL_INTERVAL_MINUTES=1" >> sdkconfig.defaults
 
 RUN if [ -n "$MQTT_HOST" ]; then \
       sed -i '/^CONFIG_MQTT_DEFAULT_BROKER_URI=/d' sdkconfig.defaults; \
