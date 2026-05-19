@@ -96,8 +96,6 @@ jobs:
             type=ref,event=branch
             # 2. PRs get tagged as 'pr-123'
             type=ref,event=pr
-            # 3. All builds get a short commit hash tag (e.g., 'sha-a1b2c3d')
-            type=sha,format=short
             # 4. Release tags (v1.0.0) get tagged as '1.0.0'
             type=semver,pattern={{version}}
 
