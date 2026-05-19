@@ -74,11 +74,19 @@ class BenchmarkSettings:
     judge_provider: str = field(default_factory=lambda: os.getenv("BENCHMARK_JUDGE_PROVIDER", "openai"))
     judge_temperature: float = field(default_factory=lambda: _env_float("BENCHMARK_JUDGE_TEMPERATURE", 0.0))
 
-    embedding_model: str = field(default_factory=lambda: os.getenv("BENCHMARK_EMBEDDING_MODEL", "all-MiniLM-L6-v2"))
+    embedding_model: str = field(
+        default_factory=lambda: os.getenv("BENCHMARK_EMBEDDING_MODEL", app_config.RAG_EMBEDDING_MODEL)
+    )
+    rerank_model: str = field(
+        default_factory=lambda: os.getenv("BENCHMARK_RERANK_MODEL", app_config.RAG_RERANK_MODEL)
+    )
 
     api_key: str = field(default_factory=lambda: app_config.OPENAI_API_KEY or "")
     base_url: str = field(default_factory=lambda: app_config.base_url or "")
 
+    retrieve_k: int = field(
+        default_factory=lambda: _env_int("BENCHMARK_RETRIEVE_K", app_config.RAG_RETRIEVE_K)
+    )
     top_k: int = field(default_factory=lambda: _env_int("BENCHMARK_TOP_K", app_config.RAG_TOP_K))
     max_cases: int = field(default_factory=lambda: _env_int("BENCHMARK_MAX_CASES", 0))
 

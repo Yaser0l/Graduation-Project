@@ -31,6 +31,8 @@ env/
 venv/
 ENV/
 .venv/
+.venv*/
+**/venv*/
 .env/
 pip-log.txt
 pip-delete-this-directory.txt
@@ -68,6 +70,10 @@ Agentic_Workflow/output/
 Agentic_Workflow/benchmarks/reports/*
 !Agentic_Workflow/benchmarks/reports/.gitkeep
 Agentic_Workflow/benchmarks/.ragas_cache/
+Agentic_Workflow/data/sources/manuals/**
+Agentic_Workflow/data/sources/dtc/**
+!Agentic_Workflow/data/sources/dtc/.gitkeep
+Agentic_Workflow/data/sources/manifest.json
 
 # ─────────────────
 # IDEs and OS

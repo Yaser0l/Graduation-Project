@@ -23,11 +23,18 @@ benchmarks/
 
 ## Quick start
 
+Index the knowledge base first (required for meaningful retrieval scores):
+
 ```powershell
-# from the repo root
 cd Agentic_Workflow
 .\.venv\Scripts\Activate.ps1
+pytest tests/ -q --ignore=tests/test_keys.py -m "not live"
+python scripts/ingest_rag_full.py --fixtures-dir tests/fixtures --skip-download --reset --skip-preflight
+```
 
+Then run benchmarks:
+
+```powershell
 # Lite mode: retrieval-only, never calls the LLM (fast PR-level smoke test)
 python -m benchmarks.run_benchmark --mode lite --max-cases 5
 

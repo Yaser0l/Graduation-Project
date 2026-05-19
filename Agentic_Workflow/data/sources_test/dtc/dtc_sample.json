@@ -1,0 +1,107 @@
+[
+  {
+    "code": "P0420",
+    "description": "Catalyst System Efficiency Below Threshold (Bank 1)",
+    "system": "powertrain",
+    "make": "generic",
+    "causes": "Failing catalytic converter, oxygen sensor issues, exhaust leaks, engine misfires"
+  },
+  {
+    "code": "P0301",
+    "description": "Cylinder 1 Misfire Detected",
+    "system": "powertrain",
+    "make": "generic",
+    "causes": "Faulty spark plugs, ignition coils, fuel injectors, low compression"
+  },
+  {
+    "code": "C0561",
+    "description": "System Disabled Information Stored",
+    "system": "chassis",
+    "make": "generic",
+    "causes": "Faulty wheel speed sensors, damaged wiring, control module issues"
+  },
+  {
+    "code": "C0750",
+    "description": "Tire Pressure Monitor Sensor Battery Low",
+    "system": "chassis",
+    "make": "generic",
+    "causes": "Low TPMS sensor battery, replace sensor and check tire pressure"
+  },
+  {
+    "code": "P0171",
+    "description": "System Too Lean (Bank 1)",
+    "system": "powertrain",
+    "make": "Toyota",
+    "causes": "Vacuum leak, MAF sensor, fuel pump, O2 sensor"
+  },
+  {
+    "code": "P0420",
+    "description": "Catalyst System Efficiency Below Threshold Bank 1",
+    "system": "powertrain",
+    "make": "Honda",
+    "causes": "Catalytic converter degradation, O2 sensor failure"
+  },
+  {
+    "code": "P0300",
+    "description": "Random/Multiple Cylinder Misfire Detected",
+    "system": "powertrain",
+    "make": "Ford",
+    "causes": "Ignition system, fuel delivery, vacuum leaks"
+  },
+  {
+    "code": "P0442",
+    "description": "Evaporative Emission Control System Leak Detected (small leak)",
+    "system": "powertrain",
+    "make": "Chevrolet",
+    "causes": "Loose gas cap, EVAP hose leak, purge valve"
+  },
+  {
+    "code": "P0133",
+    "description": "O2 Sensor Circuit Slow Response (Bank 1 Sensor 1)",
+    "system": "powertrain",
+    "make": "Nissan",
+    "causes": "Aging O2 sensor, exhaust leak, wiring"
+  },
+  {
+    "code": "P0420",
+    "description": "Catalyst efficiency below threshold",
+    "system": "powertrain",
+    "make": "Hyundai",
+    "causes": "Catalyst, sensors, exhaust leaks"
+  },
+  {
+    "code": "P0455",
+    "description": "Evaporative Emission System Leak Detected (large leak)",
+    "system": "powertrain",
+    "make": "Kia",
+    "causes": "Gas cap, EVAP canister, hoses"
+  },
+  {
+    "code": "P0016",
+    "description": "Crankshaft Position Camshaft Position Correlation Bank 1 Sensor A",
+    "system": "powertrain",
+    "make": "BMW",
+    "causes": "Timing chain, VANOS, sensors"
+  },
+  {
+    "code": "P0101",
+    "description": "Mass or Volume Air Flow Circuit Range/Performance Problem",
+    "system": "powertrain",
+    "make": "Mercedes-Benz",
+    "causes": "MAF sensor dirty or failed, air leak"
+  },
+  {
+    "code": "P0500",
+    "description": "Vehicle Speed Sensor Malfunction",
+    "system": "chassis",
+    "make": "generic",
+    "causes": "VSS sensor, wiring, instrument cluster"
+  },
+  {
+    "code": "P0128",
+    "description": "Coolant Thermostat (Coolant Temperature Below Thermostat Regulating Temperature)",
+    "system": "powertrain",
+    "make": "Toyota",
+    "causes": "Stuck open thermostat, low coolant, sensor"
+  }
+]

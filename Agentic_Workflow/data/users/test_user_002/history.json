@@ -78,5 +78,21 @@
     "report_preview": "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501  \nDIAGNOSTIC REPORT  \n\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501  \n\n**Vehicle:** 2021 Honda Accord Sport  \n**Report Date:** [Current Date]  \n\n\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501  \nWHAT WE FOUND  \n\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501  \n\nWe discovered two main issues with your ...",
     "has_products": true,
     "timestamp": "2025-11-21T00:15:09.822095"
+  },
+  {
+    "type": "obd2_analysis",
+    "summary": "OBD2 diagnostic analysis completed",
+    "analysis": "**TECHNICAL ANALYSIS**\n\n**1. Problem Identification**\nBased on the OBD2 diagnostic data retrieved from the 2021 Honda Accord Sport, there is one primary issue requiring attention:\n*   **Diagnostic Trouble Code C0750:** Tire Pressure Monitor Sensor (TPMS) Battery Low. This indicates that the internal battery of one or more TPMS sensors is losing its charge and is approaching the end of its operational life.\n*   **Secondary Condition:** The Rear Left (RL) tire is below the recommended pressure thr...",
+    "codes": [
+      "C0750"
+    ],
+    "timestamp": "2026-05-19T20:08:21.054901"
+  },
+  {
+    "type": "final_report",
+    "summary": "Complete diagnostic report generated",
+    "report_preview": "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\nDIAGNOSTIC REPORT\n\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n\nVehicle: 2021 Honda Accord Sport\nMileage: 35,000 miles\nVIN: 1HGCV1F30LA000001\nReport Date: 19/05/2026\n\n\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\nWHAT WE FOUND\n\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n\nWe ran a complete diagnostic scan on your Honda Accord and found two items that need your attention. First,...",
+    "has_products": true,
+    "timestamp": "2026-05-19T20:11:03.522980"
   }
 ]

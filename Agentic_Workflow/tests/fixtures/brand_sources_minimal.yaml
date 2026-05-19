@@ -1,0 +1,14 @@
+# Minimal brand registry for unit/contract tests (one vehicle per make).
+brands:
+  - make: Toyota
+    model: Camry
+    year: 2020
+    adapter: toyota
+  - make: Honda
+    model: Accord
+    year: 2020
+    adapter: honda
+  - make: Ford
+    model: F-150
+    year: 2020
+    adapter: ford

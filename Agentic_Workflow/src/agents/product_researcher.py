@@ -143,8 +143,9 @@ Product types needed:"""
             for i, p in enumerate(all_recommendations, 1):
                 print(f"{i}. {p.get('product_name', 'Unknown')}")
                 print(f"   Type: {p.get('product_type', '')}")
+                print(f"   Page: {p.get('page_type', 'unknown')}")
                 if p.get('url'):
-                    print(f"   URL: {p.get('url')}")
+                    print(f"   Product URL: {p.get('url')}")
                 if p.get('description'):
                     preview = p['description'][:200].replace("\n", " ")
                     print(f"   Desc: {preview}{'...' if len(p['description']) > 200 else ''}")

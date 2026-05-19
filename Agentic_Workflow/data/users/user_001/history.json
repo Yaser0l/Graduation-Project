@@ -100,5 +100,66 @@
     "report_preview": "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501  \n**DIAGNOSTIC REPORT**  \n\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501  \n\n**Vehicle:** 2020 Toyota Camry SE  \n**Report Date:** [Insert current date]  \n\n\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501  \n**WHAT WE FOUND**  \n\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501  \n\nYour 2020 Toyota Camry SE ha...",
     "has_products": true,
     "timestamp": "2025-11-22T18:16:26.046725"
+  },
+  {
+    "type": "obd2_analysis",
+    "summary": "OBD2 diagnostic analysis completed",
+    "analysis": "**TECHNICAL ANALYSIS**\n\n**1. Problem Identification**\nBased on the OBD2 diagnostic data extracted from the 2020 Toyota Camry SE, two distinct but potentially interconnected issues have been identified:\n*   **C0750 (Tire Pressure Monitor Sensor Battery Low):** One or more of the direct TPMS sensors installed in the wheel assemblies has an internal battery that has depleted below the minimum operational voltage threshold.\n*   **C0561 (System Disabled Information Stored):** A secondary chassis/cont...",
+    "codes": [
+      "C0561",
+      "C0750"
+    ],
+    "timestamp": "2026-05-19T20:03:21.011208"
+  },
+  {
+    "type": "final_report",
+    "summary": "Complete diagnostic report generated",
+    "report_preview": "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\nDIAGNOSTIC REPORT\n\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n\nVehicle: 2020 Toyota Camry SE\nMileage: 45,000 miles\nVIN: 1HGBH41JXMN109186\nReport Date: 19/05/2026\n\n\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\nWHAT WE FOUND\n\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n\nDuring a thorough check of your vehicle, we found that the battery inside one of your tire pressure sensors ha...",
+    "has_products": true,
+    "timestamp": "2026-05-19T20:06:00.306239"
+  },
+  {
+    "type": "obd2_analysis",
+    "summary": "OBD2 diagnostic analysis completed",
+    "analysis": "**TECHNICAL ANALYSIS**\n\n**1. Problem Identification**\nBased on the OBD2 diagnostic data extracted from the 2020 Toyota Camry SE, there are two distinct issues identified:\n*   **C0750:** Tire Pressure Monitor Sensor (TPMS) Battery Low. This is accompanied by physical underinflation of all four tires (27-29 PSI vs. the 35 PSI recommended threshold).\n*   **C0561:** System Disabled Information Stored. As indicated by the reference material, this generic code correlates to a \"Vacuum Sensor A/B Correl...",
+    "codes": [
+      "C0561",
+      "C0750"
+    ],
+    "timestamp": "2026-05-20T01:18:30.383119"
+  },
+  {
+    "type": "obd2_analysis",
+    "summary": "OBD2 diagnostic analysis completed",
+    "analysis": "**TECHNICAL ANALYSIS**\n\n**1. Problem Identification**\nBased on the OBD2 diagnostic data and reference materials, there are three distinct issues present on this 2020 Toyota Camry SE:\n*   **C0750:** Tire Pressure Monitor Sensor (TPMS) Battery Low.\n*   **C0561:** System Disabled Information Stored (Specifically related to Vacuum Sensor A/B Correlation per Reference 2).\n*   **Underinflation:** All four tires are significantly below the recommended 35 PSI, ranging from 27 to 29 PSI.\n\n**2. Root Cause...",
+    "codes": [
+      "C0561",
+      "C0750"
+    ],
+    "timestamp": "2026-05-20T01:22:20.262264"
+  },
+  {
+    "type": "final_report",
+    "summary": "Complete diagnostic report generated",
+    "report_preview": "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\nDIAGNOSTIC REPORT\n\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n\nVehicle: 2020 Toyota Camry SE\nMileage: 45,000 miles\nVIN: 1HGBH41JXMN109186\nReport Date: 24/10/2023\n\n\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\nWHAT WE FOUND\n\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n\nWe performed a thorough check of your Camry and found three items that need your attention. The good news is t...",
+    "has_products": true,
+    "timestamp": "2026-05-20T01:24:27.872461"
+  },
+  {
+    "type": "obd2_analysis",
+    "summary": "OBD2 diagnostic analysis completed",
+    "analysis": "**TECHNICAL ANALYSIS**\n\n**1. Problem Identification**\nBased on the OBD2 diagnostic data, there are two distinct issues affecting the chassis control systems of this 2020 Toyota Camry SE:\n*   **C0750 (Tire Pressure Monitor Sensor Battery Low):** One or more of the direct TPMS sensors have an internal battery that is below the minimum voltage threshold required for reliable transmission.\n*   **C0561 (System Disabled Information Stored):** A secondary chassis code indicating that a related control ...",
+    "codes": [
+      "C0561",
+      "C0750"
+    ],
+    "timestamp": "2026-05-20T01:31:15.404499"
+  },
+  {
+    "type": "final_report",
+    "summary": "Complete diagnostic report generated",
+    "report_preview": "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\nDIAGNOSTIC REPORT\n\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n\nVehicle: 2020 Toyota Camry SE\nReport Date: 24/10/2023\n\n\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\nWHAT WE FOUND\n\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n\nWe know seeing warning lights on your dashboard can be stressful, but we're here to help you understand exactly what's going on! During our inspection of y...",
+    "has_products": true,
+    "timestamp": "2026-05-20T01:34:22.212423"
   }
 ]

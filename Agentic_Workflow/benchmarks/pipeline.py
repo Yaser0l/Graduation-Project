@@ -1,10 +1,8 @@
 """Production-equivalent RAG pipeline used for benchmarking.
 
-Re-uses the same Chroma + HuggingFaceEmbeddings knowledge base instance the
-agents talk to in production, then asks the configured LLM (default GLM-5.1)
-to answer the question grounded in the retrieved chunks. The pipeline only
-exposes the bits RAGAS needs (`response`, `retrieved_contexts`) so we can swap
-implementations later without touching the eval code.
+Re-uses the same Chroma knowledge base as agents (hybrid dense+BM25, BGE
+embeddings, cross-encoder rerank), then asks the configured LLM to answer
+grounded in retrieved chunks.
 """
 from __future__ import annotations
 
@@ -88,11 +86,10 @@ class RagPipeline:
     # --- public API -------------------------------------------------------
 
     def retrieve(self, question: str) -> RagAnswer:
-        """Run retrieval only — useful for offline retrieval-quality metrics."""
+        """Run retrieval only — uses production hybrid + rerank when enabled."""
         docs_with_scores = _knowledge_base().retrieve_with_scores(question, k=self.settings.top_k)
         contexts = [doc.page_content for doc, _ in docs_with_scores]
-        # Chroma returns distance; convert to a 0-1 similarity for stable sort.
-        scores = [1.0 / (1.0 + float(score)) for _, score in docs_with_scores]
+        scores = [float(score) for _, score in docs_with_scores]
         return RagAnswer(question=question, response="", retrieved_contexts=contexts, retrieval_scores=scores)
 
     def answer(self, question: str) -> RagAnswer:

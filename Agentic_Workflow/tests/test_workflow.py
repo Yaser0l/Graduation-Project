@@ -166,24 +166,30 @@ def test_memory_system():
         return False
 
 
-def test_rag_system():
+def test_rag_system(tmp_path=None):
     """Test RAG system."""
     print("\n" + "=" * 60)
     print("TEST: RAG system")
     print("=" * 60)
-    
-    from src.rag.knowledge_base import knowledge_base
-    
+
+    import src.rag.knowledge_base as kb_mod
+    from src.rag.knowledge_base import AutomotiveKnowledgeBase
+
+    chroma_dir = str(tmp_path / "rag_test_chroma") if tmp_path is not None else None
+    kb = AutomotiveKnowledgeBase(persist_directory=chroma_dir) if chroma_dir else kb_mod.get_knowledge_base()
+    if kb.get_collection_count() == 0:
+        kb.initialize_with_sample_data()
+
     try:
         # Test retrieval
-        docs = knowledge_base.retrieve("C0750 tire pressure sensor", k=3)
+        docs = kb.retrieve("C0750 tire pressure sensor", k=3)
         assert len(docs) > 0, "No documents retrieved"
         
         print(f"Retrieved {len(docs)} documents")
         print(f"First document preview: {docs[0].page_content[:100]}...")
         
         # Test reflection
-        is_sufficient, score, reflection = knowledge_base.reflect_on_retrieval(
+        is_sufficient, score, reflection = kb.reflect_on_retrieval(
             "C0750 tire pressure sensor",
             docs
         )
