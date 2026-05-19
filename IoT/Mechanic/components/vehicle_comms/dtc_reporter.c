@@ -18,6 +18,7 @@
 #define DTC_POLL_PERIOD_MS 5
 #define DTC_POLL_INTERVAL_US (8ULL * 60ULL * 60ULL * 1000000ULL)
 #define DTC_RESPONSE_WINDOW_US (5ULL * 1000000ULL)
+#define DTC_SINGLE_RESPONSE_TIMEOUT_US (2000000ULL)
 
 #define DTC_MAX_CODES 32
 #define DTC_CODE_MAX_LEN 12
@@ -64,6 +65,13 @@ static uint64_t s_last_request_us = 0;
 static uint64_t s_request_start_us = 0;
 static bool s_waiting_for_response = false;
 static volatile bool s_force_request = false;
+static bool s_req_in_flight = false;
+static uint64_t s_req_sent_us = 0;
+
+static bool s_obd_received = false;
+static bool s_uds_received = false;
+static bool s_odo_received = false;
+static bool s_vin_received = false;
 
 // --- ISO-TP C Library Hooks ---
 
@@ -216,10 +224,36 @@ static void dtc_check_receive(void) {
                        &received_size) == ISOTP_RET_OK) {
     if (received_size == 0)
       break;
-    dtc_handle_obd_response(rx_buffer, received_size);
-    dtc_handle_obd_pid_response(rx_buffer, received_size);
-    dtc_handle_vin_response(rx_buffer, received_size);
-    dtc_handle_uds_response(rx_buffer, received_size);
+
+    if (rx_buffer[0] == OBD_SERVICE_DTC_RESP) {
+      dtc_handle_obd_response(rx_buffer, received_size);
+      s_obd_received = true;
+      continue;
+    }
+
+    if (rx_buffer[0] == OBD_SERVICE_CURRENT_DATA_RESP && received_size >= 2 &&
+        rx_buffer[1] == OBD_PID_ODOMETER) {
+      dtc_handle_obd_pid_response(rx_buffer, received_size);
+      s_odo_received = true;
+      continue;
+    }
+
+    if (rx_buffer[0] == OBD_SERVICE_VEHICLE_INFO_RESP && received_size >= 2 &&
+        rx_buffer[1] == OBD_PID_VIN) {
+      dtc_handle_vin_response(rx_buffer, received_size);
+      if (!s_vin_received && s_vin[0] != '\0') {
+        s_vin_received = true;
+        ESP_LOGI(TAG, "VIN received: %s", s_vin);
+      }
+      continue;
+    }
+
+    if (rx_buffer[0] == (UDS_SERVICE_READ_DTC + UDS_POSITIVE_RESP_BASE) &&
+        received_size >= 2 && rx_buffer[1] == UDS_SUBFUNC_REPORT_BY_STATUS) {
+      dtc_handle_uds_response(rx_buffer, received_size);
+      s_uds_received = true;
+      continue;
+    }
   }
 }
 
@@ -268,8 +302,7 @@ static void dtc_reporter_task(void *arg) {
     REQ_OBD,
     REQ_UDS,
     REQ_ODO,
-    REQ_VIN,
-    REQ_WAIT
+    REQ_VIN
   } req_state = REQ_IDLE;
 
   while (true) {
@@ -289,6 +322,12 @@ static void dtc_reporter_task(void *arg) {
     // Check if it's time to start a new sequence
     if (req_state == REQ_IDLE && should_start) {
       dtc_reset_list();
+      s_obd_received = false;
+      s_uds_received = false;
+      s_odo_received = false;
+      s_vin_received = false;
+      s_req_in_flight = false;
+      s_req_sent_us = 0;
       req_state = REQ_OBD;
       s_last_request_us = now;
       s_request_start_us = now;
@@ -297,51 +336,95 @@ static void dtc_reporter_task(void *arg) {
       ESP_LOGI(TAG, "Starting DTC scan");
     }
 
-    // Only send the next request when ISO-TP is not busy
-    if (req_state != REQ_IDLE && req_state != REQ_WAIT &&
-        s_isotp_link.send_status == ISOTP_SEND_STATUS_IDLE) {
-      if (req_state == REQ_OBD) {
-        uint8_t req[] = {OBD_SERVICE_DTC};
-        if (isotp_send(&s_isotp_link, req, sizeof(req)) != ISOTP_RET_OK) {
-          ESP_LOGW(TAG, "Failed to send OBD DTC request");
-        } else {
-          ESP_LOGI(TAG, "Sent OBD DTC request");
-        }
-        req_state = REQ_UDS;
-      } else if (req_state == REQ_UDS) {
-        uint8_t req[] = {UDS_SERVICE_READ_DTC, UDS_SUBFUNC_REPORT_BY_STATUS,
-                         0xFF};
-        if (isotp_send(&s_isotp_link, req, sizeof(req)) != ISOTP_RET_OK) {
-          ESP_LOGW(TAG, "Failed to send UDS DTC request");
-        } else {
-          ESP_LOGI(TAG, "Sent UDS DTC request");
-        }
-        req_state = REQ_ODO;
-      } else if (req_state == REQ_ODO) {
-        uint8_t req[] = {OBD_SERVICE_CURRENT_DATA, OBD_PID_ODOMETER};
-        if (isotp_send(&s_isotp_link, req, sizeof(req)) != ISOTP_RET_OK) {
-          ESP_LOGW(TAG, "Failed to send odometer request");
-        } else {
-          ESP_LOGI(TAG, "Sent odometer request");
-        }
-        req_state = REQ_VIN;
-      } else if (req_state == REQ_VIN) {
-        uint8_t req[] = {OBD_SERVICE_VEHICLE_INFO, OBD_PID_VIN};
-        if (isotp_send(&s_isotp_link, req, sizeof(req)) != ISOTP_RET_OK) {
-          ESP_LOGW(TAG, "Failed to send VIN request");
-        } else {
-          ESP_LOGI(TAG, "Sent VIN request");
-        }
-        req_state = REQ_WAIT;
-      }
-    }
-
     if (s_waiting_for_response) {
       dtc_check_receive();
+
       if ((now - s_request_start_us) >= DTC_RESPONSE_WINDOW_US) {
+        ESP_LOGW(TAG, "DTC scan timed out");
         dtc_publish();
         s_waiting_for_response = false;
         req_state = REQ_IDLE;
+        vTaskDelay(pdMS_TO_TICKS(DTC_POLL_PERIOD_MS));
+        continue;
+      }
+
+      if (req_state != REQ_IDLE) {
+        if (!s_req_in_flight &&
+            s_isotp_link.send_status == ISOTP_SEND_STATUS_IDLE) {
+          if (req_state == REQ_OBD) {
+            uint8_t req[] = {OBD_SERVICE_DTC};
+            if (isotp_send(&s_isotp_link, req, sizeof(req)) != ISOTP_RET_OK) {
+              ESP_LOGW(TAG, "Failed to send OBD DTC request");
+            } else {
+              ESP_LOGI(TAG, "Sent OBD DTC request");
+            }
+          } else if (req_state == REQ_UDS) {
+            uint8_t req[] = {UDS_SERVICE_READ_DTC, UDS_SUBFUNC_REPORT_BY_STATUS,
+                             0xFF};
+            if (isotp_send(&s_isotp_link, req, sizeof(req)) != ISOTP_RET_OK) {
+              ESP_LOGW(TAG, "Failed to send UDS DTC request");
+            } else {
+              ESP_LOGI(TAG, "Sent UDS DTC request");
+            }
+          } else if (req_state == REQ_ODO) {
+            uint8_t req[] = {OBD_SERVICE_CURRENT_DATA, OBD_PID_ODOMETER};
+            if (isotp_send(&s_isotp_link, req, sizeof(req)) != ISOTP_RET_OK) {
+              ESP_LOGW(TAG, "Failed to send odometer request");
+            } else {
+              ESP_LOGI(TAG, "Sent odometer request");
+            }
+          } else if (req_state == REQ_VIN) {
+            uint8_t req[] = {OBD_SERVICE_VEHICLE_INFO, OBD_PID_VIN};
+            if (isotp_send(&s_isotp_link, req, sizeof(req)) != ISOTP_RET_OK) {
+              ESP_LOGW(TAG, "Failed to send VIN request");
+            } else {
+              ESP_LOGI(TAG, "Sent VIN request");
+            }
+          }
+
+          s_req_in_flight = true;
+          s_req_sent_us = now;
+        }
+
+        bool advance = false;
+        if (req_state == REQ_OBD && s_obd_received) {
+          advance = true;
+        } else if (req_state == REQ_UDS && s_uds_received) {
+          advance = true;
+        } else if (req_state == REQ_ODO && s_odo_received) {
+          advance = true;
+        } else if (req_state == REQ_VIN && s_vin_received) {
+          advance = true;
+        }
+
+        if (!advance && s_req_in_flight &&
+            (now - s_req_sent_us) >= DTC_SINGLE_RESPONSE_TIMEOUT_US) {
+          if (req_state == REQ_OBD) {
+            ESP_LOGW(TAG, "Timeout waiting for OBD DTC response");
+          } else if (req_state == REQ_UDS) {
+            ESP_LOGW(TAG, "Timeout waiting for UDS DTC response");
+          } else if (req_state == REQ_ODO) {
+            ESP_LOGW(TAG, "Timeout waiting for odometer response");
+          } else if (req_state == REQ_VIN) {
+            ESP_LOGW(TAG, "Timeout waiting for VIN response");
+          }
+          advance = true;
+        }
+
+        if (advance) {
+          s_req_in_flight = false;
+          if (req_state == REQ_OBD) {
+            req_state = REQ_UDS;
+          } else if (req_state == REQ_UDS) {
+            req_state = REQ_ODO;
+          } else if (req_state == REQ_ODO) {
+            req_state = REQ_VIN;
+          } else if (req_state == REQ_VIN) {
+            dtc_publish();
+            s_waiting_for_response = false;
+            req_state = REQ_IDLE;
+          }
+        }
       }
     }
 

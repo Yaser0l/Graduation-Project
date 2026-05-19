@@ -23,6 +23,7 @@ static portMUX_TYPE s_signals_lock = portMUX_INITIALIZER_UNLOCKED;
 
 // Queue to hold CAN frames out of the ISR
 static QueueHandle_t s_can_rx_queue = NULL;
+static QueueHandle_t s_can_isotp_queue = NULL;
 
 typedef struct {
   uint32_t id;
@@ -40,6 +41,14 @@ static const twai_onchip_node_config_t s_node_config = {
 
 #define CAN_RX_MAX_FRAMES_PER_ISR 16U
 #define CAN_RX_LOG_INTERVAL_US 1000000ULL
+#define CAN_RX_QUEUE_LEN 128U
+#define CAN_ISOTP_QUEUE_LEN 32U
+#define CAN_OBD_RESP_ID_MIN 0x7E8
+#define CAN_OBD_RESP_ID_MAX 0x7EF
+
+static bool is_isotp_response_id(uint32_t id) {
+  return id >= CAN_OBD_RESP_ID_MIN && id <= CAN_OBD_RESP_ID_MAX;
+}
 
 // Safe decoding out of the ISR
 static bool decode_prius_frame(const can_queue_msg_t *msg) {
@@ -159,7 +168,7 @@ static bool twai_rx_cb(twai_node_handle_t handle,
       continue;
     }
 
-    if (s_can_rx_queue) {
+    if (s_can_rx_queue || s_can_isotp_queue) {
       can_queue_msg_t q_msg;
       q_msg.id = rx_frame.header.id;
       size_t data_len = rx_frame.buffer_len;
@@ -169,9 +178,22 @@ static bool twai_rx_cb(twai_node_handle_t handle,
       q_msg.dlc = (uint8_t)data_len;
       memcpy(q_msg.data, rx_frame.buffer, data_len);
 
-      if (xQueueSendFromISR(s_can_rx_queue, &q_msg,
+      QueueHandle_t target_queue = s_can_rx_queue;
+      if (is_isotp_response_id(q_msg.id) && s_can_isotp_queue) {
+        target_queue = s_can_isotp_queue;
+      }
+
+      if (target_queue &&
+          xQueueSendFromISR(target_queue, &q_msg,
                             &higher_priority_task_woken) != pdTRUE) {
-        s_rx_dropped++;
+        if (target_queue == s_can_isotp_queue && s_can_rx_queue) {
+          if (xQueueSendFromISR(s_can_rx_queue, &q_msg,
+                                &higher_priority_task_woken) != pdTRUE) {
+            s_rx_dropped++;
+          }
+        } else {
+          s_rx_dropped++;
+        }
       }
     }
   }
@@ -185,7 +207,10 @@ static void can_rx_router_task(void *arg) {
   uint64_t last_log_us = 0;
 
   while (1) {
-    if (xQueueReceive(s_can_rx_queue, &q_msg, portMAX_DELAY) == pdTRUE) {
+    bool processed_isotp = false;
+    while (s_can_isotp_queue &&
+           xQueueReceive(s_can_isotp_queue, &q_msg, 0) == pdTRUE) {
+      processed_isotp = true;
 
       // Send frame to dtc_reporter for ISO-TP inspection
       dtc_reporter_feed_frame(q_msg.id, q_msg.data, q_msg.dlc);
@@ -200,18 +225,43 @@ static void can_rx_router_task(void *arg) {
             (unsigned long)s_rx_count, (unsigned long)s_rx_dropped,
             (unsigned long)s_rx_invalid_dlc, (unsigned long)q_msg.id);
       }
+    }
 
-      // Decode native telemetry variables
-      bool handled = false;
+    if (processed_isotp) {
+      continue;
+    }
 
-      taskENTER_CRITICAL(&s_signals_lock);
-      handled = decode_prius_frame(&q_msg);
-      s_signals.rx_frames++;
-      taskEXIT_CRITICAL(&s_signals_lock);
+    if (xQueueReceive(s_can_rx_queue, &q_msg, pdMS_TO_TICKS(10)) != pdTRUE) {
+      continue;
+    }
 
-      if (!handled) {
-        ESP_LOGW(TAG, "Unhandled CAN ID: 0x%lx", q_msg.id);
+    // Send frame to dtc_reporter for ISO-TP inspection
+    dtc_reporter_feed_frame(q_msg.id, q_msg.data, q_msg.dlc);
+
+    s_rx_count++;
+    uint64_t now_us = esp_timer_get_time();
+    if ((now_us - last_log_us) >= CAN_RX_LOG_INTERVAL_US) {
+      last_log_us = now_us;
+      ESP_LOGI(
+          TAG,
+          "CAN RX: %lu frames (dropped=%lu invalid_dlc=%lu) last id=0x%lx",
+          (unsigned long)s_rx_count, (unsigned long)s_rx_dropped,
+          (unsigned long)s_rx_invalid_dlc, (unsigned long)q_msg.id);
+    }
+
+    // Decode native telemetry variables
+    bool handled = false;
+
+    taskENTER_CRITICAL(&s_signals_lock);
+    handled = decode_prius_frame(&q_msg);
+    s_signals.rx_frames++;
+    taskEXIT_CRITICAL(&s_signals_lock);
+
+    if (!handled) {
+      if (is_isotp_response_id(q_msg.id)) {
+        continue;
       }
+      ESP_LOGW(TAG, "Unhandled CAN ID: 0x%lx", q_msg.id);
     }
   }
 }
@@ -261,7 +311,8 @@ esp_err_t canmodule_init(void) {
   }
 
   // Initialize queue and task
-  s_can_rx_queue = xQueueCreate(128, sizeof(can_queue_msg_t));
+  s_can_rx_queue = xQueueCreate(CAN_RX_QUEUE_LEN, sizeof(can_queue_msg_t));
+  s_can_isotp_queue = xQueueCreate(CAN_ISOTP_QUEUE_LEN, sizeof(can_queue_msg_t));
   xTaskCreate(can_rx_router_task, "can_rx_router", 4096, NULL, 5, NULL);
 
   esp_err_t err = twai_new_node_onchip(&s_node_config, &s_node_hdl);

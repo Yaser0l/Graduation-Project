@@ -15,6 +15,8 @@ db = cantools.database.load_file(DBC_FILE)
 # ISO-TP Settings
 OBD_FUNCTIONAL_REQ_ID = 0x7DF
 OBD_ENGINE_RESP_ID = 0x7E8
+CAN_PERIOD_S = 0.1
+ISOTP_POLL_MAX_SLEEP_S = 0.005
 
 def periodic_sender(bus):
     print("Started periodic CAN DBC frames sender.")
@@ -79,7 +81,7 @@ def periodic_sender(bus):
             bus.send(can.Message(arbitration_id=0x127, data=data, is_extended_id=False))
 
             counter += 1
-            time.sleep(0.05) # 50ms = 20Hz
+            time.sleep(CAN_PERIOD_S)
         except Exception as e:
             print(f"Periodic sender error: {e}")
             time.sleep(1)
@@ -133,7 +135,10 @@ def isotp_server(bus):
                 stack.send(bytes([0x59, 0x02, 0xFF, 0x12, 0x34, 0x56, 0x09]))
                 print("Sent UDS DTC response")
                 
-        time.sleep(stack.sleep_time())
+        sleep_time = stack.sleep_time()
+        if sleep_time > ISOTP_POLL_MAX_SLEEP_S:
+            sleep_time = ISOTP_POLL_MAX_SLEEP_S
+        time.sleep(sleep_time)
 
 def main():
     channel = 'vcan0'
