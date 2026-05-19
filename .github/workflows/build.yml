@@ -39,19 +39,39 @@ jobs:
           - name: backend
             context: backend
             dockerfile: backend/Dockerfile
-            image: backend
+            image: sayyar-tech-backend
+            cache_from: type=gha,scope=backend
+            cache_to: type=gha,mode=max,scope=backend
+
           - name: frontend
             context: frontend
             dockerfile: frontend/Dockerfile
-            image: frontend
+            image: sayyar-tech-frontend
+            cache_from: type=gha,scope=frontend
+            cache_to: type=gha,mode=max,scope=frontend
+
+          # Registry caching explicitly set for agentic workflow
           - name: agentic_workflow
             context: Agentic_Workflow
             dockerfile: Agentic_Workflow/Dockerfile
-            image: agentic_workflow
+            image: sayyar-tech-agentic_workflow
+            cache_from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/sayyar-tech-agentic_workflow:buildcache
+            cache_to: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/sayyar-tech-agentic_workflow:buildcache,mode=max
+
           - name: esp32s3simulator
             context: IoT/Mechanic
             dockerfile: IoT/Mechanic/Dockerfile
-            image: esp32s3simulator
+            image: sayyar-tech-esp32s3simulator
+            cache_from: type=gha,scope=esp32s3simulator
+            cache_to: type=gha,mode=max,scope=esp32s3simulator
+
+          - name: car_simulator
+            context: IoT/cantools_env
+            dockerfile: IoT/cantools_env/Dockerfile
+            image: sayyar-tech-car_simulator
+            cache_from: type=gha,scope=car_simulator
+            cache_to: type=gha,mode=max,scope=car_simulator
+            
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -64,42 +84,43 @@ jobs:
             module:
               - '${{ matrix.context }}/**'
 
+      # Automatically generates tags based on the GitHub event
+      - name: Extract Docker metadata
+        id: meta
+        if: steps.filter.outputs.module == 'true' || startsWith(github.ref, 'refs/tags/')
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.DOCKER_USERNAME }}/${{ matrix.image }}
+          tags: |
+            # 1. Pushes to main get tagged as 'main'
+            type=ref,event=branch
+            # 2. PRs get tagged as 'pr-123'
+            type=ref,event=pr
+            # 3. All builds get a short commit hash tag (e.g., 'sha-a1b2c3d')
+            type=sha,format=short
+            # 4. Release tags (v1.0.0) get tagged as '1.0.0'
+            type=semver,pattern={{version}}
+
       - name: Set up Docker Buildx
         if: steps.filter.outputs.module == 'true' || startsWith(github.ref, 'refs/tags/')
         uses: docker/setup-buildx-action@v3
 
-      - name: Build Docker image (cached)
+      - name: Log in to Docker Hub
         if: steps.filter.outputs.module == 'true' || startsWith(github.ref, 'refs/tags/')
-        uses: docker/build-push-action@v5
-        with:
-          context: ${{ matrix.context }}
-          file: ${{ matrix.dockerfile }}
-          tags: ${{ matrix.image }}:ci
-          cache-from: type=gha,scope=${{ matrix.name }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
-          outputs: type=docker,dest=/tmp/${{ matrix.image }}.tar
-
-      - name: Upload Docker image artifact
-        if: steps.filter.outputs.module == 'true' || startsWith(github.ref, 'refs/tags/')
-        uses: actions/upload-artifact@v4
-        with:
-          name: docker-${{ matrix.image }}
-          path: /tmp/${{ matrix.image }}.tar
-
-      - name: Log in to Docker Hub (release tags only)
-        if: startsWith(github.ref, 'refs/tags/')
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Build and push Docker image (release tags only)
-        if: startsWith(github.ref, 'refs/tags/')
+      # Single build and push step combining caching, dynamic tagging, and conditional pushing
+      - name: Build and push Docker image
+        if: steps.filter.outputs.module == 'true' || startsWith(github.ref, 'refs/tags/')
         uses: docker/build-push-action@v5
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
           push: true
-          tags: ${{ secrets.DOCKER_USERNAME }}/${{ matrix.image }}:${{ github.ref_name }}
-          cache-from: type=gha,scope=${{ matrix.name }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: ${{ matrix.cache_from }}
+          cache-to: ${{ matrix.cache_to }}
