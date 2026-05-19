@@ -126,9 +126,13 @@ def main():
     try:
         # Check if API keys are set
         if not config.OPENAI_API_KEY:
-            print("ERROR: OPENAI_API_KEY not set in environment")
+            print(
+                "ERROR: LLM API key not set — use OPENAI_API_KEY, BIGMODEL_API_KEY, or LLM_API_KEY in .env"
+            )
             print("Please set your API key in the .env file")
-            raise RuntimeError("OPENAI_API_KEY not set in environment")
+            raise RuntimeError(
+                "LLM API key not set (OPENAI_API_KEY / BIGMODEL_API_KEY / LLM_API_KEY)"
+            )
         
         if not config.TAVILY_API_KEY:
             print("WARNING: TAVILY_API_KEY not set in environment")

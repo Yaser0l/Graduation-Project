@@ -1,0 +1,43 @@
+# Official OEM owner-manual seeds — adapters resolve PDFs on OEM CDNs (see src/rag/sources/official_registry.py)
+brands:
+  - make: Toyota
+    model: Camry
+    year: 2020
+    adapter: toyota
+  # Local official Toyota OM (CDN blocks automated download); file: manuals/Toyota/Prius/2023/owner_manual.pdf
+  - make: Toyota
+    model: Prius
+    year: 2023
+    adapter: toyota
+  - make: Honda
+    model: Accord
+    year: 2020
+    adapter: honda
+  - make: Ford
+    model: F-150
+    year: 2020
+    adapter: ford
+  - make: Chevrolet
+    model: Silverado
+    year: 2020
+    adapter: gm
+  - make: Nissan
+    model: Altima
+    year: 2020
+    adapter: nissan
+  - make: Hyundai
+    model: Sonata
+    year: 2020
+    adapter: hyundai
+  - make: Kia
+    model: Optima
+    year: 2020
+    adapter: kia
+  - make: BMW
+    model: 3 Series
+    year: 2020
+    adapter: bmw
+  - make: Mercedes-Benz
+    model: C-Class
+    year: 2020
+    adapter: mercedes

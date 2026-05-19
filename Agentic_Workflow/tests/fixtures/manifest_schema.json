@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["version", "created_at", "sources"],
+  "properties": {
+    "version": { "type": "string" },
+    "created_at": { "type": "string" },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["kind", "path", "status"],
+        "properties": {
+          "kind": { "type": "string", "enum": ["dtc", "manual"] },
+          "path": { "type": "string" },
+          "url": { "type": "string" },
+          "sha256": { "type": "string" },
+          "status": { "type": "string", "enum": ["ok", "skipped", "failed"] },
+          "make": { "type": "string" },
+          "model": { "type": "string" },
+          "year": { "type": "integer" },
+          "error": { "type": "string" }
+        }
+      }
+    },
+    "stats": {
+      "type": "object",
+      "properties": {
+        "dtc_documents": { "type": "integer" },
+        "manual_documents": { "type": "integer" },
+        "chunks_indexed": { "type": "integer" }
+      }
+    }
+  }
+}

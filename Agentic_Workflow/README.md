@@ -91,9 +91,42 @@ TAVILY_API_KEY=tvly-your-tavily-key-here
 python src/main.py
 ```
 
+### RAG ingestion (DTC + owner manuals)
+
+Ingestion uses **BGE** embeddings on **GPU**, **hybrid BM25+dense** retrieval, and **BGE reranker** at query time. On Windows, `BAAI/bge-m3` maps to **`BAAI/bge-large-en-v1.5`** (same 1024-dim tier). Re-index with `--reset` after stack changes. One-time setup:
+
+```powershell
+cd Agentic_Workflow
+powershell -ExecutionPolicy Bypass -File scripts/install_gpu_torch.ps1
+```
+
+Use **`.venv310`** (Python 3.10). After changing the embedding model you must **`--reset`** Chroma and re-run ingest.
+
+```bash
+cd Agentic_Workflow
+pip install -r requirements.txt
+pytest tests/ -q --ignore=tests/test_keys.py -m "not live"
+python scripts/ingest_rag_full.py --reset
+# Windows: use a 3.10+ venv, e.g. py -3.10 -m venv .venv310 && .venv310\Scripts\pip install -r requirements.txt
+```
+
+For CI-style runs without downloading OEM PDFs:
+
+```bash
+python scripts/ingest_rag_full.py --fixtures-dir tests/fixtures --skip-download --reset --skip-preflight --fake-embeddings
+```
+
+On Windows with Python 3.13, add `--fake-embeddings` for local ingest, or recreate the venv with Python 3.12 (see `.python-version`).
+
+See [`data/sources/README.md`](data/sources/README.md) for success criteria and layout.
+
+**Handover / full setup guide:** [`docs/HANDOVER.md`](docs/HANDOVER.md) (architecture, HF download, sizes, env vars, runbook).
+
 ### Running Tests
 
 ```bash
+pytest tests/ -q --ignore=tests/test_keys.py -m "not live"
+pytest tests/test_workflow_rag.py -q
 python tests/test_workflow.py
 ```
 

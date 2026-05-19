@@ -135,17 +135,28 @@ TECHNICAL ANALYSIS:"""
         context_parts = []
         web_search_results = []
         
-        # RETRIEVE: Get information from RAG
+        # RETRIEVE: Get information from RAG (includes cosine scores + vector previews in trace)
         print(f"[OBD2 Writer] Retrieving knowledge for: {query}")
         retrieval_result = self._retrieve_knowledge(query)
-        
+
+        # Per-code exact + semantic retrieval for DTCs
+        from src.tools.rag_tool import retrieve_for_codes
+
+        make = getattr(car_metadata, "car_name", "Toyota").split()[0]
+        code_context = retrieve_for_codes(code_strings, make=make, filter_by_type=True)
+        if code_context:
+            context_parts.append("\n--- PER-CODE RAG (exact + semantic) ---\n" + code_context)
+
         # REFLECT: Check if retrieval is sufficient
         is_sufficient = retrieval_result.get("is_sufficient", False)
         reflection_score = retrieval_result.get("score", 0.0)
         reflection_message = retrieval_result.get("reflection", "")
-        
+
         print(f"[OBD2 Writer] Reflection - Sufficient: {is_sufficient}, Score: {reflection_score:.2f}")
         print(f"[OBD2 Writer] Reflection message: {reflection_message}")
+        hits = retrieval_result.get("hits") or []
+        if hits:
+            print(f"[OBD2 Writer] Top hit cosine: {hits[0].get('cosine_similarity')} chunk_id={hits[0].get('chunk_id')}")
         
         context_parts.append(retrieval_result.get("content", ""))
         

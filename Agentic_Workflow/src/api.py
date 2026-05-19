@@ -28,13 +28,18 @@ async def startup_checks() -> None:
     """Emit provider configuration diagnostics on startup (without leaking secrets)."""
     key_set = bool((config.OPENAI_API_KEY or "").strip())
     base = (config.base_url or "").strip()
-    logger.info("LLM provider base_url=%s key_present=%s", base or "<empty>", key_set)
+    logger.info(
+        "LLM provider model=%s base_url=%s key_present=%s",
+        config.LLM_MODEL,
+        base or "<empty>",
+        key_set,
+    )
 
     if not key_set:
-        logger.warning("OPENAI_API_KEY is empty. Provider requests will fail with authentication errors.")
-
-        if not base:
-            logger.warning("BASE_URL/OPENAI_BASE_URL is empty. Falling back may fail depending on provider setup.")
+        logger.warning(
+            "LLM API key is empty (set OPENAI_API_KEY, BIGMODEL_API_KEY, or LLM_API_KEY). "
+            "Provider requests will fail with authentication errors."
+        )
 
     # Pre-load the embedding model at startup so RAG queries are not delayed by model download
     try:
@@ -233,7 +238,13 @@ async def analyze_dtc(request: AnalyzeRequest):
         if config.base_url:
             llm_kwargs["base_url"] = config.base_url
 
-        llm = ChatOpenAI(model="deepseek-chat", temperature=0.7, timeout=240, max_retries=1, **llm_kwargs)
+        llm = ChatOpenAI(
+            model=config.LLM_MODEL,
+            temperature=0.7,
+            timeout=240,
+            max_retries=1,
+            **llm_kwargs,
+        )
 
         car_info = f"{request.vehicle.year} {request.vehicle.make} {request.vehicle.model}"
         dtcs = ", ".join(request.dtc_codes)
@@ -298,7 +309,7 @@ async def analyze_dtc(request: AnalyzeRequest):
         dtcs = ", ".join(request.dtc_codes)
         logger.warning("analyze_dtc auth failure err=%s", e)
         return {
-            "explanation": f"AI provider authentication failed (invalid/expired API key). Detected DTC codes: {dtcs}. Update OPENAI_API_KEY and retry.",
+            "explanation": f"AI provider authentication failed (invalid/expired API key). Detected DTC codes: {dtcs}. Update OPENAI_API_KEY / BIGMODEL_API_KEY and retry.",
             "urgency": "medium"
         }
     except RateLimitError as e:
@@ -424,7 +435,13 @@ async def chat_with_mechanic(request: ChatRequest):
             llm_kwargs = {"api_key": config.OPENAI_API_KEY}
             if config.base_url:
                 llm_kwargs["base_url"] = config.base_url
-            llm = ChatOpenAI(model="deepseek-chat", temperature=0.7, timeout=60, max_retries=1, **llm_kwargs)
+            llm = ChatOpenAI(
+                model=config.LLM_MODEL,
+                temperature=0.7,
+                timeout=60,
+                max_retries=1,
+                **llm_kwargs,
+            )
 
             system_prompt = f"""You are a helpful, professional automotive mechanic assisting a customer.
 You have already provided them with the following diagnostic report:
