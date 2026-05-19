@@ -25,7 +25,7 @@
 #define DTC_TX_BUFFER_SIZE 32
 #define DTC_RX_BUFFER_SIZE 256
 
-#define OBD_TESTER_REQ_ID 0x7E0
+#define OBD_FUNCTIONAL_REQ_ID 0x7DF
 #define OBD_RESP_ID_MIN 0x7E8
 #define OBD_RESP_ID_MAX 0x7EF
 
@@ -355,7 +355,7 @@ esp_err_t dtc_reporter_init(void) {
 
   // Note: We no longer need to grab the TWAI handle here, we just init the
   // ISO-TP memory
-  isotp_init_link(&s_isotp_link, OBD_TESTER_REQ_ID, s_isotp_tx_buf,
+  isotp_init_link(&s_isotp_link, OBD_FUNCTIONAL_REQ_ID, s_isotp_tx_buf,
                   sizeof(s_isotp_tx_buf), s_isotp_rx_buf,
                   sizeof(s_isotp_rx_buf));
 
