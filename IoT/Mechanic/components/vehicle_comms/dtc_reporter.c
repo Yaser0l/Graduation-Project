@@ -289,12 +289,22 @@ static void dtc_publish(void) {
   if (written < 0 || offset + written >= (int)sizeof(payload))
     return;
 
-  esp_err_t err = mqtt_module_publish_dtc(s_vin, payload);
-  if (err != ESP_OK) {
-    ESP_LOGW(TAG, "Failed to publish DTC payload: %s", esp_err_to_name(err));
-  } else {
-    ESP_LOGI(TAG, "Published DTC payload: %s", payload);
+  // Retry publishing: MQTT client may not be connected yet (e.g. VIN set
+  // triggers a client restart). Wait up to ~20s for it to come up.
+  esp_err_t err = ESP_FAIL;
+  for (int attempt = 0; attempt < 10; ++attempt) {
+    err = mqtt_module_publish_dtc(s_vin, payload);
+    if (err == ESP_OK) {
+      ESP_LOGI(TAG, "Published DTC payload: %s", payload);
+      return;
+    }
+    if (err != ESP_ERR_INVALID_STATE) {
+      break; // Non-retryable error
+    }
+    ESP_LOGI(TAG, "MQTT not ready, retrying publish (%d/10)...", attempt + 1);
+    vTaskDelay(pdMS_TO_TICKS(2000));
   }
+  ESP_LOGW(TAG, "Failed to publish DTC payload: %s", esp_err_to_name(err));
 }
 
 static void dtc_reporter_task(void *arg) {
