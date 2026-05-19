@@ -25,8 +25,9 @@
 #define DTC_TX_BUFFER_SIZE 32
 #define DTC_RX_BUFFER_SIZE 256
 
-#define OBD_FUNCTIONAL_REQ_ID 0x7DF
-#define OBD_ENGINE_RESP_ID 0x7E8
+#define OBD_TESTER_REQ_ID 0x7E0
+#define OBD_RESP_ID_MIN 0x7E8
+#define OBD_RESP_ID_MAX 0x7EF
 
 #define OBD_SERVICE_DTC 0x03
 #define OBD_SERVICE_DTC_RESP 0x43
@@ -62,6 +63,7 @@ static uint32_t s_mileage = 0;
 static uint64_t s_last_request_us = 0;
 static uint64_t s_request_start_us = 0;
 static bool s_waiting_for_response = false;
+static volatile bool s_force_request = false;
 
 // --- ISO-TP C Library Hooks ---
 
@@ -101,10 +103,28 @@ int isotp_user_send_can(const uint32_t arbitration_id, const uint8_t *data,
 // --- Application Logic ---
 
 void dtc_reporter_feed_frame(uint32_t id, const uint8_t *data, uint8_t len) {
-  // Only feed frames that match our target response ID
-  if (id == OBD_ENGINE_RESP_ID) {
+  if (!s_ready) {
+    return;
+  }
+
+  // Only feed frames that match our target response range
+  if (id >= OBD_RESP_ID_MIN && id <= OBD_RESP_ID_MAX) {
     isotp_on_can_message(&s_isotp_link, data, len);
   }
+}
+
+esp_err_t dtc_reporter_request_now(void) {
+  if (!s_ready) {
+    return ESP_ERR_INVALID_STATE;
+  }
+
+  if (s_waiting_for_response) {
+    return ESP_ERR_INVALID_STATE;
+  }
+
+  s_force_request = true;
+  ESP_LOGI(TAG, "DTC scan requested");
+  return ESP_OK;
 }
 
 static void dtc_reset_list(void) {
@@ -261,14 +281,20 @@ static void dtc_reporter_task(void *arg) {
     isotp_poll(&s_isotp_link);
     uint64_t now = esp_timer_get_time();
 
+    bool should_start = s_force_request;
+    if (!should_start && (now - s_last_request_us) >= DTC_POLL_INTERVAL_US) {
+      should_start = true;
+    }
+
     // Check if it's time to start a new sequence
-    if (req_state == REQ_IDLE &&
-        (now - s_last_request_us) >= DTC_POLL_INTERVAL_US) {
+    if (req_state == REQ_IDLE && should_start) {
       dtc_reset_list();
       req_state = REQ_OBD;
       s_last_request_us = now;
       s_request_start_us = now;
       s_waiting_for_response = true;
+      s_force_request = false;
+      ESP_LOGI(TAG, "Starting DTC scan");
     }
 
     // Only send the next request when ISO-TP is not busy
@@ -276,20 +302,36 @@ static void dtc_reporter_task(void *arg) {
         s_isotp_link.send_status == ISOTP_SEND_STATUS_IDLE) {
       if (req_state == REQ_OBD) {
         uint8_t req[] = {OBD_SERVICE_DTC};
-        isotp_send(&s_isotp_link, req, sizeof(req));
+        if (isotp_send(&s_isotp_link, req, sizeof(req)) != ISOTP_RET_OK) {
+          ESP_LOGW(TAG, "Failed to send OBD DTC request");
+        } else {
+          ESP_LOGI(TAG, "Sent OBD DTC request");
+        }
         req_state = REQ_UDS;
       } else if (req_state == REQ_UDS) {
         uint8_t req[] = {UDS_SERVICE_READ_DTC, UDS_SUBFUNC_REPORT_BY_STATUS,
                          0xFF};
-        isotp_send(&s_isotp_link, req, sizeof(req));
+        if (isotp_send(&s_isotp_link, req, sizeof(req)) != ISOTP_RET_OK) {
+          ESP_LOGW(TAG, "Failed to send UDS DTC request");
+        } else {
+          ESP_LOGI(TAG, "Sent UDS DTC request");
+        }
         req_state = REQ_ODO;
       } else if (req_state == REQ_ODO) {
         uint8_t req[] = {OBD_SERVICE_CURRENT_DATA, OBD_PID_ODOMETER};
-        isotp_send(&s_isotp_link, req, sizeof(req));
+        if (isotp_send(&s_isotp_link, req, sizeof(req)) != ISOTP_RET_OK) {
+          ESP_LOGW(TAG, "Failed to send odometer request");
+        } else {
+          ESP_LOGI(TAG, "Sent odometer request");
+        }
         req_state = REQ_VIN;
       } else if (req_state == REQ_VIN) {
         uint8_t req[] = {OBD_SERVICE_VEHICLE_INFO, OBD_PID_VIN};
-        isotp_send(&s_isotp_link, req, sizeof(req));
+        if (isotp_send(&s_isotp_link, req, sizeof(req)) != ISOTP_RET_OK) {
+          ESP_LOGW(TAG, "Failed to send VIN request");
+        } else {
+          ESP_LOGI(TAG, "Sent VIN request");
+        }
         req_state = REQ_WAIT;
       }
     }
@@ -313,11 +355,13 @@ esp_err_t dtc_reporter_init(void) {
 
   // Note: We no longer need to grab the TWAI handle here, we just init the
   // ISO-TP memory
-  isotp_init_link(&s_isotp_link, OBD_FUNCTIONAL_REQ_ID, s_isotp_tx_buf,
+  isotp_init_link(&s_isotp_link, OBD_TESTER_REQ_ID, s_isotp_tx_buf,
                   sizeof(s_isotp_tx_buf), s_isotp_rx_buf,
                   sizeof(s_isotp_rx_buf));
 
-  s_isotp_link.receive_arbitration_id = OBD_ENGINE_RESP_ID;
+  s_isotp_link.receive_arbitration_id = OBD_RESP_ID_MIN;
+
+  s_force_request = true;
 
   s_ready = true;
   return ESP_OK;

@@ -15,6 +15,8 @@ services:
     stdin_open: true
     restart: unless-stopped
     network_mode: "host"
+    ports:
+      - "5001:80"
 
   car_simulator:
     build:

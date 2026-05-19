@@ -11,6 +11,7 @@
 #include "esp_log.h"
 #include "esp_wifi.h"
 
+#include "dtc_reporter.h"
 #include "local_mqtt.h"
 #include "network_events.h"
 #include "wifi_store.h"
@@ -405,6 +406,31 @@ static esp_err_t mqtt_broker_get_handler(httpd_req_t *req) {
   return ESP_OK;
 }
 
+static esp_err_t dtc_scan_handler(httpd_req_t *req) {
+  if (req->method != HTTP_POST) {
+    send_json(req, 405,
+              "{\"status\":\"error\",\"message\":\"Method not allowed\"}");
+    return ESP_OK;
+  }
+
+  esp_err_t err = dtc_reporter_request_now();
+  if (err == ESP_OK) {
+    send_json(req, 200, "{\"status\":\"queued\"}");
+    return ESP_OK;
+  }
+
+  if (err == ESP_ERR_INVALID_STATE) {
+    send_json(
+        req, 400,
+        "{\"status\":\"error\",\"message\":\"DTC scan busy or not ready\"}");
+    return ESP_OK;
+  }
+
+  send_json(req, 500,
+            "{\"status\":\"error\",\"message\":\"Failed to start DTC scan\"}");
+  return ESP_OK;
+}
+
 void web_server_start(saved_ap_store_t *store) {
   if (!store) {
     ESP_LOGE(TAG, "Cannot start server without AP store");
@@ -421,7 +447,8 @@ void web_server_start(saved_ap_store_t *store) {
   }
 
   httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-  config.max_uri_handlers = 10; /* We register 9 handlers; default 8 is too few */
+  config.max_uri_handlers =
+      11; /* We register 10 handlers; default 8 is too few */
   if (httpd_start(&s_http_server, &config) != ESP_OK) {
     ESP_LOGE(TAG, "Failed to start HTTP server");
     return;
@@ -481,6 +508,12 @@ void web_server_start(saved_ap_store_t *store) {
       .handler = mqtt_broker_get_handler,
       .user_ctx = NULL,
   };
+  httpd_uri_t dtc_scan_uri = {
+      .uri = "/dtc/scan",
+      .method = HTTP_POST,
+      .handler = dtc_scan_handler,
+      .user_ctx = NULL,
+  };
 
   httpd_register_uri_handler(s_http_server, &homepage_uri);
   httpd_register_uri_handler(s_http_server, &save_uri);
@@ -491,4 +524,5 @@ void web_server_start(saved_ap_store_t *store) {
   httpd_register_uri_handler(s_http_server, &scan_uri);
   httpd_register_uri_handler(s_http_server, &mqtt_broker_post_uri);
   httpd_register_uri_handler(s_http_server, &mqtt_broker_get_uri);
+  httpd_register_uri_handler(s_http_server, &dtc_scan_uri);
 }

@@ -9,6 +9,7 @@ idf_component_register(
         "wifi_manager"
         "network_events"
         "local_mqtt"
+        "vehicle_comms"
     PRIV_REQUIRES 
         "esp_http_server"
         "esp_wifi"
