@@ -20,6 +20,7 @@ static const char *TAG = "canmodule";
 static twai_node_handle_t s_node_hdl = NULL;
 static can_decoded_signals_t s_signals = {0};
 static portMUX_TYPE s_signals_lock = portMUX_INITIALIZER_UNLOCKED;
+static volatile bool s_isotp_priority_only = false;
 
 // Queue to hold CAN frames out of the ISR
 static QueueHandle_t s_can_rx_queue = NULL;
@@ -165,6 +166,10 @@ static bool twai_rx_cb(twai_node_handle_t handle,
     }
     if (rx_frame.header.dlc > 8) {
       s_rx_invalid_dlc++;
+      continue;
+    }
+
+    if (s_isotp_priority_only && !is_isotp_response_id(rx_frame.header.id)) {
       continue;
     }
 
@@ -376,3 +381,7 @@ esp_err_t canmodule_get_latest_signals(can_decoded_signals_t *out_signals) {
 }
 
 twai_node_handle_t canmodule_get_twai_handle(void) { return s_node_hdl; }
+
+void canmodule_set_isotp_priority(bool enable) {
+  s_isotp_priority_only = enable;
+}

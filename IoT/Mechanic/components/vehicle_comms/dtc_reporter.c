@@ -228,6 +228,7 @@ static void dtc_check_receive(void) {
     if (rx_buffer[0] == OBD_SERVICE_DTC_RESP) {
       dtc_handle_obd_response(rx_buffer, received_size);
       s_obd_received = true;
+      ESP_LOGI(TAG, "Received OBD DTC response");
       continue;
     }
 
@@ -235,6 +236,7 @@ static void dtc_check_receive(void) {
         rx_buffer[1] == OBD_PID_ODOMETER) {
       dtc_handle_obd_pid_response(rx_buffer, received_size);
       s_odo_received = true;
+      ESP_LOGI(TAG, "Received odometer response");
       continue;
     }
 
@@ -252,6 +254,7 @@ static void dtc_check_receive(void) {
         received_size >= 2 && rx_buffer[1] == UDS_SUBFUNC_REPORT_BY_STATUS) {
       dtc_handle_uds_response(rx_buffer, received_size);
       s_uds_received = true;
+      ESP_LOGI(TAG, "Received UDS DTC response");
       continue;
     }
   }
@@ -327,6 +330,7 @@ static void dtc_reporter_task(void *arg) {
       s_request_start_us = now;
       s_waiting_for_response = true;
       s_force_request = false;
+      canmodule_set_isotp_priority(true);
       ESP_LOGI(TAG, "Starting DTC scan");
     }
 
@@ -336,6 +340,7 @@ static void dtc_reporter_task(void *arg) {
       if ((now - s_request_start_us) >= DTC_RESPONSE_WINDOW_US) {
         ESP_LOGW(TAG, "DTC scan timed out");
         dtc_publish();
+        canmodule_set_isotp_priority(false);
         s_waiting_for_response = false;
         req_state = REQ_IDLE;
         vTaskDelay(pdMS_TO_TICKS(DTC_POLL_PERIOD_MS));
@@ -415,6 +420,7 @@ static void dtc_reporter_task(void *arg) {
             req_state = REQ_VIN;
           } else if (req_state == REQ_VIN) {
             dtc_publish();
+            canmodule_set_isotp_priority(false);
             s_waiting_for_response = false;
             req_state = REQ_IDLE;
           }

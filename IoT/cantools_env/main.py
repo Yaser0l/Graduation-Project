@@ -15,7 +15,7 @@ db = cantools.database.load_file(DBC_FILE)
 # ISO-TP Settings
 OBD_FUNCTIONAL_REQ_ID = 0x7DF
 OBD_ENGINE_RESP_ID = 0x7E8
-CAN_PERIOD_S = 0.1
+CAN_PERIOD_S = 0.2
 ISOTP_POLL_MAX_SLEEP_S = 0.005
 
 def periodic_sender(bus):
