@@ -32,11 +32,11 @@
 /* Private: The default timeout to use when waiting for a response during a
  * multi-frame send or receive.
  */
-#define ISO_TP_DEFAULT_RESPONSE_TIMEOUT_US 100000
+#define ISO_TP_DEFAULT_RESPONSE_TIMEOUT_US 1000000
 
 /* Private: Determines if by default, padding is added to ISO-TP message frames.
  */
-// #define ISO_TP_FRAME_PADDING
+#define ISO_TP_FRAME_PADDING
 
 /* Private: Value to use when padding frames if enabled by ISO_TP_FRAME_PADDING
  */
