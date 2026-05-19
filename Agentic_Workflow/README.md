@@ -120,6 +120,8 @@ On Windows with Python 3.13, add `--fake-embeddings` for local ingest, or recrea
 
 See [`data/sources/README.md`](data/sources/README.md) for success criteria and layout.
 
+**Handover / full setup guide:** [`docs/HANDOVER.md`](docs/HANDOVER.md) (architecture, HF download, sizes, env vars, runbook).
+
 ### Running Tests
 
 ```bash
