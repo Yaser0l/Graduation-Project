@@ -78,6 +78,7 @@ services:
       DATABASE_URL: postgresql+asyncpg://${DB_USER:-postgres}:${DB_PASSWORD:-password}@postgres:5432/${DB_NAME:-carbrain}
       JWT_SECRET: ${JWT_SECRET:-change_me_to_a_random_64_char_string}
       JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-["*"]}
       ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-10080}
       MQTT_HOST: mqtt
       MQTT_PORT: 1883
