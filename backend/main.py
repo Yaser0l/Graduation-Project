@@ -84,7 +84,7 @@ app.add_middleware(
 
 # SSE events endpoint (mirrors app.js GET /api/events)
 @app.get(f"{settings.API_V1_STR}/events")
-async def events_handler(token: str = Query(...)):
+async def events_handler(request: Request, token: str = Query(...)):
     if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Token required"
@@ -101,7 +101,7 @@ async def events_handler(token: str = Query(...)):
     except (JWTError, ValueError):
         raise HTTPException(status_code=401, detail="Invalid token")
 
-    return EventSourceResponse(sse_service.subscribe(user_id))
+    return EventSourceResponse(sse_service.subscribe(user_id, request=request))
 
 
 # Mount Routers

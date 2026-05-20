@@ -34,19 +34,27 @@ async def create_vehicle(
         """
     )
     oil_program_km = 5000 if vehicle_in.oil_program_km == 5000 else 10000
-    result = await db.execute(
-        query,
-        {
-            "user_id": current_user.id,
-            "vin": vehicle_in.vin,
-            "make": vehicle_in.make,
-            "model": vehicle_in.model,
-            "year": vehicle_in.year,
-            "mileage": vehicle_in.mileage,
-            "oil_program_km": oil_program_km,
-        }
-    )
-    vehicle = result.first()
+    from sqlalchemy.exc import IntegrityError
+    try:
+        result = await db.execute(
+            query,
+            {
+                "user_id": current_user.id,
+                "vin": vehicle_in.vin,
+                "make": vehicle_in.make,
+                "model": vehicle_in.model,
+                "year": vehicle_in.year,
+                "mileage": vehicle_in.mileage,
+                "oil_program_km": oil_program_km,
+            }
+        )
+        vehicle = result.first()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Vehicle with this VIN is already registered."
+        )
 
     if vehicle_in.initialize_maintenance_baseline:
         baseline_km = vehicle_in.last_service_km
