@@ -4,7 +4,7 @@ from typing import Optional
 from uuid import UUID
 
 class VehicleBase(BaseModel):
-    vin: str = Field(..., min_length=17, max_length=17, description="Vehicle Identification Number")
+    vin: str = Field(..., min_length=4, max_length=17, description="Vehicle Identification Number")
     make: str
     model: str
     year: int
