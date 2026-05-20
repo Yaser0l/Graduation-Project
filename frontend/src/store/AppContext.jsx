@@ -1,5 +1,5 @@
 import React, { createContext, useState, useEffect, useCallback, useContext } from 'react';
-import { api, EVENTS_BASE_URL } from '../services/api';
+import { api, EVENTS_BASE_URL, setUnauthorizedCallback } from '../services/api';
 
 export const AuthContext = createContext();
 export const VehicleContext = createContext();
@@ -59,13 +59,22 @@ export const AppProvider = ({ children }) => {
     return data;
   };
 
-  const logout = () => {
+  const logout = useCallback(() => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     localStorage.removeItem('activeVehicleId');
     setToken(null);
     setUser(null);
-  };
+  }, []);
+
+  useEffect(() => {
+    setUnauthorizedCallback(() => {
+      logout();
+    });
+    return () => {
+      setUnauthorizedCallback(null);
+    };
+  }, [logout]);
 
   // --- Vehicle State ---
   const [vehicles, setVehicles] = useState([]);

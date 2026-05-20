@@ -6,6 +6,12 @@ const BASE_URL = RAW_API_BASE_URL.endsWith("/api")
   : `${RAW_API_BASE_URL}/api`;
 export const EVENTS_BASE_URL = BASE_URL.replace(/\/api$/, "");
 
+let unauthorizedCallback = null;
+
+export const setUnauthorizedCallback = (cb) => {
+  unauthorizedCallback = cb;
+};
+
 const getHeaders = (isFormData = false) => {
   const token = localStorage.getItem("token");
   const headers = {};
@@ -45,6 +51,14 @@ const handleResponse = async (response) => {
     const message =
       formatErrorDetail(errorBody.detail) ||
       `HTTP error! status: ${response.status}`;
+    
+    if (response.status === 401 || response.status === 403) {
+      if (unauthorizedCallback) {
+        unauthorizedCallback();
+      }
+      throw new Error(`Unauthorized (401/403): ${message}`);
+    }
+
     throw new Error(message);
   }
   return response.json();
@@ -61,6 +75,14 @@ const parseNdjsonStream = async (response, handlers = {}) => {
     const message =
       formatErrorDetail(errorBody.detail) ||
       `HTTP error! status: ${response.status}`;
+
+    if (response.status === 401 || response.status === 403) {
+      if (unauthorizedCallback) {
+        unauthorizedCallback();
+      }
+      throw new Error(`Unauthorized (401/403): ${message}`);
+    }
+
     throw new Error(message);
   }
 

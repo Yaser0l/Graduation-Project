@@ -66,7 +66,9 @@ services:
     restart: no
   
   sayyartech-api:
-    image: abo3skr/sayyar-tech-backend:latest
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     container_name: carbrain-api
     environment:
       PROJECT_NAME: ${PROJECT_NAME:-CarBrain Backend}
