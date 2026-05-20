@@ -41,19 +41,17 @@ static bool s_network_up = false;
 static bool s_network_events_registered = false;
 static char s_status_topic[MQTT_TOPIC_MAX_LEN] = {0};
 
-static void mqtt_event_handler_cb(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data) {
+static void mqtt_event_handler_cb(void *handler_args, esp_event_base_t base,
+                                  int32_t event_id, void *event_data) {
   if (event_id == MQTT_EVENT_CONNECTED) {
     esp_mqtt_event_handle_t event = (esp_mqtt_event_handle_t)event_data;
-    
-    char status_topic[MQTT_TOPIC_MAX_LEN] = {0};
-    if (s_lock) {
-      xSemaphoreTake(s_lock, portMAX_DELAY);
-      strncpy(status_topic, s_status_topic, sizeof(status_topic) - 1);
-      xSemaphoreGive(s_lock);
-    }
 
-    if (status_topic[0] != '\0') {
-      int msg_id = esp_mqtt_client_publish(event->client, status_topic, "online", 0, 1, 1);
+    // We do not acquire s_lock here to avoid a circular deadlock with
+    // esp_mqtt_client internal locks. Reading s_status_topic is safe here as it
+    // is only modified when the client is stopped or restarted.
+    if (s_status_topic[0] != '\0') {
+      int msg_id = esp_mqtt_client_publish(event->client, s_status_topic,
+                                           "online", 0, 1, 1);
       if (msg_id < 0) {
         ESP_LOGW(TAG, "Failed to publish online status");
       } else {
@@ -71,7 +69,8 @@ static const char *mqtt_get_vehicle_id_locked(void) {
   if (s_vehicle_fallback[0] == '\0') {
 #ifdef CONFIG_MQTT_DEFAULT_VEHICLE_ID
     if (strlen(CONFIG_MQTT_DEFAULT_VEHICLE_ID) > 0) {
-      strncpy(s_vehicle_fallback, CONFIG_MQTT_DEFAULT_VEHICLE_ID, sizeof(s_vehicle_fallback) - 1);
+      strncpy(s_vehicle_fallback, CONFIG_MQTT_DEFAULT_VEHICLE_ID,
+              sizeof(s_vehicle_fallback) - 1);
       s_vehicle_fallback[sizeof(s_vehicle_fallback) - 1] = '\0';
     } else
 #endif
@@ -155,7 +154,8 @@ static void mqtt_start_client_locked(void) {
     return;
   }
 
-  if (mqtt_build_topic_locked(MQTT_TOPIC_STATUS_SUFFIX, s_status_topic, sizeof(s_status_topic)) != ESP_OK) {
+  if (mqtt_build_topic_locked(MQTT_TOPIC_STATUS_SUFFIX, s_status_topic,
+                              sizeof(s_status_topic)) != ESP_OK) {
     ESP_LOGE(TAG, "Failed to build status topic");
     return;
   }
@@ -174,14 +174,15 @@ static void mqtt_start_client_locked(void) {
     ESP_LOGE(TAG, "Failed to initialize MQTT client");
     return;
   }
-  
-  esp_err_t err = esp_mqtt_client_register_event(s_client, MQTT_EVENT_CONNECTED, mqtt_event_handler_cb, NULL);
+
+  esp_err_t err = esp_mqtt_client_register_event(s_client, MQTT_EVENT_CONNECTED,
+                                                 mqtt_event_handler_cb, NULL);
   if (err != ESP_OK) {
     ESP_LOGW(TAG, "Failed to register MQTT event handler: %d", err);
   }
 
   esp_mqtt_client_start(s_client);
-  
+
   ESP_LOGI(TAG, "MQTT client started with broker: %s", s_broker_uri);
 
   char topic_log[MQTT_TOPIC_MAX_LEN];
@@ -204,6 +205,7 @@ static void mqtt_restart_client_locked(void) {
 static void mqtt_publish_task_step(void) {
   esp_mqtt_client_handle_t client = NULL;
   bool should_publish = false;
+  char topic[MQTT_TOPIC_MAX_LEN] = {0};
 
   xSemaphoreTake(s_lock, portMAX_DELAY);
 
@@ -212,8 +214,11 @@ static void mqtt_publish_task_step(void) {
       mqtt_start_client_locked();
     }
     if (s_client) {
-      should_publish = true;
-      client = s_client;
+      if (mqtt_build_topic_locked(MQTT_TOPIC_DATA_SUFFIX, topic,
+                                  sizeof(topic)) == ESP_OK) {
+        should_publish = true;
+        client = s_client;
+      }
     }
   } else if (s_client) {
     mqtt_stop_client_locked();
@@ -221,9 +226,8 @@ static void mqtt_publish_task_step(void) {
 
   xSemaphoreGive(s_lock);
 
-  if (should_publish && client) {
+  if (should_publish && client && topic[0] != '\0') {
     char payload[512];
-    char topic[MQTT_TOPIC_MAX_LEN];
     int64_t timestamp_ms = esp_timer_get_time() / 1000;
     can_decoded_signals_t signals = {0};
 
@@ -245,15 +249,12 @@ static void mqtt_publish_task_step(void) {
         signals.steer_rate_deg_s, signals.engine_rpm, signals.gas_pedal,
         signals.brake_pedal, (unsigned int)signals.gear);
 
-    if (mqtt_build_topic_locked(MQTT_TOPIC_DATA_SUFFIX, topic, sizeof(topic)) ==
-        ESP_OK) {
-      int msg_id = esp_mqtt_client_publish(client, topic, payload, 0, 1, 0);
-      if (msg_id < 0) {
-        ESP_LOGW(TAG, "Failed to publish data message");
-      } else {
-        ESP_LOGD(TAG, "Publish topic=%s result=%d payload=%s", topic, msg_id,
-                 payload);
-      }
+    int msg_id = esp_mqtt_client_publish(client, topic, payload, 0, 1, 0);
+    if (msg_id < 0) {
+      ESP_LOGW(TAG, "Failed to publish data message");
+    } else {
+      ESP_LOGD(TAG, "Publish topic=%s result=%d payload=%s", topic, msg_id,
+               payload);
     }
   }
 }
@@ -368,7 +369,10 @@ esp_err_t mqtt_module_publish_dtc(const char *vin, const char *payload) {
   }
 
   esp_err_t result = ESP_ERR_INVALID_STATE;
-  char topic[MQTT_TOPIC_MAX_LEN];
+  char topic[MQTT_TOPIC_MAX_LEN] = {0};
+  esp_mqtt_client_handle_t client = NULL;
+  bool network_up = false;
+
   xSemaphoreTake(s_lock, portMAX_DELAY);
 
   if (vin && vin[0] != '\0' &&
@@ -378,20 +382,21 @@ esp_err_t mqtt_module_publish_dtc(const char *vin, const char *payload) {
     mqtt_restart_client_locked();
   }
 
-  if (mqtt_build_topic_locked(MQTT_TOPIC_DTC_SUFFIX, topic, sizeof(topic)) !=
+  if (mqtt_build_topic_locked(MQTT_TOPIC_DTC_SUFFIX, topic, sizeof(topic)) ==
       ESP_OK) {
-    xSemaphoreGive(s_lock);
-    return ESP_ERR_INVALID_SIZE;
+    client = s_client;
+    network_up = s_network_up;
   }
 
-  if (s_client && s_network_up) {
-    int msg_id = esp_mqtt_client_publish(s_client, topic, payload, 0, 1, 0);
+  xSemaphoreGive(s_lock);
+
+  if (client && network_up && topic[0] != '\0') {
+    int msg_id = esp_mqtt_client_publish(client, topic, payload, 0, 1, 0);
     if (msg_id >= 0) {
       result = ESP_OK;
     }
   }
 
-  xSemaphoreGive(s_lock);
   return result;
 }
 
