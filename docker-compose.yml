@@ -53,12 +53,12 @@ services:
     restart: no
 
   sayyartech-car_simulator:
-    image: sayyar-tech-car_simulator:latest
+    image: abo3skr/sayyar-tech-car_simulator:latest
     container_name: carbrain-car_simulator
     restart: no
   
   sayyartech-api:
-    image: sayyar-tech-backend:latest
+    image: abo3skr/sayyar-tech-backend:latest
     container_name: carbrain-api
     environment:
       PROJECT_NAME: ${PROJECT_NAME:-CarBrain Backend}
@@ -107,7 +107,7 @@ services:
     restart: "no"
 
   sayyartech-llm:
-    image: sayyar-tech-agentic_workflow:latest
+    image: abo3skr/sayyar-tech-agentic_workflow:latest
     container_name: carbrain-llm
     environment:
       PORT: ${LLM_PORT:-8000}
@@ -122,7 +122,7 @@ services:
     restart: "no"
   
   sayyartech-frontend:
-    image: sayyar-tech-frontend:latest
+    image: abo3skr/sayyar-tech-frontend:latest
     container_name: carbrain-frontend
     ports:
       - "5173:80"
