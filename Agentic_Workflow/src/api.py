@@ -41,6 +41,48 @@ async def startup_checks() -> None:
             "Provider requests will fail with authentication errors."
         )
 
+    # Automatically initialize RAG database if missing/empty
+    from pathlib import Path
+    db_path = Path(config.CHROMA_DB_PATH)
+    sqlite_file = db_path / "chroma.sqlite3"
+    is_db_empty = not sqlite_file.exists() or sqlite_file.stat().st_size == 0
+
+    if is_db_empty:
+        hf_token = (os.getenv("HF_TOKEN", "").strip() or os.getenv("HUGGING_FACE_HUB_TOKEN", "").strip())
+        repo_id = os.getenv("HF_DATASET_REPO", "aziz9788/automotive-rag-kb").strip()
+        if hf_token:
+            logger.info("RAG database is empty/missing and HF_TOKEN is provided. Attempting download from HF: %s", repo_id)
+            try:
+                from huggingface_hub import snapshot_download
+                data_dir = db_path.parent
+                data_dir.mkdir(parents=True, exist_ok=True)
+                
+                # Download dataset files synchronously in an executor to avoid blocking the event loop
+                await asyncio.to_thread(
+                    snapshot_download,
+                    repo_id=repo_id,
+                    repo_type="dataset",
+                    local_dir=str(data_dir),
+                    token=hf_token,
+                    allow_patterns=["chroma_db/**", "sources/**"]
+                )
+                logger.info("Successfully downloaded pre-built dataset from Hugging Face.")
+                is_db_empty = False
+            except Exception as download_err:
+                logger.error("Failed to download pre-built dataset from Hugging Face: %s. Falling back to sample initialization.", download_err)
+
+    # Now load and optionally seed the RAG knowledge base
+    try:
+        from src.rag.knowledge_base import knowledge_base
+        if is_db_empty or knowledge_base.get_collection_count() == 0:
+            logger.info("RAG database is empty. Initializing with sample DTC data to ensure system functionality.")
+            knowledge_base.initialize_with_sample_data()
+            logger.info("Successfully initialized RAG database with sample data. Count: %d", knowledge_base.get_collection_count())
+        else:
+            logger.info("RAG database loaded successfully. Chunk count: %d", knowledge_base.get_collection_count())
+    except Exception as err:
+        logger.error("Error loading/initializing RAG database: %s", err)
+
     # Pre-load the embedding model at startup so RAG queries are not delayed by model download
     try:
         from src.rag.knowledge_base import knowledge_base

@@ -118,6 +118,9 @@ services:
     restart: "no"
 
   sayyartech-llm:
+    build:
+      context: ./Agentic_Workflow
+      dockerfile: Dockerfile
     image: abo3skr/sayyar-tech-agentic_workflow:latest
     container_name: carbrain-llm
     environment:
@@ -128,6 +131,8 @@ services:
       LLM_MODEL: ${LLM_MODEL:-glm-5.1}
       TAVILY_API_KEY: ${TAVILY_API_KEY:-}
       INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:-}
+      HF_TOKEN: ${HF_TOKEN:-}
+      HF_DATASET_REPO: ${HF_DATASET_REPO:-aziz9788/automotive-rag-kb}
     ports:
       - "8000:8000"
     restart: "no"
