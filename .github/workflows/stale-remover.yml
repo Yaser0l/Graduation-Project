@@ -1,0 +1,57 @@
+name: Cleanup PR Docker Tags
+
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  delete-pr-tags:
+    runs-on: ubuntu-latest
+    strategy:
+      # Match the repos from your build matrix
+      matrix:
+        repo: 
+          - sayyar-tech-backend
+          - sayyar-tech-frontend
+          - sayyar-tech-agentic_workflow
+          - sayyar-tech-esp32s3simulator
+          - sayyar-tech-car_simulator
+      # Prevent one failure from stopping the rest
+      fail-fast: false 
+
+    steps:
+      - name: Delete PR Tag from Docker Hub
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+          REPO: ${{ matrix.repo }}
+          TAG: pr-${{ github.event.pull_request.number }}
+        run: |
+          echo "Attempting to delete $REPO:$TAG..."
+          
+          # 1. Authenticate and get a JWT token
+          TOKEN=$(curl -s -H "Content-Type: application/json" \
+            -X POST \
+            -d '{"username": "'$DOCKER_USERNAME'", "password": "'$DOCKER_PASSWORD'"}' \
+            https://hub.docker.com/v2/users/login/ | jq -r .token)
+          
+          if [ "$TOKEN" == "null" ] || [ -z "$TOKEN" ]; then
+            echo "Failed to authenticate with Docker Hub."
+            exit 1
+          fi
+
+          # 2. Issue the DELETE request to the Docker Hub API
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "Authorization: JWT $TOKEN" \
+            -X DELETE \
+            https://hub.docker.com/v2/repositories/$DOCKER_USERNAME/$REPO/tags/$TAG/)
+          
+          # 3. Handle the response gracefully
+          if [ "$HTTP_STATUS" == "204" ] || [ "$HTTP_STATUS" == "202" ]; then
+            echo "Successfully deleted $REPO:$TAG"
+          elif [ "$HTTP_STATUS" == "404" ]; then
+            echo "Tag $REPO:$TAG not found (likely already deleted or never built)."
+          else
+            echo "Failed to delete tag. HTTP status: $HTTP_STATUS"
+            exit 1
+          fi
