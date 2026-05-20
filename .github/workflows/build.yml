@@ -40,37 +40,27 @@ jobs:
             context: backend
             dockerfile: backend/Dockerfile
             image: sayyar-tech-backend
-            cache_from: type=gha,scope=backend
-            cache_to: type=gha,mode=max,scope=backend
 
           - name: frontend
             context: frontend
             dockerfile: frontend/Dockerfile
             image: sayyar-tech-frontend
-            cache_from: type=gha,scope=frontend
-            cache_to: type=gha,mode=max,scope=frontend
 
           # Registry caching explicitly set for agentic workflow
           - name: agentic_workflow
             context: Agentic_Workflow
             dockerfile: Agentic_Workflow/Dockerfile
             image: sayyar-tech-agentic_workflow
-            cache_from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/sayyar-tech-agentic_workflow:buildcache
-            cache_to: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/sayyar-tech-agentic_workflow:buildcache,mode=max
 
           - name: esp32s3simulator
             context: IoT/Mechanic
             dockerfile: IoT/Mechanic/Dockerfile
             image: sayyar-tech-esp32s3simulator
-            cache_from: type=gha,scope=esp32s3simulator
-            cache_to: type=gha,mode=max,scope=esp32s3simulator
 
           - name: car_simulator
             context: IoT/cantools_env
             dockerfile: IoT/cantools_env/Dockerfile
             image: sayyar-tech-car_simulator
-            cache_from: type=gha,scope=car_simulator
-            cache_to: type=gha,mode=max,scope=car_simulator
             
     steps:
       - name: Checkout
@@ -120,5 +110,5 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: ${{ matrix.cache_from }}
-          cache-to: ${{ matrix.cache_to }}
+          cache-from: ${{ matrix.name == 'agentic_workflow' && format('type=registry,ref={0}/{1}:buildcache', secrets.DOCKER_USERNAME, matrix.image) || format('type=gha,scope={0}', matrix.name) }}
+          cache-to: ${{ matrix.name == 'agentic_workflow' && format('type=registry,ref={0}/{1}:buildcache,mode=max', secrets.DOCKER_USERNAME, matrix.image) || format('type=gha,mode=max,scope={0}', matrix.name) }}
