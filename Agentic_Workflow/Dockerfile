@@ -12,7 +12,14 @@ COPY pyproject.toml uv.lock requirements.txt ./
 
 # Install dependencies into /app/.venv
 RUN uv venv "$UV_PROJECT_ENVIRONMENT" \
-	&& uv pip install --python "$UV_PROJECT_ENVIRONMENT/bin/python" -r requirements.txt
+	&& if [ -f uv.lock ]; then \
+		uv sync --frozen --no-dev --no-install-project; \
+	elif [ -f requirements.txt ]; then \
+		uv pip install --python "$UV_PROJECT_ENVIRONMENT/bin/python" -r requirements.txt; \
+	else \
+		echo "Missing uv.lock and requirements.txt" >&2; \
+		exit 1; \
+	fi
 
 # Copy app code
 COPY src ./src
