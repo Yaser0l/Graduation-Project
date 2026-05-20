@@ -42,12 +42,12 @@ services:
       context: ./IoT/Mechanic
       dockerfile: Dockerfile
       args:
-        MQTT_HOST: mqtt
+        MQTT_HOST: 10.0.2.2
         MQTT_PORT: 1883    
     container_name: carbrain-iot-simulator
     tty: true
     stdin_open: true
-    restart: unless-stopped
+    restart: no
     network_mode: "host"
     ports:
       - "5001:80"
@@ -58,7 +58,9 @@ services:
           condition: service_started
 
   sayyartech-car_simulator:
-    image: abo3skr/sayyar-tech-car_simulator:latest
+    build: 
+      context: ./IoT/cantools_env
+      dockerfile: Dockerfile
     container_name: carbrain-car_simulator
     network_mode: "host"
     restart: no

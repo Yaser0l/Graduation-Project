@@ -106,9 +106,9 @@ def isotp_server(bus):
             
             # OBD Service 03 (Read DTCs)
             if req == b'\x03':
-                # Return P0123 (01 23) and U1234 (D2 34)
-                # Response: 43 01 23 D2 34 00 00
-                stack.send(bytes([0x43, 0x01, 0x23, 0xD2, 0x34, 0x00, 0x00]))
+                # Return P0123 (01 23), U1234 (D2 34), and C0020 (40 20)
+                # Response: 43 01 23 D2 34 40 20 00 00
+                stack.send(bytes([0x43, 0x01, 0x23, 0xD2, 0x34, 0x40, 0x20, 0x00, 0x00]))
                 print("Sent OBD DTCs response")
             
             # OBD Service 01, PID A6 (Odometer)
