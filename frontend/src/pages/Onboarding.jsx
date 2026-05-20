@@ -11,34 +11,34 @@ export default function Onboarding() {
   const { language } = useContext(LanguageContext);
   const { addVehicle } = useContext(VehicleContext);
 
-  const [make, setMake]       = useState('');
-  const [model, setModel]     = useState('');
-  const [year, setYear]       = useState('');
-  const [vin, setVin]         = useState('');
+  const [make, setMake] = useState('');
+  const [model, setModel] = useState('');
+  const [year, setYear] = useState('');
+  const [vin, setVin] = useState('');
   const [mileage, setMileage] = useState('');
   const [oilProgramKm, setOilProgramKm] = useState('10000');
   const [initializeMaintenanceBaseline, setInitializeMaintenanceBaseline] = useState(true);
   const [lastServiceKm, setLastServiceKm] = useState('');
   const [lastServiceDate, setLastServiceDate] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError]     = useState(null);
+  const [error, setError] = useState(null);
 
   const ar = language === 'ar';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!make.trim() || !model.trim() || !year.trim() || !vin.trim() || vin.trim().length !== 17) {
-      setError(ar ? 'يرجى تعبئة جميع الحقول المطلوبة بما في ذلك رقم الهيكل (١٧ حرف/رقم).' : 'Please fill in all required fields including the 17-character VIN.');
+    if (!make.trim() || !model.trim() || !year.trim() || !vin.trim() || vin.trim().length > 17) {
+      setError(ar ? 'يرجى تعبئة جميع الحقول المطلوبة بما في ذلك رقم الهيكل (١٧ حرف/رقم).' : 'Please fill in all required fields including the 17-character or less VIN.');
       return;
     }
     setIsLoading(true);
     setError(null);
     try {
       await addVehicle({
-        vin:     vin.trim().toUpperCase(),
-        make:    make.trim(),
-        model:   model.trim(),
-        year:    parseInt(year, 10),
+        vin: vin.trim().toUpperCase(),
+        make: make.trim(),
+        model: model.trim(),
+        year: parseInt(year, 10),
         mileage: parseInt(mileage, 10) || 0,
         oil_program_km: oilProgramKm === '5000' ? 5000 : 10000,
         initialize_maintenance_baseline: initializeMaintenanceBaseline,
@@ -168,7 +168,7 @@ export default function Onboarding() {
             placeholder="e.g. 1HGCM82633A004352"
             value={vin}
             onChange={e => setVin(e.target.value.toUpperCase())}
-            minLength={17}
+            minLength={4}
             maxLength={17}
             required
           />

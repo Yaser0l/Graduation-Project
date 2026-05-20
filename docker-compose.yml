@@ -130,7 +130,9 @@ services:
     restart: "no"
   
   sayyartech-frontend:
-    image: abo3skr/sayyar-tech-frontend:latest
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
     container_name: carbrain-frontend
     ports:
       - "5173:80"
