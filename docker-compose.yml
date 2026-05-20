@@ -76,10 +76,12 @@ services:
       MQTT_USER: ${MQTT_USER:-}
       MQTT_PASSWORD: ${MQTT_PASSWORD:-}
       MQTT_TOPIC_DTC: ${MQTT_TOPIC_DTC:-vehicle/+/dtc}
-      LLM_BASE_URL: ${LLM_BASE_URL:-http://localhost:8000}
-      LLM_ANALYZE_PATH: ${LLM_ANALYZE_PATH:-/analyze}
-      LLM_CHAT_PATH: ${LLM_CHAT_PATH:-/chat}
+      LLM_BASE_URL: ${LLM_BASE_URL:-http://sayyartech-llm:8000}
+      LLM_ANALYZE_PATH: ${LLM_ANALYZE_PATH:-/api/llm/analyze}
+      LLM_CHAT_PATH: ${LLM_CHAT_PATH:-/api/llm/chat}
+      LLM_FULL_REPORT_PATH: ${LLM_FULL_REPORT_PATH:-/api/llm/full-report}
       LLM_API_KEY: ${LLM_API_KEY:-}
+      INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:-}
       MAIL_HOST: ${MAIL_HOST:-smtp.gmail.com}
       MAIL_PORT: ${MAIL_PORT:-587}
       MAIL_USER: ${MAIL_USER:-your_email@gmail.com}
@@ -116,17 +118,17 @@ services:
       BASE_URL: ${BASE_URL:-}
       LLM_MODEL: ${LLM_MODEL:-glm-5.1}
       TAVILY_API_KEY: ${TAVILY_API_KEY:-}
-      
+      INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:-}
     ports:
       - "8000:8000"
-    depends_on:
-      postgres:
-          condition: service_healthy
-      mqtt:
-          condition: service_healthy
     restart: "no"
   
   sayyartech-frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:5000/api}
     image: sayyartech-frontend:latest
     container_name: carbrain-frontend
     ports:
