@@ -28,3 +28,5 @@ _.mmd
 _.txt
 mmdcconf.json
 docker-compose.yml
+Dockerfile
+.dockerignore
