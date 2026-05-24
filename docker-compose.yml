@@ -56,6 +56,12 @@ services:
           condition: service_healthy
       sayyartech-car_simulator:
           condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "grep -q 'HTTP server started on port 80' /project/qemu.log"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 45s
 
   sayyartech-car_simulator:
     build: 
@@ -64,6 +70,18 @@ services:
     container_name: carbrain-car_simulator
     network_mode: "host"
     restart: no
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import pathlib, sys; p=pathlib.Path('/sys/class/net/vcan0/statistics/tx_packets');\ntry:\n    count=int(p.read_text().strip()) if p.exists() else 0\nexcept Exception:\n    count=0\nsys.exit(0 if count > 0 else 1)"
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
   
   sayyartech-api:
     build:
