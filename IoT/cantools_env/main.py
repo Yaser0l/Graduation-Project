@@ -1,5 +1,6 @@
 import time
 import threading
+import signal
 import cantools
 import can
 import isotp
@@ -18,13 +19,13 @@ OBD_ENGINE_RESP_ID = 0x7E8
 CAN_PERIOD_S = 0.2
 ISOTP_POLL_MAX_SLEEP_S = 0.005
 
-def periodic_sender(bus):
+def periodic_sender(bus, stop_event):
     print("Started periodic CAN DBC frames sender.")
     # Initialize some mock data
     speed_mph = 35.0 # Let's say 35 mph
     counter = 0
 
-    while True:
+    while not stop_event.is_set():
         try:
             # SPEED (ID: 180)
             data = db.encode_message('SPEED', {
@@ -81,12 +82,12 @@ def periodic_sender(bus):
             bus.send(can.Message(arbitration_id=0x127, data=data, is_extended_id=False))
 
             counter += 1
-            time.sleep(CAN_PERIOD_S)
+            stop_event.wait(CAN_PERIOD_S)
         except Exception as e:
             print(f"Periodic sender error: {e}")
-            time.sleep(1)
+            stop_event.wait(1)
 
-def isotp_server(bus):
+def isotp_server(bus, stop_event):
     print("Started ISO-TP server for OBD-II and UDS requests.")
     
     # Mechanic requests: tx=0x7DF, rx=0x7E8
@@ -94,7 +95,7 @@ def isotp_server(bus):
     addr = isotp.Address(isotp.AddressingMode.Normal_11bits, rxid=OBD_FUNCTIONAL_REQ_ID, txid=OBD_ENGINE_RESP_ID)
     stack = isotp.CanStack(bus, address=addr)
     
-    while True:
+    while not stop_event.is_set():
         stack.process()
         
         if stack.available():
@@ -136,9 +137,18 @@ def isotp_server(bus):
         sleep_time = stack.sleep_time()
         if sleep_time > ISOTP_POLL_MAX_SLEEP_S:
             sleep_time = ISOTP_POLL_MAX_SLEEP_S
-        time.sleep(sleep_time)
+        stop_event.wait(sleep_time)
 
 def main():
+    stop_event = threading.Event()
+
+    def handle_signal(signum, _frame):
+        print(f"Received signal {signum}, shutting down...")
+        stop_event.set()
+
+    signal.signal(signal.SIGINT, handle_signal)
+    signal.signal(signal.SIGTERM, handle_signal)
+
     channel = 'vcan0'
     try:
         bus = can.interface.Bus(channel=channel, interface='socketcan')
@@ -155,11 +165,11 @@ def main():
         return
 
     # Start the periodic sender in a background thread
-    sender_thread = threading.Thread(target=periodic_sender, args=(bus,), daemon=True)
+    sender_thread = threading.Thread(target=periodic_sender, args=(bus, stop_event), daemon=True)
     sender_thread.start()
 
     # Run the ISO-TP server
-    isotp_server(bus)
+    isotp_server(bus, stop_event)
 
 if __name__ == "__main__":
     main()
