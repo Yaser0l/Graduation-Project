@@ -115,6 +115,10 @@ services:
           condition: service_healthy
       mqtt:
           condition: service_healthy
+      sayyartech-iot-simulator:
+          condition: service_started
+      sayyartech-llm:
+          condition: service_healthy
     restart: "no"
 
   sayyartech-llm:
@@ -133,6 +137,17 @@ services:
       INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:-}
       HF_TOKEN: ${HF_TOKEN:-}
       HF_DATASET_REPO: ${HF_DATASET_REPO:-aziz9788/automotive-rag-kb}
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"
+        ]
+      interval: 30s
+      timeout: 20s
+      retries: 3
     ports:
       - "8000:8000"
     restart: "no"
@@ -149,7 +164,7 @@ services:
       sayyartech-api:
           condition: service_healthy
       sayyartech-llm:
-          condition: service_started
+          condition: service_healthy
 
 volumes:
   postgres_data:
