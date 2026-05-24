@@ -12,6 +12,7 @@ from typing import List, Dict, Any, Optional
 import json
 import re
 import logging
+from datetime import datetime
 
 import asyncio
 from langchain_openai import ChatOpenAI
@@ -22,6 +23,10 @@ import config
 app = FastAPI(title="CarBrain AI Backend")
 logger = logging.getLogger(__name__)
 
+@app.get("/api/health")
+def health_check():
+    """Simple health check endpoint."""
+    return {"status": "ok", "timestamp": datetime.utcnow().isoformat()}
 
 @app.on_event("startup")
 async def startup_checks() -> None:
