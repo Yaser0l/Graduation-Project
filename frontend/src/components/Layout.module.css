@@ -30,6 +30,7 @@
 
 .rightSide {
   justify-content: flex-end;
+  gap: 10px;
 }
 
 .brand {
@@ -60,6 +61,42 @@
 	font-size: 0.85rem;
 	cursor: pointer;
 	transition: all 0.2s ease;
+}
+
+.bellBtn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  background: rgba(15, 23, 42, 0.35);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.bellBtn:hover {
+  background: rgba(15, 23, 42, 0.6);
+}
+
+.bellBadge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 0.65rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .logoutBtn:hover {
@@ -97,4 +134,208 @@
   overflow-y: auto;
   padding: 16px;
   padding-bottom: calc(16px + var(--nav-height));
+}
+
+.toastStack {
+  position: fixed;
+  right: 18px;
+  bottom: calc(var(--nav-height) + 18px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 30;
+  width: min(340px, calc(100% - 32px));
+}
+
+html[dir='rtl'] .toastStack {
+  right: auto;
+  left: 18px;
+}
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.92);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+  animation: toastIn 0.25s ease-out;
+}
+
+.toast.info {
+  border-color: rgba(148, 163, 184, 0.35);
+}
+
+.toast.success {
+  border-color: rgba(34, 197, 94, 0.4);
+  background: rgba(15, 23, 42, 0.92);
+}
+
+.toastBody {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.toastTitle {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.toastMessage {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.toastClose {
+  background: transparent;
+  border: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  padding: 2px;
+  margin-top: 2px;
+}
+
+.toastClose:hover {
+  color: var(--text-primary);
+}
+
+.notificationPanel {
+  position: fixed;
+  top: 68px;
+  right: 18px;
+  width: min(360px, calc(100% - 32px));
+  max-height: 70vh;
+  background: rgba(9, 9, 11, 0.96);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 16px;
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.45);
+  display: flex;
+  flex-direction: column;
+  z-index: 40;
+}
+
+html[dir='rtl'] .notificationPanel {
+  right: auto;
+  left: 18px;
+}
+
+.notificationHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.notificationTitle {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.notificationMeta {
+  margin: 2px 0 0;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.notificationActions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.notificationLink {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 0;
+}
+
+.notificationLink:hover {
+  color: var(--text-primary);
+}
+
+.notificationList {
+  overflow-y: auto;
+  padding: 12px 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.notificationEmpty {
+  margin: 0;
+  color: var(--text-secondary);
+  text-align: center;
+  padding: 20px 0;
+  font-size: 0.85rem;
+}
+
+.notificationItem {
+  text-align: left;
+  background: rgba(24, 24, 27, 0.7);
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  border-radius: 12px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+html[dir='rtl'] .notificationItem {
+  text-align: right;
+}
+
+.notificationItem:hover {
+  background: rgba(39, 39, 42, 0.8);
+  border-color: rgba(148, 163, 184, 0.3);
+}
+
+.notificationItem.unread {
+  border-color: rgba(59, 130, 246, 0.45);
+}
+
+.notificationItemBody {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.notificationItemTitle {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.notificationItemMessage {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.notificationItemTime {
+  font-size: 0.7rem;
+  color: var(--text-tertiary);
+}
+
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

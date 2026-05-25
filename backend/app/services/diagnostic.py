@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
@@ -5,6 +6,67 @@ from app.services.llm import llm_service
 from app.services.notify import notify_owner
 
 logger = logging.getLogger(__name__)
+
+
+async def _finalize_dtc_report(report_id, dtc_list, vehicle_data, on_report_created=None):
+    try:
+        logger.warning("[DIAG] Calling Agentic Workflow analyze endpoint")
+        llm_result = await llm_service.analyze(
+            dtc_codes=dtc_list,
+            vehicle={
+                "make": vehicle_data.get("make"),
+                "model": vehicle_data.get("model"),
+                "year": vehicle_data.get("year"),
+                "mileage": vehicle_data.get("mileage"),
+            },
+        )
+        logger.warning("[DIAG] Agentic response received with urgency=%s", llm_result.get("urgency"))
+    except Exception as exc:
+        logger.error("[DIAG] LLM analyze() failed: %s", exc)
+        llm_result = {
+            "explanation": f"LLM service unavailable. DTC codes: {', '.join(dtc_list)}. Please consult a mechanic.",
+            "urgency": "medium",
+            "estimated_cost_min": None,
+            "estimated_cost_max": None,
+        }
+
+    from app.db.session import SessionLocal
+
+    async with SessionLocal() as db:
+        update_report = text(
+            """
+            UPDATE diagnostic_reports
+            SET llm_explanation = :expl,
+                urgency = :urg,
+                estimated_cost_min = :c_min,
+                estimated_cost_max = :c_max
+            WHERE id = :report_id
+            RETURNING *
+            """
+        )
+        result = await db.execute(
+            update_report,
+            {
+                "report_id": report_id,
+                "expl": llm_result.get("explanation"),
+                "urg": llm_result.get("urgency", "medium"),
+                "c_min": llm_result.get("estimated_cost_min"),
+                "c_max": llm_result.get("estimated_cost_max"),
+            },
+        )
+        report = result.first()
+        await db.commit()
+
+        if report:
+            report_data = dict(report._mapping)
+            await notify_owner(db, vehicle_data["id"], report_data, vehicle_data)
+
+            if on_report_created:
+                await on_report_created(
+                    str(vehicle_data["user_id"]),
+                    report_data,
+                    event_type="diagnostic:analysis_ready",
+                )
 
 
 async def process_dtc_event(db: AsyncSession, payload: dict, on_report_created=None):
@@ -93,29 +155,7 @@ async def process_dtc_event(db: AsyncSession, payload: dict, on_report_created=N
             
         return None
 
-    # LLM Analysis — failures are soft: we still save the report
-    try:
-        logger.warning("[DIAG] Calling Agentic Workflow analyze endpoint")
-        llm_result = await llm_service.analyze(
-            dtc_codes=dtc_list,
-            vehicle={
-                "make": vehicle_data.get("make"),
-                "model": vehicle_data.get("model"),
-                "year": vehicle_data.get("year"),
-                "mileage": vehicle_data.get("mileage"),
-            },
-        )
-        logger.warning("[DIAG] Agentic response received with urgency=%s", llm_result.get("urgency"))
-    except Exception as exc:
-        logger.error("[DIAG] LLM analyze() failed: %s", exc)
-        llm_result = {
-            "explanation": f"LLM service unavailable. DTC codes: {', '.join(dtc_list)}. Please consult a mechanic.",
-            "urgency": "medium",
-            "estimated_cost_min": None,
-            "estimated_cost_max": None,
-        }
-
-    # Store report
+    # Store report immediately as pending so the UI can show it right away.
     insert_report = text(
         """
         INSERT INTO diagnostic_reports
@@ -130,10 +170,10 @@ async def process_dtc_event(db: AsyncSession, payload: dict, on_report_created=N
             "v_id": vehicle_data["id"],
             "dtc": dtc_list,
             "mileage": mileage,
-            "expl": llm_result["explanation"],
-            "urg": llm_result["urgency"],
-            "c_min": llm_result["estimated_cost_min"],
-            "c_max": llm_result["estimated_cost_max"],
+            "expl": None,
+            "urg": "pending",
+            "c_min": None,
+            "c_max": None,
         },
     )
     report = result.first()
@@ -142,11 +182,13 @@ async def process_dtc_event(db: AsyncSession, payload: dict, on_report_created=N
 
     logger.info("[DIAG] Report %s created for VIN %s", report_data["id"], vin)
 
-    # Notify vehicle owner via email (non-blocking)
-    await notify_owner(db, vehicle_data["id"], report_data, vehicle_data)
-
     # Broadcast via SSE — cast user_id to str so it matches the SSE dict key
     if on_report_created:
         await on_report_created(str(vehicle_data["user_id"]), report_data)
+
+    # Run AI analysis asynchronously and notify when done.
+    asyncio.create_task(
+        _finalize_dtc_report(report_data["id"], dtc_list, vehicle_data, on_report_created)
+    )
 
     return report_data

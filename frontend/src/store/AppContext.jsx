@@ -1,10 +1,11 @@
-import React, { createContext, useState, useEffect, useCallback, useContext } from 'react';
+import React, { createContext, useState, useEffect, useCallback, useRef } from 'react';
 import { api, EVENTS_BASE_URL, setUnauthorizedCallback } from '../services/api';
 
 export const AuthContext = createContext();
 export const VehicleContext = createContext();
 export const DiagnosticContext = createContext();
 export const LanguageContext = createContext();
+export const NotificationContext = createContext();
 
 export const AppProvider = ({ children }) => {
   // --- Language State ---
@@ -179,6 +180,66 @@ export const AppProvider = ({ children }) => {
   const [maintenanceError, setMaintenanceError] = useState(null);
   const [isMaintenanceLoading, setIsMaintenanceLoading] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [notificationLog, setNotificationLog] = useState([]);
+  const analysisNotifiedRef = useRef(new Set());
+  const notificationTimersRef = useRef(new Map());
+
+  const dismissNotification = useCallback((id) => {
+    setNotifications((prev) => prev.filter((item) => item.id !== id));
+    const timer = notificationTimersRef.current.get(id);
+    if (timer) {
+      clearTimeout(timer);
+      notificationTimersRef.current.delete(id);
+    }
+  }, []);
+
+  const markNotificationRead = useCallback((id) => {
+    setNotificationLog((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, read: true } : item))
+    );
+  }, []);
+
+  const markAllNotificationsRead = useCallback(() => {
+    setNotificationLog((prev) => prev.map((item) => ({ ...item, read: true })));
+  }, []);
+
+  const clearNotificationLog = useCallback(() => {
+    setNotificationLog([]);
+  }, []);
+
+  const pushNotification = useCallback(
+    (note) => {
+      const id = note.id || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const payload = { type: 'info', autoDismiss: true, durationMs: 6000, ...note, id };
+      const logEntry = {
+        id,
+        type: payload.type,
+        title: payload.title,
+        message: payload.message,
+        createdAt: Date.now(),
+        read: false,
+      };
+      setNotificationLog((prev) => [logEntry, ...prev].slice(0, 50));
+      setNotifications((prev) => [payload, ...prev].slice(0, 4));
+
+      if (payload.autoDismiss) {
+        const timer = setTimeout(() => dismissNotification(id), payload.durationMs);
+        notificationTimersRef.current.set(id, timer);
+      }
+      return id;
+    },
+    [dismissNotification]
+  );
+
+  useEffect(() => {
+    return () => {
+      for (const timer of notificationTimersRef.current.values()) {
+        clearTimeout(timer);
+      }
+      notificationTimersRef.current.clear();
+    };
+  }, []);
 
   const fetchDiagnosticsForVehicle = useCallback(
     async (vehicle) => {
@@ -269,18 +330,29 @@ export const AppProvider = ({ children }) => {
       }
     };
 
-    const handleIncomingEvent = (payload) => {
+    const handleIncomingEvent = (payload, forcedType) => {
       if (!payload) return;
       const report = payload.report || payload.data || payload;
-      const eventType = payload.type || payload.event;
+      const eventType = forcedType || payload.type || payload.event;
       const isReportCreated =
         eventType === 'report_created' ||
         eventType === 'diagnostic:new' ||
+        eventType === 'diagnostic:analysis_ready' ||
         Boolean(report?.vehicle_id);
 
       if (!isReportCreated || !report) return;
 
       const reportVehicleId = report?.vehicle_id ?? report?.vehicleId ?? report?.vehicle?.id;
+      const isPendingReport = (item) => {
+        if (!item) return false;
+        if (item.urgency && String(item.urgency).toLowerCase() === 'pending') return true;
+        return !item.llm_explanation;
+      };
+      const isReadyReport = (item) => {
+        if (!item) return false;
+        const urgency = String(item.urgency || '').toLowerCase();
+        return Boolean(item.llm_explanation) && urgency !== 'pending';
+      };
 
       if (activeVehicle && reportVehicleId != null && String(reportVehicleId) === String(activeVehicle.id)) {
         setDiagnostics((prev) => {
@@ -288,7 +360,24 @@ export const AppProvider = ({ children }) => {
           if (existingIdx === -1) return [report, ...prev];
 
           const next = prev.slice();
-          next[existingIdx] = { ...next[existingIdx], ...report };
+          const existing = next[existingIdx];
+          const merged = { ...existing, ...report };
+          const wasPending = isPendingReport(existing);
+          const isReady = isReadyReport(merged);
+
+          if (wasPending && isReady && !analysisNotifiedRef.current.has(String(merged.id))) {
+            analysisNotifiedRef.current.add(String(merged.id));
+            const dtcCodes = Array.isArray(merged.dtc_codes) ? merged.dtc_codes.join(', ') : '';
+            pushNotification({
+              type: 'success',
+              title: language === 'ar' ? 'تم اكتمال التحليل' : 'AI Analysis Ready',
+              message: language === 'ar'
+                ? `تم تجهيز تحليل الذكاء الاصطناعي لأكواد ${dtcCodes || 'DTC'}.`
+                : `AI analysis is ready for ${dtcCodes || 'your DTC report'}.`
+            });
+          }
+
+          next[existingIdx] = merged;
           return next;
         });
 
@@ -318,9 +407,12 @@ export const AppProvider = ({ children }) => {
     const connectSSE = () => {
       try {
         es = new EventSource(`${EVENTS_BASE_URL}/api/events?token=${token}`);
-        es.onmessage = (event) => handleIncomingEvent(parseIncomingPayload(event.data));
+        es.onmessage = (event) => handleIncomingEvent(parseIncomingPayload(event.data), event.type);
         es.addEventListener('diagnostic:new', (event) =>
-          handleIncomingEvent(parseIncomingPayload(event.data))
+          handleIncomingEvent(parseIncomingPayload(event.data), event.type)
+        );
+        es.addEventListener('diagnostic:analysis_ready', (event) =>
+          handleIncomingEvent(parseIncomingPayload(event.data), event.type)
         );
         es.onerror = () => {
           console.error('SSE Error. Reconnecting in 5s...');
@@ -339,7 +431,7 @@ export const AppProvider = ({ children }) => {
       if (es) es.close();
       if (reconnectTimer) clearTimeout(reconnectTimer);
     };
-  }, [token, activeVehicle, fetchDiagnosticsForVehicle, fetchMaintenanceForVehicle]);
+  }, [token, activeVehicle, fetchDiagnosticsForVehicle, fetchMaintenanceForVehicle, language, pushNotification]);
 
   // Provide composed contexts
   return (
@@ -372,7 +464,17 @@ export const AppProvider = ({ children }) => {
               startScan,
             }}
           >
-            {children}
+            <NotificationContext.Provider value={{
+              notifications,
+              notificationLog,
+              pushNotification,
+              dismissNotification,
+              markNotificationRead,
+              markAllNotificationsRead,
+              clearNotificationLog,
+            }}>
+              {children}
+            </NotificationContext.Provider>
           </DiagnosticContext.Provider>
         </VehicleContext.Provider>
       </AuthContext.Provider>

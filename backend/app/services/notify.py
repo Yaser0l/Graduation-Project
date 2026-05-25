@@ -100,6 +100,86 @@ async def send_maintenance_alert(to_email: str, vehicle: dict, task: dict):
         print(f"[NOTIFY] Failed to send maintenance email: {e}")
         return False
 
+
+async def send_maintenance_digest(to_email: str, vehicle: dict, tasks: list[dict], dtc_codes: list[str]):
+        def format_status(task: dict) -> tuple[str, str]:
+                status = (task.get("status") or "due-soon").lower()
+                label = "OVERDUE" if status == "overdue" else "DUE SOON"
+                color = "#ef4444" if status == "overdue" else "#f59e0b"
+                return label, color
+
+        def format_due(task: dict) -> str:
+                due_parts = []
+                if task.get("due_in_km") is not None:
+                        due_parts.append(f"{task['due_in_km']} km")
+                if task.get("due_in_days") is not None:
+                        due_parts.append(f"{task['due_in_days']} day(s)")
+                return " / ".join(due_parts) if due_parts else "N/A"
+
+        task_rows = []
+        for task in tasks:
+                label, color = format_status(task)
+                title = task.get("title_en") or task.get("code") or "Maintenance Task"
+                task_rows.append(
+                        f"""
+                        <tr>
+                            <td style=\"padding:10px 8px;border-bottom:1px solid #e5e7eb\">{title}</td>
+                            <td style=\"padding:10px 8px;border-bottom:1px solid #e5e7eb;color:{color};font-weight:600\">{label}</td>
+                            <td style=\"padding:10px 8px;border-bottom:1px solid #e5e7eb\">{format_due(task)}</td>
+                        </tr>
+                        """
+                )
+
+        dtc_section = ""
+        if dtc_codes:
+                dtc_section = f"""
+                <div style=\"margin-top:16px\">
+                    <h3 style=\"margin:0 0 6px;font-size:15px\">Active DTCs</h3>
+                    <p style=\"margin:0;color:#6b7280\">{', '.join(dtc_codes)}</p>
+                </div>
+                """
+
+        html = f"""
+        <div style=\"font-family:Arial,sans-serif;max-width:640px;margin:0 auto\">
+            <h2 style=\"color:#f59e0b\">🛠️ Maintenance Summary</h2>
+            <p><strong>Vehicle:</strong> {vehicle.get('year') or ''} {vehicle.get('make') or ''} {vehicle.get('model') or ''} ({vehicle.get('vin')})</p>
+            <p><strong>Tasks due:</strong> {len(tasks)}</p>
+            <table style=\"width:100%;border-collapse:collapse;margin-top:12px\">
+                <thead>
+                    <tr>
+                        <th align=\"left\" style=\"padding:8px;border-bottom:1px solid #e5e7eb\">Task</th>
+                        <th align=\"left\" style=\"padding:8px;border-bottom:1px solid #e5e7eb\">Status</th>
+                        <th align=\"left\" style=\"padding:8px;border-bottom:1px solid #e5e7eb\">Due In</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {''.join(task_rows)}
+                </tbody>
+            </table>
+            {dtc_section}
+            <hr style=\"margin:18px 0;border:none;border-top:1px solid #e5e7eb\"/>
+            <p>Please schedule these tasks in <strong>CarBrain</strong>.</p>
+        </div>
+        """
+
+        message = EmailMessage()
+        message["From"] = settings.MAIL_FROM
+        message["To"] = to_email
+        message["Subject"] = f"🛠️ CarBrain Maintenance Summary: {len(tasks)} task(s) due"
+        message.set_content(html, subtype="html")
+
+        try:
+                if not settings.MAIL_USER or not settings.MAIL_PASSWORD:
+                        print(f"[NOTIFY] no sender email")
+                        return True
+
+                await _send_email_message(message)
+                print(f"[NOTIFY] maintenance digest sent to {to_email}")
+                return True
+        except Exception as e:
+                print(f"[NOTIFY] Failed to send maintenance digest: {e}")
+                return False
+
 async def notify_owner(db, vehicle_id: UUID, report: dict, vehicle: dict):
     from sqlalchemy import text
     try:
@@ -136,6 +216,8 @@ async def notify_maintenance_alerts(db, vehicle: dict, tasks: list[dict], oil_pr
             """
         )
 
+        new_alerts: list[dict] = []
+
         for task in tasks:
             status = (task.get("status") or "").lower()
             if status not in ("due-soon", "overdue"):
@@ -157,8 +239,28 @@ async def notify_maintenance_alerts(db, vehicle: dict, tasks: list[dict], oil_pr
                 },
             )
             if inserted.first():
-                import asyncio
-                asyncio.create_task(send_maintenance_alert(user.email, vehicle, task))
+                new_alerts.append(task)
+
+        if new_alerts:
+            dtc_query = text(
+                """
+                SELECT dtc_codes
+                FROM diagnostic_reports
+                WHERE vehicle_id = :vehicle_id AND resolved = FALSE
+                ORDER BY created_at DESC
+                """
+            )
+            dtc_rows = await db.execute(dtc_query, {"vehicle_id": vehicle.get("id")})
+            dtc_codes = []
+            for row in dtc_rows:
+                dtc_codes.extend(row.dtc_codes or [])
+
+            # De-duplicate while preserving order.
+            deduped_dtc_codes = list(dict.fromkeys(dtc_codes))
+            import asyncio
+            asyncio.create_task(
+                send_maintenance_digest(user.email, vehicle, new_alerts, deduped_dtc_codes)
+            )
 
         await db.commit()
     except Exception as e:

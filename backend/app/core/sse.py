@@ -37,11 +37,11 @@ class SseService:
                 self.connected_clients.pop(user_id, None)
             logger.debug("[SSE] Client queue cleaned up for user %s", user_id)
 
-    async def broadcast_to_user(self, user_id: str, data: dict):
+    async def broadcast_to_user(self, user_id: str, data: dict, event_type: str = "diagnostic:new"):
         queues = self.connected_clients.get(user_id)
         if queues:
             # Always serialize as JSON so browser-side JSON.parse works reliably.
-            event = {"event": "diagnostic:new", "data": json.dumps(data, default=str)}
+            event = {"event": event_type, "data": json.dumps(data, default=str)}
             for queue in list(queues):
                 await queue.put(event)
             logger.info("[SSE] Broadcast to user %s (%d clients)", user_id, len(queues))
@@ -50,5 +50,5 @@ class SseService:
 sse_service = SseService()
 
 
-async def on_report_created(user_id: str, report: dict):
-    await sse_service.broadcast_to_user(user_id, report)
+async def on_report_created(user_id: str, report: dict, event_type: str = "diagnostic:new"):
+    await sse_service.broadcast_to_user(user_id, report, event_type=event_type)

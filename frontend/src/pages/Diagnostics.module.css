@@ -27,6 +27,7 @@
 .high { background: rgba(239, 68, 68, 0.15); color: var(--status-red); border: 1px solid rgba(239, 68, 68, 0.3); }
 .medium { background: rgba(245, 158, 11, 0.15); color: var(--status-yellow); border: 1px solid rgba(245, 158, 11, 0.3); }
 .low { background: rgba(16, 185, 129, 0.15); color: var(--status-green); border: 1px solid rgba(16, 185, 129, 0.3); }
+.pending { background: rgba(59, 130, 246, 0.12); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.35); }
 .resolvedTag { background: rgba(16, 185, 129, 0.18); color: var(--status-green); border: 1px solid rgba(16, 185, 129, 0.35); }
 
 .issueCard h3 { font-size: 1.1rem; font-weight: 600; color: var(--text-primary); line-height: 1.3; }

@@ -27,6 +27,7 @@ export default function Dashboard() {
       high: 16,
       medium: 10,
       low: 5,
+      pending: 6,
     };
 
     const totalPenalty = activeIssues.reduce((sum, report) => {

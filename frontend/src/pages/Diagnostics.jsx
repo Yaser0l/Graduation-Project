@@ -19,7 +19,19 @@ export default function Diagnostics() {
     setExpandedReport(diagnostics[0].id);
   }, [diagnostics, expandedReport]);
 
+  const isPendingReport = (report) => {
+    if (!report) return false;
+    if (report.urgency && String(report.urgency).toLowerCase() === 'pending') return true;
+    return !report.llm_explanation;
+  };
+
   const getExplanationText = (report) => {
+    if (isPendingReport(report)) {
+      return language === 'ar'
+        ? 'جاري تحليل الأكواد بواسطة الذكاء الاصطناعي. سنُخطرك فور توفر التحليل.'
+        : 'AI analysis is in progress. You will be notified when it is ready.';
+    }
+
     const explanation = report?.llm_explanation?.trim();
     if (explanation) return explanation;
 
@@ -96,6 +108,10 @@ export default function Diagnostics() {
                 {report.resolved ? (
                   <span className={`${styles.severityTag} ${styles.resolvedTag}`}>
                     {language === 'ar' ? 'تم الحل' : 'Resolved'}
+                  </span>
+                ) : isPendingReport(report) ? (
+                  <span className={`${styles.severityTag} ${styles.pending}`}>
+                    {language === 'ar' ? 'قيد التحليل' : 'Pending'}
                   </span>
                 ) : (
                   <span className={`${styles.severityTag} ${styles[report.urgency?.toLowerCase() || 'medium']}`}>
