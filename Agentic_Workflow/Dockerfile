@@ -29,12 +29,12 @@ RUN --mount=type=cache,target=/root/.cache/uv \
         exit 1; \
     fi
 
-# Copy app code
+# Copy prewarm dependencies (keep cache stable when app code changes)
 COPY data ./data
 COPY scripts ./scripts
-COPY runner.py ./runner.py
 COPY config.py ./config.py
-COPY src ./src
+COPY src/__init__.py ./src/__init__.py
+COPY src/rag ./src/rag
 
 ARG HF_TOKEN
 ARG HF_DATASET_REPO=aziz9788/automotive-rag-kb
@@ -49,17 +49,19 @@ RUN --mount=type=secret,id=hf_token \
         fi; \
         HF_TOKEN="$HF_TOKEN" HF_DATASET_REPO="$HF_DATASET_REPO" \
         RAG_PREWARM_STRICT="$RAG_PREWARM_STRICT" \
-        HF_HOME=/root/.cache/huggingface \
+        HF_HOME=/app/data/hf_cache \
         CHROMA_DB_PATH=/tmp/data-cache/chroma_db \
         RAG_SOURCES_DIR=/tmp/data-cache/sources \
         /app/.venv/bin/python scripts/prewarm_rag.py; \
         mkdir -p /app/data; \
         cp -a /tmp/data-cache/. /app/data/; \
-        mkdir -p /app/data/hf_cache; \
-        cp -a /root/.cache/huggingface/. /app/data/hf_cache/; \
     else \
         echo "RAG prewarm skipped (RAG_PREWARM=0)"; \
     fi
+
+# Copy remaining app code after prewarm to preserve cache
+COPY src ./src
+COPY runner.py ./runner.py
 
 # Runtime stage
 FROM python:3.12-slim-bookworm
