@@ -56,7 +56,7 @@ COPY --from=deps /project/sdkconfig.defaults /project/sdkconfig.defaults
 COPY --from=deps /project/managed_components /project/managed_components
 
 RUN --mount=type=cache,target=/root/.espressif,id=espressif-tools \
-    --mount=type=cache,target=/project/build,id=idf-build \
-    /bin/bash -c "source $IDF_PATH/export.sh && idf.py build"
+  --mount=type=cache,target=/project/build,id=idf-build \
+  /bin/bash -c "source $IDF_PATH/export.sh && idf.py build"
 
-CMD ["/bin/bash", "-c", "source $IDF_PATH/export.sh && idf.py qemu --qemu-extra-args='-nic user,model=open_eth,hostfwd=tcp::5001-:80 -object can-bus,id=canbus0 -object can-host-socketcan,id=canhost0,if=vcan0,canbus=canbus0 -global driver=esp32s3.twai,property=canbus,value=canbus0 -trace \"can_*\" -trace \"sja1000_*\"' monitor 2>&1 | tee -a /project/qemu.log"]
+CMD ["/bin/bash", "-c", "source $IDF_PATH/export.sh && idf.py qemu --qemu-extra-args='-nic user,model=open_eth,hostfwd=tcp::5001-:80 -object can-bus,id=canbus0 -object can-host-socketcan,id=canhost0,if=vcan0,canbus=canbus0 -global driver=esp32s3.twai,property=canbus,value=canbus0' monitor 2>&1 | tee -a /project/qemu.log"]
