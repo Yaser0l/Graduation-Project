@@ -59,36 +59,47 @@ The system features a hierarchical multi-agent workflow with two main orchestrat
 
 ### Prerequisites
 
-- Python 3.9+
+- Python 3.10-3.12
 - OpenAI API key
 - Tavily API key (optional, for web search)
 
 ### Installation
 
 1. **Clone and navigate to the project:**
+
 ```bash
 cd F_Project
 ```
 
-2. **Install dependencies:**
+2. **Install dependencies (uv):**
+
+```bash
+uv sync
+```
+
+Fallback (pip):
+
 ```bash
 pip install -r requirements.txt
 ```
 
 3. **Configure environment:**
+
 ```bash
 cp .env.example .env
 ```
 
 Edit `.env` and add your API keys:
+
 ```env
 OPENAI_API_KEY=sk-your-openai-key-here
 TAVILY_API_KEY=tvly-your-tavily-key-here
 ```
 
 4. **Run the system:**
+
 ```bash
-python src/main.py
+uv run python src/main.py
 ```
 
 ### RAG ingestion (DTC + owner manuals)
@@ -104,16 +115,16 @@ Use **`.venv310`** (Python 3.10). After changing the embedding model you must **
 
 ```bash
 cd Agentic_Workflow
-pip install -r requirements.txt
-pytest tests/ -q --ignore=tests/test_keys.py -m "not live"
-python scripts/ingest_rag_full.py --reset
-# Windows: use a 3.10+ venv, e.g. py -3.10 -m venv .venv310 && .venv310\Scripts\pip install -r requirements.txt
+uv sync
+uv run pytest tests/ -q --ignore=tests/test_keys.py -m "not live"
+uv run python scripts/ingest_rag_full.py --reset
+# Windows: use uv venv .venv310 then uv sync --frozen
 ```
 
 For CI-style runs without downloading OEM PDFs:
 
 ```bash
-python scripts/ingest_rag_full.py --fixtures-dir tests/fixtures --skip-download --reset --skip-preflight --fake-embeddings
+uv run python scripts/ingest_rag_full.py --fixtures-dir tests/fixtures --skip-download --reset --skip-preflight --fake-embeddings
 ```
 
 On Windows with Python 3.13, add `--fake-embeddings` for local ingest, or recreate the venv with Python 3.12 (see `.python-version`).
@@ -125,9 +136,9 @@ See [`data/sources/README.md`](data/sources/README.md) for success criteria and 
 ### Running Tests
 
 ```bash
-pytest tests/ -q --ignore=tests/test_keys.py -m "not live"
-pytest tests/test_workflow_rag.py -q
-python tests/test_workflow.py
+uv run pytest tests/ -q --ignore=tests/test_keys.py -m "not live"
+uv run pytest tests/test_workflow_rag.py -q
+uv run python tests/test_workflow.py
 ```
 
 ## Usage Example
@@ -244,6 +255,7 @@ The test suite includes:
 - Custom scenario testing
 
 Run tests:
+
 ```bash
 python tests/test_workflow.py
 ```

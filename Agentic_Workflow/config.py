@@ -1,7 +1,11 @@
 """Configuration settings for the multi-agent mechanic workflow."""
 import os
 from pathlib import Path
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv
+except ImportError:  # pragma: no cover - optional for build-time prewarm
+    def load_dotenv(*_args, **_kwargs):
+        return False
 
 ROOT_DIR = Path(__file__).resolve().parent
 

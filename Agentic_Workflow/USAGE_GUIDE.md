@@ -5,7 +5,13 @@
 ### 1. Installation
 
 ```bash
-# Install dependencies
+# Install dependencies (uv)
+uv sync
+```
+
+Fallback (pip):
+
+```bash
 pip install -r requirements.txt
 ```
 
@@ -28,10 +34,10 @@ TAVILY_API_KEY=tvly-...
 
 ```bash
 # Run with sample data
-python src/main.py
+uv run python src/main.py
 
 # Run tests
-python tests/test_workflow.py
+uv run python tests/test_workflow.py
 ```
 
 ## Architecture Overview
@@ -101,6 +107,7 @@ The OBD2 analysis goes through a review cycle:
 ### 3. Memory Management
 
 Per-user memory includes:
+
 - Car metadata (model, year, mileage, VIN)
 - Conversation history (last 10 interactions)
 - Stored in JSON files under `data/users/{user_id}/`
@@ -108,6 +115,7 @@ Per-user memory includes:
 ### 4. Product Research
 
 The Product Research Agent:
+
 - Extracts needed parts from OBD2 analysis (e.g., "TPMS sensor", "tires")
 - Searches web for compatible products
 - Returns structured recommendations with links
@@ -312,8 +320,8 @@ writer_result = writer_orchestration.invoke(writer_state)
 ## Support
 
 For issues or questions:
+
 1. Check this guide
 2. Review test cases in `tests/test_workflow.py`
 3. Examine sample data in `data/sample_obd2_data.json`
 4. Review the plan in `multi-agent.plan.md`
-

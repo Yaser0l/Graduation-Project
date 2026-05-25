@@ -6,6 +6,7 @@ WORKDIR /app
 ENV UV_COMPILE_BYTECODE=1
 ENV UV_LINK_MODE=copy
 ENV UV_PROJECT_ENVIRONMENT=/app/.venv
+ENV HF_HOME=/app/data/hf_cache
 
 # Use wildcards (*) so the build doesn't crash if optional files are missing
 COPY pyproject.toml* uv.lock* ./
@@ -30,9 +31,35 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 # Copy app code
 COPY data ./data
+COPY scripts ./scripts
 COPY runner.py ./runner.py
 COPY config.py ./config.py
 COPY src ./src
+
+ARG HF_TOKEN
+ARG HF_DATASET_REPO=aziz9788/automotive-rag-kb
+ARG RAG_PREWARM=0
+ARG RAG_PREWARM_STRICT=0
+RUN --mount=type=secret,id=hf_token \
+    --mount=type=cache,target=/root/.cache/huggingface \
+    --mount=type=cache,target=/tmp/data-cache \
+    if [ "$RAG_PREWARM" = "1" ]; then \
+        if [ -f /run/secrets/hf_token ]; then \
+            HF_TOKEN="$(cat /run/secrets/hf_token)"; \
+        fi; \
+        HF_TOKEN="$HF_TOKEN" HF_DATASET_REPO="$HF_DATASET_REPO" \
+        RAG_PREWARM_STRICT="$RAG_PREWARM_STRICT" \
+        HF_HOME=/root/.cache/huggingface \
+        CHROMA_DB_PATH=/tmp/data-cache/chroma_db \
+        RAG_SOURCES_DIR=/tmp/data-cache/sources \
+        /app/.venv/bin/python scripts/prewarm_rag.py; \
+        mkdir -p /app/data; \
+        cp -a /tmp/data-cache/. /app/data/; \
+        mkdir -p /app/data/hf_cache; \
+        cp -a /root/.cache/huggingface/. /app/data/hf_cache/; \
+    else \
+        echo "RAG prewarm skipped (RAG_PREWARM=0)"; \
+    fi
 
 # Runtime stage
 FROM python:3.12-slim-bookworm
@@ -43,6 +70,7 @@ ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONPATH=/app
 ENV PATH="/app/.venv/bin:$PATH"
+ENV HF_HOME=/app/data/hf_cache
 
 # 1. Create the user FIRST
 RUN useradd -m -u 1000 appuser \
