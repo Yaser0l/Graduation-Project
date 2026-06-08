@@ -6,7 +6,29 @@ This project requires simultaneous execution of multiple services.
 
 - Linux OS with `vcan` support
 - Docker installed
-- `.env` file setup correctly for the project to function
+
+## Environment Setup
+
+Before starting the project, you need to set up your environment variables.
+Copy the example file to create your local `.env`:
+
+```bash
+cp .env.example .env
+```
+
+### Variables you MUST change for full functionality:
+
+- `JWT_SECRET`: Generate a secure random string for JWT token signing.
+- `OPENAI_API_KEY`: Your OpenAI or OpenRouter API key (depending on `BASE_URL`).
+- `HF_TOKEN`: Hugging Face access token (required to download the full RAG database; falls back to sample data otherwise).
+- `TAVILY_API_KEY`: API key for web search capabilities.
+- `MAIL_USER`, `MAIL_PASSWORD`, `MAIL_FROM`: Your SMTP credentials for email notifications.
+
+### Variables you can keep as is for testing:
+
+- **Server section** (`PROJECT_NAME`, `API_V1_STR`, `ENV`, `BACKEND_PORT`, `ALLOWED_ORIGINS`).
+- **PostgreSQL / MQTT**: By default, Docker Compose will provide sufficient defaults, or you can uncomment and adjust if not using Compose.
+- **AI Engine defaults** (`BASE_URL`, `LLM_MODEL`, `INTERNAL_API_SECRET`). _Note: Ensure `INTERNAL_API_SECRET` is changed for production._
 
 ## Running the Services with Docker Compose
 
