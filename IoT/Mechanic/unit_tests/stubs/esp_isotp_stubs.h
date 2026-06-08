@@ -14,3 +14,5 @@ uint32_t isotp_stub_get_last_send_len(void);
 const uint8_t* isotp_stub_get_last_send_payload(void);
 void isotp_stub_queue_rx(const uint8_t* data, uint32_t len);
 int isotp_stub_get_on_can_message_calls(void);
+void isotp_stub_set_next_receive_empty(void);
+int isotp_stub_get_receive_calls(void);

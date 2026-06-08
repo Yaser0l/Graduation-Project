@@ -19,6 +19,7 @@ static int s_rx_queue_head = 0;
 static int s_rx_queue_tail = 0;
 
 static int s_on_can_message_calls = 0;
+static bool s_next_receive_empty = false;
 
 void isotp_stub_reset(void) {
     s_new_transport_fail = false;
@@ -33,6 +34,7 @@ void isotp_stub_reset(void) {
     s_rx_queue_head = 0;
     s_rx_queue_tail = 0;
     s_on_can_message_calls = 0;
+    s_next_receive_empty = false;
 }
 
 void isotp_stub_set_new_transport_result(int result) {
@@ -96,8 +98,13 @@ int isotp_send_with_id(IsoTpLink* link, uint32_t id, const uint8_t payload[],
 }
 
 int isotp_receive(IsoTpLink* link, uint8_t* payload, const uint32_t payload_size,
-                  uint32_t* out_size) {
+                   uint32_t* out_size) {
     s_receive_calls++;
+    if (s_next_receive_empty) {
+        s_next_receive_empty = false;
+        if (out_size) *out_size = 0;
+        return ISOTP_RET_OK;
+    }
     if (s_rx_queue_head >= s_rx_queue_tail) {
         if (out_size) *out_size = 0;
         return ISOTP_RET_NO_DATA;
@@ -121,3 +128,5 @@ void isotp_on_can_message(IsoTpLink* link, const uint8_t* data, uint8_t len) {
 }
 
 int isotp_stub_get_on_can_message_calls(void) { return s_on_can_message_calls; }
+
+void isotp_stub_set_next_receive_empty(void) { s_next_receive_empty = true; }

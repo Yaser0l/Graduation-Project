@@ -243,6 +243,25 @@ void test_wifi_status_led_task_step_blinks_when_disconnected(void) {
   TEST_ASSERT_EQUAL_INT(LED_OFF_LEVEL, gpio_stub_get_last_level());
 }
 
+void test_wifi_manager_task_step_stops_ap_when_connected(void) {
+  s_config_ap = true;
+  event_group_stub_set_bits(WIFI_CONNECTED_BIT);
+
+  wifi_manager_task_step();
+
+  TEST_ASSERT_FALSE(s_config_ap);
+  TEST_ASSERT_EQUAL_INT(1, esp_wifi_stub_get_set_mode_calls());
+  TEST_ASSERT_EQUAL(WIFI_MODE_STA, esp_wifi_stub_get_last_mode());
+}
+
+void test_network_request_handler_calls_request_connect(void) {
+  s_should_connect = false;
+
+  network_request_handler(NULL, NETWORK_EVENT, NETWORK_EVENT_REQUEST, NULL);
+
+  TEST_ASSERT_TRUE(s_should_connect);
+}
+
 int main(void) {
   UNITY_BEGIN();
 
@@ -264,6 +283,8 @@ int main(void) {
   RUN_TEST(test_wifi_manager_task_step_clears_connect_flag_on_success);
   RUN_TEST(test_wifi_status_led_task_step_sets_on_when_connected);
   RUN_TEST(test_wifi_status_led_task_step_blinks_when_disconnected);
+  RUN_TEST(test_wifi_manager_task_step_stops_ap_when_connected);
+  RUN_TEST(test_network_request_handler_calls_request_connect);
 
   return UNITY_END();
 }
