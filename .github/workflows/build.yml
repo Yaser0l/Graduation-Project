@@ -58,10 +58,10 @@ jobs:
             image: sayyar-tech-esp32s3simulator
 
           - name: car_simulator
-            context: IoT/cantools_env
-            dockerfile: IoT/cantools_env/Dockerfile
+            context: IoT/car_simulator
+            dockerfile: IoT/car_simulator/Dockerfile
             image: sayyar-tech-car_simulator
-            
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4

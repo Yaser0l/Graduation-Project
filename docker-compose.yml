@@ -65,7 +65,7 @@ services:
 
   sayyartech-car_simulator:
     build: 
-      context: ./IoT/cantools_env
+      context: ./IoT/car_simulator
       dockerfile: Dockerfile
     container_name: carbrain-car_simulator
     network_mode: "host"

@@ -20,7 +20,7 @@ services:
 
   car_simulator:
     build:
-      context: ./cantools_env
+      context: ./car_simulator
       dockerfile: Dockerfile
     container_name: car_simulator
     tty: true
