@@ -18,6 +18,8 @@ static uint32_t s_rx_lens[16] = {0};
 static int s_rx_queue_head = 0;
 static int s_rx_queue_tail = 0;
 
+static int s_on_can_message_calls = 0;
+
 void isotp_stub_reset(void) {
     s_new_transport_fail = false;
     s_isotp_send_ret = ISOTP_RET_OK;
@@ -30,6 +32,7 @@ void isotp_stub_reset(void) {
     memset(s_rx_lens, 0, sizeof(s_rx_lens));
     s_rx_queue_head = 0;
     s_rx_queue_tail = 0;
+    s_on_can_message_calls = 0;
 }
 
 void isotp_stub_set_new_transport_result(int result) {
@@ -114,4 +117,7 @@ int isotp_receive(IsoTpLink* link, uint8_t* payload, const uint32_t payload_size
 
 void isotp_on_can_message(IsoTpLink* link, const uint8_t* data, uint8_t len) {
     (void)link; (void)data; (void)len;
+    s_on_can_message_calls++;
 }
+
+int isotp_stub_get_on_can_message_calls(void) { return s_on_can_message_calls; }

@@ -9,6 +9,7 @@
 #include "local_mqtt.h"
 #include "local_mqtt_stubs.h"
 #include "esp_twai_types.h"
+#include "esp_twai_stubs.h"
 
 static twai_node_handle_t s_can_handle = (twai_node_handle_t)1;
 
@@ -35,6 +36,7 @@ static void dtc_test_reset(void)
     s_last_request_us = 0;
     s_request_start_us = 0;
     s_waiting_for_response = false;
+    s_force_request = false;
     s_can_handle = (twai_node_handle_t)1;
     isotp_stub_reset();
     mqtt_stub_reset();
@@ -272,6 +274,74 @@ void test_dtc_init_is_idempotent(void)
     TEST_ASSERT_EQUAL(ESP_OK, dtc_reporter_init());
 }
 
+void test_isotp_user_get_us_calls_timer(void)
+{
+    esp_timer_stub_set_time(1234567);
+    TEST_ASSERT_EQUAL_UINT32(1234567, isotp_user_get_us());
+}
+
+void test_isotp_user_send_can_null_handle(void)
+{
+    s_can_handle = NULL;
+    uint8_t data[] = {0x01, 0x02};
+    int ret = isotp_user_send_can(0x7E8, data, sizeof(data));
+    TEST_ASSERT_EQUAL(ISOTP_RET_ERROR, ret);
+}
+
+void test_isotp_user_send_can_valid_handle(void)
+{
+    s_can_handle = (twai_node_handle_t)1;
+    uint8_t data[] = {0x01, 0x02};
+    int tx_before = twai_stub_get_transmit_calls();
+    int ret = isotp_user_send_can(0x7E8, data, sizeof(data));
+    TEST_ASSERT_EQUAL(ISOTP_RET_OK, ret);
+    TEST_ASSERT_GREATER_THAN_INT(tx_before, twai_stub_get_transmit_calls());
+}
+
+void test_dtc_feed_frame_skips_when_not_ready(void)
+{
+    uint8_t data[] = {0x43, 0x01, 0x23};
+    dtc_reporter_feed_frame(0x7E8, data, sizeof(data));
+    TEST_ASSERT_EQUAL_INT(0, isotp_stub_get_on_can_message_calls());
+}
+
+void test_dtc_feed_frame_filters_non_obd_ids(void)
+{
+    s_ready = true;
+    uint8_t data[] = {0x43, 0x01, 0x23};
+    dtc_reporter_feed_frame(0x100, data, sizeof(data));
+    TEST_ASSERT_EQUAL_INT(0, isotp_stub_get_on_can_message_calls());
+}
+
+void test_dtc_feed_frame_feeds_obd_ids_when_ready(void)
+{
+    s_ready = true;
+    uint8_t data[] = {0x43, 0x01, 0x23};
+    dtc_reporter_feed_frame(0x7E8, data, sizeof(data));
+    TEST_ASSERT_EQUAL_INT(1, isotp_stub_get_on_can_message_calls());
+}
+
+void test_dtc_request_now_not_ready(void)
+{
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_STATE, dtc_reporter_request_now());
+    TEST_ASSERT_FALSE(s_force_request);
+}
+
+void test_dtc_request_now_waiting(void)
+{
+    s_ready = true;
+    s_waiting_for_response = true;
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_STATE, dtc_reporter_request_now());
+    TEST_ASSERT_FALSE(s_force_request);
+}
+
+void test_dtc_request_now_succeeds(void)
+{
+    s_ready = true;
+    TEST_ASSERT_EQUAL(ESP_OK, dtc_reporter_request_now());
+    TEST_ASSERT_TRUE(s_force_request);
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -293,6 +363,15 @@ int main(void)
     RUN_TEST(test_dtc_init_requires_can_handle);
     RUN_TEST(test_dtc_init_propagates_isotp_error);
     RUN_TEST(test_dtc_init_is_idempotent);
+    RUN_TEST(test_isotp_user_get_us_calls_timer);
+    RUN_TEST(test_isotp_user_send_can_null_handle);
+    RUN_TEST(test_isotp_user_send_can_valid_handle);
+    RUN_TEST(test_dtc_feed_frame_skips_when_not_ready);
+    RUN_TEST(test_dtc_feed_frame_filters_non_obd_ids);
+    RUN_TEST(test_dtc_feed_frame_feeds_obd_ids_when_ready);
+    RUN_TEST(test_dtc_request_now_not_ready);
+    RUN_TEST(test_dtc_request_now_waiting);
+    RUN_TEST(test_dtc_request_now_succeeds);
 
     return UNITY_END();
 }

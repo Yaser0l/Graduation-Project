@@ -8,6 +8,7 @@ static int32_t s_twai_new_node_ret = 0;
 static int32_t s_twai_register_ret = 0;
 static int32_t s_twai_enable_ret = 0;
 static int32_t s_twai_receive_ret = 0;
+static int s_receive_ok_remaining = -1;
 
 static int s_new_node_calls = 0;
 static int s_register_calls = 0;
@@ -28,6 +29,7 @@ void twai_stub_reset(void) {
     s_twai_register_ret = 0;
     s_twai_enable_ret = 0;
     s_twai_receive_ret = 0;
+    s_receive_ok_remaining = -1;
     s_new_node_calls = 0;
     s_register_calls = 0;
     s_enable_calls = 0;
@@ -40,6 +42,8 @@ void twai_stub_reset(void) {
     memset(s_next_frame_data, 0, sizeof(s_next_frame_data));
     s_next_frame_len = 0;
 }
+
+void twai_stub_set_receive_ok_limit(int limit) { s_receive_ok_remaining = limit; }
 
 void twai_stub_set_results(int32_t new_node_ret, int32_t register_ret,
                            int32_t enable_ret, int32_t receive_ret) {
@@ -98,8 +102,14 @@ esp_err_t twai_node_enable(twai_node_handle_t handle) {
 
 esp_err_t twai_node_receive_from_isr(twai_node_handle_t handle, twai_frame_t* frame) {
     (void)handle;
-    s_receive_calls++;
+    if (s_receive_ok_remaining == 0) {
+        return ESP_FAIL;
+    }
+    if (s_receive_ok_remaining > 0) {
+        s_receive_ok_remaining--;
+    }
     if (s_twai_receive_ret == 0) {
+        s_receive_calls++;
         frame->header.id = s_next_frame_id;
         frame->header.dlc = s_next_frame_len;
         memcpy(frame->buffer, s_next_frame_data, s_next_frame_len > 8 ? 8 : s_next_frame_len);

@@ -13,3 +13,4 @@ int twai_stub_get_register_calls(void);
 int twai_stub_get_enable_calls(void);
 int twai_stub_get_receive_calls(void);
 int twai_stub_get_transmit_calls(void);
+void twai_stub_set_receive_ok_limit(int limit);
