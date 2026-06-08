@@ -2,9 +2,12 @@
 
 #include "unity.h"
 
-#include "esp_isotp.h"
+#include "isotp.h"
+#include "esp_isotp_stubs.h"
 #include "esp_timer.h"
+#include "esp_timer_stubs.h"
 #include "local_mqtt.h"
+#include "local_mqtt_stubs.h"
 #include "esp_twai_types.h"
 
 static twai_node_handle_t s_can_handle = (twai_node_handle_t)1;
@@ -14,11 +17,16 @@ twai_node_handle_t canmodule_get_twai_handle(void)
     return s_can_handle;
 }
 
+void canmodule_set_isotp_priority(bool enable)
+{
+    (void)enable;
+}
+
 #include "dtc_reporter.c"
 
 static void dtc_test_reset(void)
 {
-    s_isotp = NULL;
+    memset(&s_isotp_link, 0, sizeof(s_isotp_link));
     s_ready = false;
     s_dtc_count = 0;
     memset(s_dtc_codes, 0, sizeof(s_dtc_codes));

@@ -222,6 +222,20 @@ static void dtc_handle_uds_response(const uint8_t *data, uint32_t len) {
   }
 }
 
+static void dtc_send_requests(void) {
+  uint8_t obd_dtc[] = {OBD_SERVICE_DTC};
+  isotp_send(&s_isotp_link, obd_dtc, sizeof(obd_dtc));
+
+  uint8_t uds_dtc[] = {UDS_SERVICE_READ_DTC, UDS_SUBFUNC_REPORT_BY_STATUS, 0xFF};
+  isotp_send(&s_isotp_link, uds_dtc, sizeof(uds_dtc));
+
+  uint8_t odo[] = {OBD_SERVICE_CURRENT_DATA, OBD_PID_ODOMETER};
+  isotp_send(&s_isotp_link, odo, sizeof(odo));
+
+  uint8_t vin[] = {OBD_SERVICE_VEHICLE_INFO, OBD_PID_VIN};
+  isotp_send(&s_isotp_link, vin, sizeof(vin));
+}
+
 static void dtc_check_receive(void) {
   uint8_t rx_buffer[DTC_RX_BUFFER_SIZE];
   uint32_t received_size = 0;
@@ -452,11 +466,17 @@ esp_err_t dtc_reporter_init(void) {
   if (s_ready)
     return ESP_OK;
 
-  // Note: We no longer need to grab the TWAI handle here, we just init the
-  // ISO-TP memory
+  if (canmodule_get_twai_handle() == NULL) {
+    return ESP_ERR_INVALID_STATE;
+  }
+
   isotp_init_link(&s_isotp_link, OBD_FUNCTIONAL_REQ_ID, s_isotp_tx_buf,
                   sizeof(s_isotp_tx_buf), s_isotp_rx_buf,
                   sizeof(s_isotp_rx_buf));
+
+  if (s_isotp_link.receive_buffer == NULL) {
+    return ESP_FAIL;
+  }
 
   s_isotp_link.receive_arbitration_id = OBD_RESP_ID_MIN;
 

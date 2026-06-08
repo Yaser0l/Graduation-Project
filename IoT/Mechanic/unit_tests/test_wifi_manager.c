@@ -4,9 +4,14 @@
 
 #include "driver/gpio.h"
 #include "esp_event.h"
+#include "esp_event_stubs.h"
 #include "esp_wifi.h"
+#include "esp_wifi_stubs.h"
 #include "freertos/event_groups.h"
+#include "event_groups_stubs.h"
+#include "gpio_stubs.h"
 #include "nvs.h"
+#include "nvs_stubs.h"
 
 #include "wifi_store.h"
 

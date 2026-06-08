@@ -3,6 +3,7 @@
 #include "unity.h"
 
 #include "nvs.h"
+#include "nvs_stubs.h"
 
 #include "wifi_store.h"
 
