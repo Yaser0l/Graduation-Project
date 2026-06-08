@@ -3,6 +3,7 @@
 #include "unity.h"
 
 #include "nvs.h"
+#include "nvs_stubs.h"
 
 #include "wifi_store.h"
 
@@ -166,6 +167,28 @@ void test_wifi_store_clear(void)
     TEST_ASSERT_EQUAL_STRING("", store.entries[0].ssid);
 }
 
+void test_wifi_store_find_index_null_params(void)
+{
+    saved_ap_store_t store = {0};
+    uint8_t idx = 0;
+    TEST_ASSERT_FALSE(wifi_store_find_index(NULL, "ssid", &idx));
+    TEST_ASSERT_FALSE(wifi_store_find_index(&store, NULL, &idx));
+}
+
+void test_wifi_store_add_or_update_null_params(void)
+{
+    saved_ap_store_t store = {0};
+    TEST_ASSERT_FALSE(wifi_store_add_or_update(NULL, "ssid", "pass", NULL));
+    TEST_ASSERT_FALSE(wifi_store_add_or_update(&store, NULL, "pass", NULL));
+    TEST_ASSERT_FALSE(wifi_store_add_or_update(&store, "ssid", NULL, NULL));
+}
+
+void test_wifi_store_clear_null(void)
+{
+    wifi_store_clear(NULL);
+    TEST_ASSERT_TRUE(true);
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -185,6 +208,9 @@ int main(void)
     RUN_TEST(test_wifi_store_add_or_update_updates_existing);
     RUN_TEST(test_wifi_store_add_or_update_rejects_full);
     RUN_TEST(test_wifi_store_clear);
+    RUN_TEST(test_wifi_store_find_index_null_params);
+    RUN_TEST(test_wifi_store_add_or_update_null_params);
+    RUN_TEST(test_wifi_store_clear_null);
 
     return UNITY_END();
 }

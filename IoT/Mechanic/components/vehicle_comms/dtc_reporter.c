@@ -222,6 +222,20 @@ static void dtc_handle_uds_response(const uint8_t *data, uint32_t len) {
   }
 }
 
+static void dtc_send_requests(void) {
+  uint8_t obd_dtc[] = {OBD_SERVICE_DTC};
+  isotp_send(&s_isotp_link, obd_dtc, sizeof(obd_dtc));
+
+  uint8_t uds_dtc[] = {UDS_SERVICE_READ_DTC, UDS_SUBFUNC_REPORT_BY_STATUS, 0xFF};
+  isotp_send(&s_isotp_link, uds_dtc, sizeof(uds_dtc));
+
+  uint8_t odo[] = {OBD_SERVICE_CURRENT_DATA, OBD_PID_ODOMETER};
+  isotp_send(&s_isotp_link, odo, sizeof(odo));
+
+  uint8_t vin[] = {OBD_SERVICE_VEHICLE_INFO, OBD_PID_VIN};
+  isotp_send(&s_isotp_link, vin, sizeof(vin));
+}
+
 static void dtc_check_receive(void) {
   uint8_t rx_buffer[DTC_RX_BUFFER_SIZE];
   uint32_t received_size = 0;
@@ -312,138 +326,140 @@ static void dtc_publish(void) {
   ESP_LOGW(TAG, "Failed to publish DTC payload: %s", esp_err_to_name(err));
 }
 
+// A simple state machine to prevent sending requests simultaneously
+enum { REQ_IDLE, REQ_OBD, REQ_UDS, REQ_ODO, REQ_VIN };
+static int s_req_state = REQ_IDLE;
+
+static void dtc_reporter_task_step(void) {
+  if (!s_ready) {
+    return;
+  }
+
+  isotp_poll(&s_isotp_link);
+  uint64_t now = esp_timer_get_time();
+
+  bool should_start = s_force_request;
+  if (!should_start && (now - s_last_request_us) >= DTC_POLL_INTERVAL_US) {
+    should_start = true;
+  }
+
+  // Check if it's time to start a new sequence
+  if (s_req_state == REQ_IDLE && should_start) {
+    dtc_reset_list();
+    s_obd_received = false;
+    s_uds_received = false;
+    s_odo_received = false;
+    s_vin_received = false;
+    s_req_in_flight = false;
+    s_req_sent_us = 0;
+    s_req_state = REQ_OBD;
+    s_last_request_us = now;
+    s_request_start_us = now;
+    s_waiting_for_response = true;
+    s_force_request = false;
+    canmodule_set_isotp_priority(true);
+    ESP_LOGI(TAG, "Starting DTC scan");
+  }
+
+  if (s_waiting_for_response) {
+    dtc_check_receive();
+
+    if ((now - s_request_start_us) >= DTC_RESPONSE_WINDOW_US) {
+      ESP_LOGW(TAG, "DTC scan timed out");
+      dtc_publish();
+      canmodule_set_isotp_priority(false);
+      s_waiting_for_response = false;
+      s_req_state = REQ_IDLE;
+      return;
+    }
+
+    if (s_req_state != REQ_IDLE) {
+      if (!s_req_in_flight &&
+          s_isotp_link.send_status == ISOTP_SEND_STATUS_IDLE) {
+        if (s_req_state == REQ_OBD) {
+          uint8_t req[] = {OBD_SERVICE_DTC};
+          if (isotp_send(&s_isotp_link, req, sizeof(req)) != ISOTP_RET_OK) {
+            ESP_LOGW(TAG, "Failed to send OBD DTC request");
+          } else {
+            ESP_LOGI(TAG, "Sent OBD DTC request");
+          }
+        } else if (s_req_state == REQ_UDS) {
+          uint8_t req[] = {UDS_SERVICE_READ_DTC, UDS_SUBFUNC_REPORT_BY_STATUS,
+                            0xFF};
+          if (isotp_send(&s_isotp_link, req, sizeof(req)) != ISOTP_RET_OK) {
+            ESP_LOGW(TAG, "Failed to send UDS DTC request");
+          } else {
+            ESP_LOGI(TAG, "Sent UDS DTC request");
+          }
+        } else if (s_req_state == REQ_ODO) {
+          uint8_t req[] = {OBD_SERVICE_CURRENT_DATA, OBD_PID_ODOMETER};
+          if (isotp_send(&s_isotp_link, req, sizeof(req)) != ISOTP_RET_OK) {
+            ESP_LOGW(TAG, "Failed to send odometer request");
+          } else {
+            ESP_LOGI(TAG, "Sent odometer request");
+          }
+        } else if (s_req_state == REQ_VIN) {
+          uint8_t req[] = {OBD_SERVICE_VEHICLE_INFO, OBD_PID_VIN};
+          if (isotp_send(&s_isotp_link, req, sizeof(req)) != ISOTP_RET_OK) {
+            ESP_LOGW(TAG, "Failed to send VIN request");
+          } else {
+            ESP_LOGI(TAG, "Sent VIN request");
+          }
+        }
+
+        s_req_in_flight = true;
+        s_req_sent_us = now;
+      }
+
+      bool advance = false;
+      if (s_req_state == REQ_OBD && s_obd_received) {
+        advance = true;
+      } else if (s_req_state == REQ_UDS && s_uds_received) {
+        advance = true;
+      } else if (s_req_state == REQ_ODO && s_odo_received) {
+        advance = true;
+      } else if (s_req_state == REQ_VIN && s_vin_received) {
+        advance = true;
+      }
+
+      if (!advance && s_req_in_flight &&
+          (now - s_req_sent_us) >= DTC_SINGLE_RESPONSE_TIMEOUT_US) {
+        if (s_req_state == REQ_OBD) {
+          ESP_LOGW(TAG, "Timeout waiting for OBD DTC response");
+        } else if (s_req_state == REQ_UDS) {
+          ESP_LOGW(TAG, "Timeout waiting for UDS DTC response");
+        } else if (s_req_state == REQ_ODO) {
+          ESP_LOGW(TAG, "Timeout waiting for odometer response");
+        } else if (s_req_state == REQ_VIN) {
+          ESP_LOGW(TAG, "Timeout waiting for VIN response");
+        }
+        advance = true;
+      }
+
+      if (advance) {
+        s_req_in_flight = false;
+        if (s_req_state == REQ_OBD) {
+          s_req_state = REQ_UDS;
+        } else if (s_req_state == REQ_UDS) {
+          s_req_state = REQ_ODO;
+        } else if (s_req_state == REQ_ODO) {
+          s_req_state = REQ_VIN;
+        } else if (s_req_state == REQ_VIN) {
+          dtc_publish();
+          canmodule_set_isotp_priority(false);
+          s_waiting_for_response = false;
+          s_req_state = REQ_IDLE;
+        }
+      }
+    }
+  }
+}
+
 static void dtc_reporter_task(void *arg) {
   (void)arg;
 
-  // A simple state machine to prevent sending requests simultaneously
-  enum { REQ_IDLE, REQ_OBD, REQ_UDS, REQ_ODO, REQ_VIN } req_state = REQ_IDLE;
-
   while (true) {
-    if (!s_ready) {
-      vTaskDelay(pdMS_TO_TICKS(DTC_POLL_PERIOD_MS));
-      continue;
-    }
-
-    isotp_poll(&s_isotp_link);
-    uint64_t now = esp_timer_get_time();
-
-    bool should_start = s_force_request;
-    if (!should_start && (now - s_last_request_us) >= DTC_POLL_INTERVAL_US) {
-      should_start = true;
-    }
-
-    // Check if it's time to start a new sequence
-    if (req_state == REQ_IDLE && should_start) {
-      dtc_reset_list();
-      s_obd_received = false;
-      s_uds_received = false;
-      s_odo_received = false;
-      s_vin_received = false;
-      s_req_in_flight = false;
-      s_req_sent_us = 0;
-      req_state = REQ_OBD;
-      s_last_request_us = now;
-      s_request_start_us = now;
-      s_waiting_for_response = true;
-      s_force_request = false;
-      canmodule_set_isotp_priority(true);
-      ESP_LOGI(TAG, "Starting DTC scan");
-    }
-
-    if (s_waiting_for_response) {
-      dtc_check_receive();
-
-      if ((now - s_request_start_us) >= DTC_RESPONSE_WINDOW_US) {
-        ESP_LOGW(TAG, "DTC scan timed out");
-        dtc_publish();
-        canmodule_set_isotp_priority(false);
-        s_waiting_for_response = false;
-        req_state = REQ_IDLE;
-        vTaskDelay(pdMS_TO_TICKS(DTC_POLL_PERIOD_MS));
-        continue;
-      }
-
-      if (req_state != REQ_IDLE) {
-        if (!s_req_in_flight &&
-            s_isotp_link.send_status == ISOTP_SEND_STATUS_IDLE) {
-          if (req_state == REQ_OBD) {
-            uint8_t req[] = {OBD_SERVICE_DTC};
-            if (isotp_send(&s_isotp_link, req, sizeof(req)) != ISOTP_RET_OK) {
-              ESP_LOGW(TAG, "Failed to send OBD DTC request");
-            } else {
-              ESP_LOGI(TAG, "Sent OBD DTC request");
-            }
-          } else if (req_state == REQ_UDS) {
-            uint8_t req[] = {UDS_SERVICE_READ_DTC, UDS_SUBFUNC_REPORT_BY_STATUS,
-                             0xFF};
-            if (isotp_send(&s_isotp_link, req, sizeof(req)) != ISOTP_RET_OK) {
-              ESP_LOGW(TAG, "Failed to send UDS DTC request");
-            } else {
-              ESP_LOGI(TAG, "Sent UDS DTC request");
-            }
-          } else if (req_state == REQ_ODO) {
-            uint8_t req[] = {OBD_SERVICE_CURRENT_DATA, OBD_PID_ODOMETER};
-            if (isotp_send(&s_isotp_link, req, sizeof(req)) != ISOTP_RET_OK) {
-              ESP_LOGW(TAG, "Failed to send odometer request");
-            } else {
-              ESP_LOGI(TAG, "Sent odometer request");
-            }
-          } else if (req_state == REQ_VIN) {
-            uint8_t req[] = {OBD_SERVICE_VEHICLE_INFO, OBD_PID_VIN};
-            if (isotp_send(&s_isotp_link, req, sizeof(req)) != ISOTP_RET_OK) {
-              ESP_LOGW(TAG, "Failed to send VIN request");
-            } else {
-              ESP_LOGI(TAG, "Sent VIN request");
-            }
-          }
-
-          s_req_in_flight = true;
-          s_req_sent_us = now;
-        }
-
-        bool advance = false;
-        if (req_state == REQ_OBD && s_obd_received) {
-          advance = true;
-        } else if (req_state == REQ_UDS && s_uds_received) {
-          advance = true;
-        } else if (req_state == REQ_ODO && s_odo_received) {
-          advance = true;
-        } else if (req_state == REQ_VIN && s_vin_received) {
-          advance = true;
-        }
-
-        if (!advance && s_req_in_flight &&
-            (now - s_req_sent_us) >= DTC_SINGLE_RESPONSE_TIMEOUT_US) {
-          if (req_state == REQ_OBD) {
-            ESP_LOGW(TAG, "Timeout waiting for OBD DTC response");
-          } else if (req_state == REQ_UDS) {
-            ESP_LOGW(TAG, "Timeout waiting for UDS DTC response");
-          } else if (req_state == REQ_ODO) {
-            ESP_LOGW(TAG, "Timeout waiting for odometer response");
-          } else if (req_state == REQ_VIN) {
-            ESP_LOGW(TAG, "Timeout waiting for VIN response");
-          }
-          advance = true;
-        }
-
-        if (advance) {
-          s_req_in_flight = false;
-          if (req_state == REQ_OBD) {
-            req_state = REQ_UDS;
-          } else if (req_state == REQ_UDS) {
-            req_state = REQ_ODO;
-          } else if (req_state == REQ_ODO) {
-            req_state = REQ_VIN;
-          } else if (req_state == REQ_VIN) {
-            dtc_publish();
-            canmodule_set_isotp_priority(false);
-            s_waiting_for_response = false;
-            req_state = REQ_IDLE;
-          }
-        }
-      }
-    }
-
+    dtc_reporter_task_step();
     vTaskDelay(pdMS_TO_TICKS(DTC_POLL_PERIOD_MS));
   }
 }
@@ -452,11 +468,17 @@ esp_err_t dtc_reporter_init(void) {
   if (s_ready)
     return ESP_OK;
 
-  // Note: We no longer need to grab the TWAI handle here, we just init the
-  // ISO-TP memory
+  if (canmodule_get_twai_handle() == NULL) {
+    return ESP_ERR_INVALID_STATE;
+  }
+
   isotp_init_link(&s_isotp_link, OBD_FUNCTIONAL_REQ_ID, s_isotp_tx_buf,
                   sizeof(s_isotp_tx_buf), s_isotp_rx_buf,
                   sizeof(s_isotp_rx_buf));
+
+  if (s_isotp_link.receive_buffer == NULL) {
+    return ESP_FAIL;
+  }
 
   s_isotp_link.receive_arbitration_id = OBD_RESP_ID_MIN;
 

@@ -2,11 +2,16 @@
 
 #include "unity.h"
 
+#include "esp_event.h"
+#include "esp_event_stubs.h"
 #include "esp_random.h"
+#include "esp_random_stubs.h"
 #include "esp_timer.h"
+#include "esp_timer_stubs.h"
 #include "mqtt_client.h"
 #include "network_events.h"
 #include "nvs.h"
+#include "nvs_stubs.h"
 
 #include "canmodule.h"
 
@@ -273,7 +278,7 @@ void test_mqtt_publish_dtc_publishes_topic_and_payload(void) {
 
   TEST_ASSERT_EQUAL(ESP_OK, mqtt_module_publish_dtc("VIN123", "payload"));
 
-  TEST_ASSERT_EQUAL_INT(2, mqtt_client_stub_get_publish_calls());
+  TEST_ASSERT_EQUAL_INT(4, mqtt_client_stub_get_publish_calls());
   TEST_ASSERT_NOT_NULL(strstr(mqtt_client_stub_get_last_topic(), "/DTC"));
   TEST_ASSERT_NOT_NULL(strstr(mqtt_client_stub_get_last_topic(), "VIN123"));
   TEST_ASSERT_EQUAL_STRING("payload", mqtt_client_stub_get_last_payload());

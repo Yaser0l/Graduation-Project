@@ -2,10 +2,14 @@
 
 #include "unity.h"
 
-#include "esp_isotp.h"
+#include "isotp.h"
+#include "esp_isotp_stubs.h"
 #include "esp_timer.h"
+#include "esp_timer_stubs.h"
 #include "local_mqtt.h"
+#include "local_mqtt_stubs.h"
 #include "esp_twai_types.h"
+#include "esp_twai_stubs.h"
 
 static twai_node_handle_t s_can_handle = (twai_node_handle_t)1;
 
@@ -14,11 +18,16 @@ twai_node_handle_t canmodule_get_twai_handle(void)
     return s_can_handle;
 }
 
+void canmodule_set_isotp_priority(bool enable)
+{
+    (void)enable;
+}
+
 #include "dtc_reporter.c"
 
 static void dtc_test_reset(void)
 {
-    s_isotp = NULL;
+    memset(&s_isotp_link, 0, sizeof(s_isotp_link));
     s_ready = false;
     s_dtc_count = 0;
     memset(s_dtc_codes, 0, sizeof(s_dtc_codes));
@@ -27,6 +36,14 @@ static void dtc_test_reset(void)
     s_last_request_us = 0;
     s_request_start_us = 0;
     s_waiting_for_response = false;
+    s_force_request = false;
+    s_req_state = REQ_IDLE;
+    s_req_in_flight = false;
+    s_req_sent_us = 0;
+    s_obd_received = false;
+    s_uds_received = false;
+    s_odo_received = false;
+    s_vin_received = false;
     s_can_handle = (twai_node_handle_t)1;
     isotp_stub_reset();
     mqtt_stub_reset();
@@ -264,6 +281,287 @@ void test_dtc_init_is_idempotent(void)
     TEST_ASSERT_EQUAL(ESP_OK, dtc_reporter_init());
 }
 
+void test_isotp_user_get_us_calls_timer(void)
+{
+    esp_timer_stub_set_time(1234567);
+    TEST_ASSERT_EQUAL_UINT32(1234567, isotp_user_get_us());
+}
+
+void test_isotp_user_send_can_null_handle(void)
+{
+    s_can_handle = NULL;
+    uint8_t data[] = {0x01, 0x02};
+    int ret = isotp_user_send_can(0x7E8, data, sizeof(data));
+    TEST_ASSERT_EQUAL(ISOTP_RET_ERROR, ret);
+}
+
+void test_isotp_user_send_can_valid_handle(void)
+{
+    s_can_handle = (twai_node_handle_t)1;
+    uint8_t data[] = {0x01, 0x02};
+    int tx_before = twai_stub_get_transmit_calls();
+    int ret = isotp_user_send_can(0x7E8, data, sizeof(data));
+    TEST_ASSERT_EQUAL(ISOTP_RET_OK, ret);
+    TEST_ASSERT_GREATER_THAN_INT(tx_before, twai_stub_get_transmit_calls());
+}
+
+void test_dtc_feed_frame_skips_when_not_ready(void)
+{
+    uint8_t data[] = {0x43, 0x01, 0x23};
+    dtc_reporter_feed_frame(0x7E8, data, sizeof(data));
+    TEST_ASSERT_EQUAL_INT(0, isotp_stub_get_on_can_message_calls());
+}
+
+void test_dtc_feed_frame_filters_non_obd_ids(void)
+{
+    s_ready = true;
+    uint8_t data[] = {0x43, 0x01, 0x23};
+    dtc_reporter_feed_frame(0x100, data, sizeof(data));
+    TEST_ASSERT_EQUAL_INT(0, isotp_stub_get_on_can_message_calls());
+}
+
+void test_dtc_feed_frame_feeds_obd_ids_when_ready(void)
+{
+    s_ready = true;
+    uint8_t data[] = {0x43, 0x01, 0x23};
+    dtc_reporter_feed_frame(0x7E8, data, sizeof(data));
+    TEST_ASSERT_EQUAL_INT(1, isotp_stub_get_on_can_message_calls());
+}
+
+void test_dtc_request_now_not_ready(void)
+{
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_STATE, dtc_reporter_request_now());
+    TEST_ASSERT_FALSE(s_force_request);
+}
+
+void test_dtc_request_now_waiting(void)
+{
+    s_ready = true;
+    s_waiting_for_response = true;
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_STATE, dtc_reporter_request_now());
+    TEST_ASSERT_FALSE(s_force_request);
+}
+
+void test_dtc_request_now_succeeds(void)
+{
+    s_ready = true;
+    TEST_ASSERT_EQUAL(ESP_OK, dtc_reporter_request_now());
+    TEST_ASSERT_TRUE(s_force_request);
+}
+
+void test_dtc_handle_obd_pid_null_or_short(void)
+{
+    uint8_t short_data[] = {0x41};
+    dtc_handle_obd_pid_response(NULL, 5);
+    dtc_handle_obd_pid_response(short_data, sizeof(short_data));
+
+    uint32_t saved = s_mileage;
+    TEST_ASSERT_EQUAL_UINT32(0, saved);
+}
+
+void test_dtc_check_receive_breaks_on_empty(void)
+{
+    isotp_stub_set_next_receive_empty();
+    int before = isotp_stub_get_receive_calls();
+    dtc_check_receive();
+    TEST_ASSERT_GREATER_THAN_INT(before, isotp_stub_get_receive_calls());
+}
+
+void test_dtc_task_step_skips_when_not_ready(void)
+{
+    dtc_reporter_task_step();
+    TEST_ASSERT_EQUAL(REQ_IDLE, s_req_state);
+    TEST_ASSERT_FALSE(s_waiting_for_response);
+}
+
+void test_dtc_task_step_starts_scan_on_force_request(void)
+{
+    s_ready = true;
+    s_force_request = true;
+    s_req_state = REQ_IDLE;
+
+    dtc_reporter_task_step();
+
+    TEST_ASSERT_EQUAL(REQ_OBD, s_req_state);
+    TEST_ASSERT_TRUE(s_waiting_for_response);
+    TEST_ASSERT_FALSE(s_force_request);
+}
+
+void test_dtc_task_step_sends_obd_request(void)
+{
+    s_ready = true;
+    s_req_state = REQ_OBD;
+    s_waiting_for_response = true;
+    s_isotp_link.send_status = ISOTP_SEND_STATUS_IDLE;
+
+    dtc_reporter_task_step();
+
+    TEST_ASSERT_TRUE(s_req_in_flight);
+    TEST_ASSERT_GREATER_THAN_INT(0, isotp_stub_get_send_calls());
+}
+
+void test_dtc_task_step_timeout_advances_to_uds(void)
+{
+    s_ready = true;
+    s_req_state = REQ_OBD;
+    s_waiting_for_response = true;
+    s_req_in_flight = true;
+    s_req_sent_us = 0;
+    esp_timer_stub_set_time(DTC_SINGLE_RESPONSE_TIMEOUT_US + 1);
+
+    dtc_reporter_task_step();
+
+    TEST_ASSERT_EQUAL(REQ_UDS, s_req_state);
+    TEST_ASSERT_FALSE(s_req_in_flight);
+}
+
+void test_dtc_task_step_response_advances_to_odo(void)
+{
+    s_ready = true;
+    s_req_state = REQ_UDS;
+    s_waiting_for_response = true;
+    s_uds_received = true;
+
+    dtc_reporter_task_step();
+
+    TEST_ASSERT_EQUAL(REQ_ODO, s_req_state);
+    TEST_ASSERT_FALSE(s_req_in_flight);
+}
+
+void test_dtc_task_step_vin_completion_publishes(void)
+{
+    s_ready = true;
+    s_req_state = REQ_VIN;
+    s_waiting_for_response = true;
+    s_vin_received = true;
+    dtc_add_code("P0001");
+
+    dtc_reporter_task_step();
+
+    TEST_ASSERT_EQUAL(REQ_IDLE, s_req_state);
+    TEST_ASSERT_FALSE(s_waiting_for_response);
+    TEST_ASSERT_EQUAL_INT(1, mqtt_stub_get_publish_calls());
+}
+
+void test_dtc_task_step_response_window_timeout_publishes(void)
+{
+    s_ready = true;
+    s_req_state = REQ_OBD;
+    s_waiting_for_response = true;
+    s_request_start_us = 0;
+    dtc_add_code("P0001");
+    esp_timer_stub_set_time(DTC_RESPONSE_WINDOW_US);
+
+    dtc_reporter_task_step();
+
+    TEST_ASSERT_EQUAL(REQ_IDLE, s_req_state);
+    TEST_ASSERT_FALSE(s_waiting_for_response);
+    TEST_ASSERT_EQUAL_INT(1, mqtt_stub_get_publish_calls());
+}
+
+void test_dtc_task_step_starts_scan_on_time(void)
+{
+    s_ready = true;
+    s_req_state = REQ_IDLE;
+    s_last_request_us = 0;
+    esp_timer_stub_set_time(DTC_POLL_INTERVAL_US);
+
+    dtc_reporter_task_step();
+
+    TEST_ASSERT_EQUAL(REQ_OBD, s_req_state);
+    TEST_ASSERT_TRUE(s_waiting_for_response);
+}
+
+void test_dtc_task_step_obd_response_advances_to_uds(void)
+{
+    s_ready = true;
+    s_req_state = REQ_OBD;
+    s_waiting_for_response = true;
+    s_obd_received = true;
+
+    dtc_reporter_task_step();
+
+    TEST_ASSERT_EQUAL(REQ_UDS, s_req_state);
+    TEST_ASSERT_FALSE(s_req_in_flight);
+}
+
+void test_dtc_task_step_odo_response_advances_to_vin(void)
+{
+    s_ready = true;
+    s_req_state = REQ_ODO;
+    s_waiting_for_response = true;
+    s_odo_received = true;
+
+    dtc_reporter_task_step();
+
+    TEST_ASSERT_EQUAL(REQ_VIN, s_req_state);
+    TEST_ASSERT_FALSE(s_req_in_flight);
+}
+
+void test_dtc_task_step_sends_odo_and_vin_requests(void)
+{
+    s_ready = true;
+    s_isotp_link.send_status = ISOTP_SEND_STATUS_IDLE;
+
+    s_req_state = REQ_ODO;
+    s_waiting_for_response = true;
+    dtc_reporter_task_step();
+    TEST_ASSERT_TRUE(s_req_in_flight);
+
+    s_req_in_flight = false;
+    s_isotp_link.send_status = ISOTP_SEND_STATUS_IDLE;
+    s_req_state = REQ_VIN;
+    dtc_reporter_task_step();
+    TEST_ASSERT_TRUE(s_req_in_flight);
+}
+
+void test_dtc_task_step_timeout_uds_odo_vin(void)
+{
+    s_ready = true;
+    s_waiting_for_response = true;
+    esp_timer_stub_set_time(DTC_SINGLE_RESPONSE_TIMEOUT_US + 1);
+
+    s_req_state = REQ_UDS;
+    s_req_in_flight = true;
+    s_req_sent_us = 0;
+    dtc_reporter_task_step();
+    TEST_ASSERT_EQUAL(REQ_ODO, s_req_state);
+
+    s_req_state = REQ_ODO;
+    s_req_in_flight = true;
+    s_req_sent_us = 0;
+    dtc_reporter_task_step();
+    TEST_ASSERT_EQUAL(REQ_VIN, s_req_state);
+}
+
+void test_dtc_task_step_vin_timeout_publishes(void)
+{
+    s_ready = true;
+    s_req_state = REQ_VIN;
+    s_waiting_for_response = true;
+    s_req_in_flight = true;
+    s_req_sent_us = 0;
+    dtc_add_code("P0001");
+    esp_timer_stub_set_time(DTC_SINGLE_RESPONSE_TIMEOUT_US + 1);
+
+    dtc_reporter_task_step();
+
+    TEST_ASSERT_EQUAL(REQ_IDLE, s_req_state);
+    TEST_ASSERT_FALSE(s_waiting_for_response);
+    TEST_ASSERT_EQUAL_INT(1, mqtt_stub_get_publish_calls());
+}
+
+void test_dtc_publish_non_retryable_failure(void)
+{
+    strncpy(s_vin, "VIN1", sizeof(s_vin) - 1);
+    dtc_add_code("P0123");
+    mqtt_stub_set_publish_result(ESP_FAIL);
+
+    dtc_publish();
+
+    TEST_ASSERT_EQUAL_INT(1, mqtt_stub_get_publish_calls());
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -285,6 +583,31 @@ int main(void)
     RUN_TEST(test_dtc_init_requires_can_handle);
     RUN_TEST(test_dtc_init_propagates_isotp_error);
     RUN_TEST(test_dtc_init_is_idempotent);
+    RUN_TEST(test_isotp_user_get_us_calls_timer);
+    RUN_TEST(test_isotp_user_send_can_null_handle);
+    RUN_TEST(test_isotp_user_send_can_valid_handle);
+    RUN_TEST(test_dtc_feed_frame_skips_when_not_ready);
+    RUN_TEST(test_dtc_feed_frame_filters_non_obd_ids);
+    RUN_TEST(test_dtc_feed_frame_feeds_obd_ids_when_ready);
+    RUN_TEST(test_dtc_request_now_not_ready);
+    RUN_TEST(test_dtc_request_now_waiting);
+    RUN_TEST(test_dtc_request_now_succeeds);
+    RUN_TEST(test_dtc_handle_obd_pid_null_or_short);
+    RUN_TEST(test_dtc_check_receive_breaks_on_empty);
+    RUN_TEST(test_dtc_task_step_skips_when_not_ready);
+    RUN_TEST(test_dtc_task_step_starts_scan_on_force_request);
+    RUN_TEST(test_dtc_task_step_sends_obd_request);
+    RUN_TEST(test_dtc_task_step_timeout_advances_to_uds);
+    RUN_TEST(test_dtc_task_step_response_advances_to_odo);
+    RUN_TEST(test_dtc_task_step_vin_completion_publishes);
+    RUN_TEST(test_dtc_task_step_response_window_timeout_publishes);
+    RUN_TEST(test_dtc_task_step_starts_scan_on_time);
+    RUN_TEST(test_dtc_task_step_obd_response_advances_to_uds);
+    RUN_TEST(test_dtc_task_step_odo_response_advances_to_vin);
+    RUN_TEST(test_dtc_task_step_sends_odo_and_vin_requests);
+    RUN_TEST(test_dtc_task_step_timeout_uds_odo_vin);
+    RUN_TEST(test_dtc_task_step_vin_timeout_publishes);
+    RUN_TEST(test_dtc_publish_non_retryable_failure);
 
     return UNITY_END();
 }

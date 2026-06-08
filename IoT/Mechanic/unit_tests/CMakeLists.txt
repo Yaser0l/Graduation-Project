@@ -27,38 +27,49 @@ endif()
 
 enable_testing()
 
-
+# ===== test_canmodule =====
 add_executable(test_canmodule
     ${CMAKE_CURRENT_LIST_DIR}/test_canmodule.c
     ${CMAKE_CURRENT_LIST_DIR}/stubs/esp_twai_stubs.c
+    ${CMAKE_CURRENT_LIST_DIR}/stubs/esp_timer_stubs.c
+    ${CMAKE_CURRENT_LIST_DIR}/stubs/freertos/task_stubs.c
+    ${CMAKE_CURRENT_LIST_DIR}/stubs/freertos/queue_stubs.c
     ${CMAKE_CURRENT_LIST_DIR}/../components/vehicle_comms/toyota_prius_2010_pt.c
 )
 
 target_include_directories(test_canmodule PRIVATE
-    ${CMAKE_CURRENT_LIST_DIR}/../components/vehicle_comms
     ${CMAKE_CURRENT_LIST_DIR}/stubs
+    ${CMAKE_CURRENT_LIST_DIR}/../components/vehicle_comms
+    ${CMAKE_CURRENT_LIST_DIR}/../components/vehicle_comms/include
 )
 
 target_link_libraries(test_canmodule PRIVATE unity m)
 
 add_test(NAME test_canmodule COMMAND test_canmodule)
 
+# ===== test_dtc_reporter =====
 add_executable(test_dtc_reporter
     ${CMAKE_CURRENT_LIST_DIR}/test_dtc_reporter.c
     ${CMAKE_CURRENT_LIST_DIR}/stubs/esp_isotp_stubs.c
     ${CMAKE_CURRENT_LIST_DIR}/stubs/esp_timer_stubs.c
+    ${CMAKE_CURRENT_LIST_DIR}/stubs/esp_twai_stubs.c
     ${CMAKE_CURRENT_LIST_DIR}/stubs/local_mqtt_stubs.c
+    ${CMAKE_CURRENT_LIST_DIR}/stubs/freertos/task_stubs.c
 )
 
 target_include_directories(test_dtc_reporter PRIVATE
     ${CMAKE_CURRENT_LIST_DIR}/stubs
     ${CMAKE_CURRENT_LIST_DIR}/../components/vehicle_comms
+    ${CMAKE_CURRENT_LIST_DIR}/../components/vehicle_comms/include
+    ${CMAKE_CURRENT_LIST_DIR}/../components/isotp/include
+    ${CMAKE_CURRENT_LIST_DIR}/../components/local_mqtt/include
 )
 
 target_link_libraries(test_dtc_reporter PRIVATE unity)
 
 add_test(NAME test_dtc_reporter COMMAND test_dtc_reporter)
 
+# ===== test_local_mqtt =====
 add_executable(test_local_mqtt
     ${CMAKE_CURRENT_LIST_DIR}/test_local_mqtt.c
     ${CMAKE_CURRENT_LIST_DIR}/stubs/esp_event_stubs.c
@@ -66,19 +77,26 @@ add_executable(test_local_mqtt
     ${CMAKE_CURRENT_LIST_DIR}/stubs/esp_random_stubs.c
     ${CMAKE_CURRENT_LIST_DIR}/stubs/mqtt_client_stubs.c
     ${CMAKE_CURRENT_LIST_DIR}/stubs/nvs_stubs.c
-    ${CMAKE_CURRENT_LIST_DIR}/../components/network/network_events.c
+    ${CMAKE_CURRENT_LIST_DIR}/stubs/freertos/task_stubs.c
+    ${CMAKE_CURRENT_LIST_DIR}/stubs/freertos/semphr_stubs.c
+    ${CMAKE_CURRENT_LIST_DIR}/../components/network_events/network_events.c
 )
 
 target_include_directories(test_local_mqtt PRIVATE
     ${CMAKE_CURRENT_LIST_DIR}/stubs
-    ${CMAKE_CURRENT_LIST_DIR}/../components/network
+    ${CMAKE_CURRENT_LIST_DIR}/../components/network_events
+    ${CMAKE_CURRENT_LIST_DIR}/../components/network_events/include
+    ${CMAKE_CURRENT_LIST_DIR}/../components/local_mqtt
+    ${CMAKE_CURRENT_LIST_DIR}/../components/local_mqtt/include
     ${CMAKE_CURRENT_LIST_DIR}/../components/vehicle_comms
+    ${CMAKE_CURRENT_LIST_DIR}/../components/vehicle_comms/include
 )
 
 target_link_libraries(test_local_mqtt PRIVATE unity)
 
 add_test(NAME test_local_mqtt COMMAND test_local_mqtt)
 
+# ===== test_wifi_store =====
 add_executable(test_wifi_store
     ${CMAKE_CURRENT_LIST_DIR}/test_wifi_store.c
     ${CMAKE_CURRENT_LIST_DIR}/stubs/nvs_stubs.c
@@ -86,13 +104,15 @@ add_executable(test_wifi_store
 
 target_include_directories(test_wifi_store PRIVATE
     ${CMAKE_CURRENT_LIST_DIR}/stubs
-    ${CMAKE_CURRENT_LIST_DIR}/../components/network
+    ${CMAKE_CURRENT_LIST_DIR}/../components/wifi_manager
+    ${CMAKE_CURRENT_LIST_DIR}/../components/wifi_manager/include
 )
 
 target_link_libraries(test_wifi_store PRIVATE unity)
 
 add_test(NAME test_wifi_store COMMAND test_wifi_store)
 
+# ===== test_wifi_manager =====
 add_executable(test_wifi_manager
     ${CMAKE_CURRENT_LIST_DIR}/test_wifi_manager.c
     ${CMAKE_CURRENT_LIST_DIR}/stubs/esp_event_stubs.c
@@ -100,13 +120,17 @@ add_executable(test_wifi_manager
     ${CMAKE_CURRENT_LIST_DIR}/stubs/event_groups_stubs.c
     ${CMAKE_CURRENT_LIST_DIR}/stubs/gpio_stubs.c
     ${CMAKE_CURRENT_LIST_DIR}/stubs/nvs_stubs.c
-    ${CMAKE_CURRENT_LIST_DIR}/../components/network/network_events.c
-    ${CMAKE_CURRENT_LIST_DIR}/../components/network/wifi_store.c
+    ${CMAKE_CURRENT_LIST_DIR}/stubs/freertos/task_stubs.c
+    ${CMAKE_CURRENT_LIST_DIR}/../components/network_events/network_events.c
+    ${CMAKE_CURRENT_LIST_DIR}/../components/wifi_manager/wifi_store.c
 )
 
 target_include_directories(test_wifi_manager PRIVATE
     ${CMAKE_CURRENT_LIST_DIR}/stubs
-    ${CMAKE_CURRENT_LIST_DIR}/../components/network
+    ${CMAKE_CURRENT_LIST_DIR}/../components/wifi_manager
+    ${CMAKE_CURRENT_LIST_DIR}/../components/wifi_manager/include
+    ${CMAKE_CURRENT_LIST_DIR}/../components/network_events
+    ${CMAKE_CURRENT_LIST_DIR}/../components/network_events/include
 )
 
 target_link_libraries(test_wifi_manager PRIVATE unity)
