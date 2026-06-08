@@ -68,7 +68,7 @@ The system features a hierarchical multi-agent workflow with two main orchestrat
 1. **Clone and navigate to the project:**
 
 ```bash
-cd F_Project
+cd Agentic_Workflow
 ```
 
 2. **Install dependencies (uv):**
@@ -194,7 +194,7 @@ Reports are automatically saved to `output/diagnostic_report_{user_id}_{timestam
 ## Project Structure
 
 ```
-F_Project/
+Agentic_Workflow/
 ├── src/
 │   ├── agents/              # Individual agent implementations
 │   │   ├── obd2_writer.py

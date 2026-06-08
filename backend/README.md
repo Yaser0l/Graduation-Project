@@ -15,9 +15,7 @@ FastAPI backend for the CarBrain OBD-2 diagnostics platform. It exposes REST API
 
 ```bash
 cd backend
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+uv sync
 ```
 
 ### 3. Environment
@@ -45,7 +43,7 @@ Tables are created automatically on startup using [app/db/schema.sql](app/db/sch
 ### 5. Run
 
 ```bash
-uvicorn main:app --reload --host 0.0.0.0 --port 5000
+uv run uvicorn main:app --reload --host 0.0.0.0 --port 5000
 ```
 
 The server starts at http://localhost:5000. API docs are at http://localhost:5000/docs.
