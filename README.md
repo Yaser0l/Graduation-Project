@@ -1,79 +1,58 @@
 # Project Setup and Run Instructions
 
-This project consists of three services that need to be run simultaneously in separate terminals.
+This project requires simultaneous execution of multiple services.
 
-## Terminal Prerequisites
+## Prerequisites
 
-- Python 3.x installed
-- Node.js and npm installed
-- Virtual environments set up in `agentic` and `backend` directories
-- docker compose the database and mqtt
-
-## Docker Prerequisets
-
+- Linux OS with `vcan` support
 - Docker installed
-- .env file setup correctly for the agentic workflow to work
+- `.env` file setup correctly for the project to function
 
-## Running the Services
+## Running the Services with Docker Compose
 
-You'll need to either open **three separate terminal windows/tabs** and run each service in its own terminal, or use the Compose file
+Before running the compose file, you must execute the virtual CAN setup script:
 
-### Compose File
+```bash
+./IoT/setupcan0.sh
+```
+
+Then, you can start the services using the Compose file:
 
 ```sh
 source .env
 docker compose up
 ```
 
-### Terminal 1: Agentic Service
+## Production Deployment
 
-```bash
-cd Agentic_workflow
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-python src/api.py
+A production Compose file is provided which uses pre-built DockerHub images. To deploy:
+
+```sh
+source .env
+./IoT/setupcan0.sh
+docker compose -f docker-compose.prod.yml up -d
 ```
 
-### Terminal 2: Backend Service
+## Local Development Requirements
 
-```bash
-cd backend
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-python main.py
-```
+If you wish to develop individual modules locally, you'll need the following package managers:
 
-### Terminal 3: Frontend Service
-
-```bash
-cd frontend
-npm run dev
-```
-
-### Terminal 4: exapmle dtc code
-
-```bash
-$payload = @{
-   vin = "XXXXXXXXXXXXXXXXX"
-   dtc_list = @("P0211")
-   mileage = 98000
-   timestamp = "2026-04-06T12:00:00Z"
- } | ConvertTo-Json -Compress
-
- $payload | docker exec -i carbrain-mqtt mosquitto_pub -h localhost -p 1883 -t vehicle/f/dtc -s
-
-```
+- **uv**: Required for `backend`, `Agentic_Workflow`, and `IoT/car_simulator`
+- **pnpm**: Required for `frontend`
+- **ESP-IDF**: Required for `IoT/Mechanic`
 
 ## Stopping the Services
 
-To stop any service, press `Ctrl+C` in the respective terminal window.
+To stop the services, use `docker compose down` (add `-f docker-compose.prod.yml` if running production) or press `Ctrl+C` in the terminal if running in the foreground.
 
 ## Troubleshooting
 
-- **Virtual environment not found**: Make sure you've created the virtual environment first with `python -m venv venv`
-- **Module not found errors**: Ensure all dependencies are installed with `pip install -r requirements.txt` (for Python services) or `npm install` (for frontend)
+- **Virtual environment not found**: Make sure you've created the virtual environment first using `uv`
+- **Module not found errors**: Ensure all dependencies are installed with `uv` (for Python services) or `pnpm install` (for frontend)
 - **Port already in use**: Check if another instance is already running and stop it first
 
 ## Notes
 
-- All three services must be running for the full application to work properly
-- Keep all terminal windows open while using the application
-- Check each terminal for error messages if something isn't working
+- All services must be running for the full application to work properly.
+- Keep the terminal windows open or run services in detached mode (`-d`).
+- Check your container logs if something isn't working as expected.
