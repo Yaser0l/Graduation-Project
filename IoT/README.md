@@ -5,7 +5,7 @@ This folder contains the IoT modules used to build and test the device. The firm
 ## Modules
 
 - Mechanic/ - ESP-IDF firmware project (CMakeLists, components, main, sdkconfig, unit_tests).
-- car_simulator/ - Python tooling workspace for CAN decoding and experiments (pyproject.toml, main.py).
+- car_simulator/ - Python tooling workspace for CAN decoding, Traffic Simulation, and experiments (pyproject.toml, main.py).
 - cars/ - Vehicle-specific CAN resources (DBC/C/H), currently Toyota Prius 2010.
 
 ## Setup (Firmware)
