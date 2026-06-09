@@ -19,28 +19,30 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
+      - name: Install uv
+        run: python -m pip install uv
       - name: Install dependencies
-        run: |
-          python -m pip install -U pip
-          pip install -r requirements.txt
+        run: uv sync
       - name: Ingest fixtures (fake embeddings)
-        run: |
-          python scripts/ingest_rag_full.py \
-            --fixtures-dir tests/fixtures \
-            --skip-download \
-            --reset \
-            --skip-preflight \
-            --fake-embeddings \
-            --chroma-dir ./data/chroma_ci
+        env:
+          RAG_USE_FAKE_EMBEDDINGS: "1"
+        run: >
+          uv run python scripts/ingest_rag_full.py
+          --fixtures-dir tests/fixtures
+          --skip-download
+          --reset
+          --skip-preflight
+          --fake-embeddings
+          --chroma-dir ./data/chroma_ci
       - name: Run lite benchmark gate
-        run: |
-          python -m benchmarks.run_benchmark \
-            --mode lite \
-            --max-cases 10 \
-            --quiet
         env:
           RAG_USE_FAKE_EMBEDDINGS: "1"
           RAG_RERANK_ENABLED: "0"
           RAG_HYBRID_ENABLED: "0"
           CHROMA_DB_PATH: ./data/chroma_ci
+        run: >
+          uv run python -m benchmarks.run_benchmark
+          --mode lite
+          --max-cases 10
+          --quiet
