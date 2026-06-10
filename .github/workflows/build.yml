@@ -116,5 +116,5 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: ${{ matrix.name == 'agentic_workflow' && format('type=registry,ref={0}/{1}:buildcache', secrets.DOCKER_USERNAME, matrix.image) || format('type=gha,scope={0}', matrix.name) }}
-          cache-to: ${{ matrix.name == 'agentic_workflow' && format('type=registry,ref={0}/{1}:buildcache,mode=max', secrets.DOCKER_USERNAME, matrix.image) || format('type=gha,mode=max,scope={0}', matrix.name) }}
+          cache-from: ${{ (matrix.name == 'agentic_workflow' || matrix.name == 'esp32s3simulator') && format('type=registry,ref={0}/{1}:buildcache', secrets.DOCKER_USERNAME, matrix.image) || format('type=gha,scope={0}', matrix.name) }}
+          cache-to: ${{ (matrix.name == 'agentic_workflow' || matrix.name == 'esp32s3simulator') && format('type=registry,ref={0}/{1}:buildcache,mode=max', secrets.DOCKER_USERNAME, matrix.image) || format('type=gha,mode=max,scope={0}', matrix.name) }}
