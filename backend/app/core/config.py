@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     MQTT_PORT: int = 1883
     MQTT_USER: Optional[str] = None
     MQTT_PASSWORD: Optional[str] = None
-    MQTT_TOPIC_DTC: str = "vehicle/+/dtc"
+    MQTT_TOPIC_DTC: str = "MechanicAI/user1/+/DTC"
     
     # Mailer Settings (Migrating from mailer.js)
     MAIL_HOST: Optional[str] = None

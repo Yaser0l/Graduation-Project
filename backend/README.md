@@ -131,7 +131,7 @@ Server-Sent Events stream. Emits `diagnostic:new` for new reports.
 
 ## MQTT Protocol
 
-The backend subscribes to `MQTT_TOPIC_DTC` (default: `vehicle/+/dtc`).
+The backend subscribes to `MQTT_TOPIC_DTC` (default: `MechanicAI/user1/+/DTC`).
 
 Expected message format (JSON):
 

@@ -53,7 +53,7 @@ services:
       MQTT_PORT: ${MQTT_PORT:-1883}
       MQTT_USER: ${MQTT_USER:-}
       MQTT_PASSWORD: ${MQTT_PASSWORD:-}
-      MQTT_TOPIC_DTC: ${MQTT_TOPIC_DTC:-vehicle/+/dtc}
+      MQTT_TOPIC_DTC: ${MQTT_TOPIC_DTC:-MechanicAI/user1/+/DTC}
       LLM_BASE_URL: ${LLM_BASE_URL:-http://localhost:8000}
       LLM_ANALYZE_PATH: ${LLM_ANALYZE_PATH:-/analyze}
       LLM_CHAT_PATH: ${LLM_CHAT_PATH:-/chat}
