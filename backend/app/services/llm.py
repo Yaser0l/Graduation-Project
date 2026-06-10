@@ -16,8 +16,6 @@ class LlmService:
             "Content-Type": "application/json",
             "X-Internal-Secret": settings.INTERNAL_API_SECRET,
         }
-        if settings.LLM_API_KEY:
-            self.headers["Authorization"] = f"Bearer {settings.LLM_API_KEY}"
 
     def chunk_text(self, text: str, mode: str = "word", chunk_size: int = 1):
         if not text:

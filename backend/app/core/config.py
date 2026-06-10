@@ -32,7 +32,6 @@ class Settings(BaseSettings):
     
     # LLM Settings (Remote Agentic Workflow)
     LLM_BASE_URL: str = "http://localhost:8000"
-    LLM_API_KEY: Optional[str] = None
     LLM_ANALYZE_PATH: str = "/api/llm/analyze"
     LLM_CHAT_PATH: str = "/api/llm/chat"
     LLM_FULL_REPORT_PATH: str = "/api/llm/full-report"
