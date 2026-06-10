@@ -63,7 +63,7 @@ services:
     container_name: sayyartech-iot-mqtt-config
     network_mode: "host"
     environment:
-      MQTT_HOST: ${MQTT_HOST:-10.0.2.2}
+      MQTT_HOST: ${IoT_MQTT_HOST:-10.0.2.2}
       MQTT_PORT: ${MQTT_PORT:-1883}
       MQTT_USER: ${MQTT_USER:-}
       MQTT_PASSWORD: ${MQTT_PASSWORD:-}
