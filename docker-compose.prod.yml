@@ -154,7 +154,7 @@ services:
       interval: 10s
       timeout: 10s
       retries: 5
-      start_period: 240s
+      start_period: 40s
     ports:
       - "${AGENTIC_PORT:-8000}:${AGENTIC_PORT:-8000}"
     restart: unless-stopped

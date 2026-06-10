@@ -52,6 +52,7 @@ RUN --mount=type=secret,id=hf_token \
         /app/.venv/bin/python scripts/prewarm_rag.py; \
         mkdir -p /app/data; \
         cp -a /tmp/data-cache/. /app/data/; \
+        /app/.venv/bin/python -c "from huggingface_hub import snapshot_download; snapshot_download('BAAI/bge-m3')"; \
     else \
         echo "RAG prewarm skipped (RAG_PREWARM=0)"; \
     fi
