@@ -54,9 +54,15 @@ export default function Dashboard() {
 
   const unresolvedDtcCount = useMemo(() => {
     if (!diagnostics?.length) return 0;
-    return diagnostics
+    const uniqueCodes = new Set();
+    diagnostics
       .filter(report => !report.resolved)
-      .reduce((total, report) => total + (Array.isArray(report.dtc_codes) ? report.dtc_codes.length : 0), 0);
+      .forEach(report => {
+        if (Array.isArray(report.dtc_codes)) {
+          report.dtc_codes.forEach(code => uniqueCodes.add(code));
+        }
+      });
+    return uniqueCodes.size;
   }, [diagnostics]);
 
   const pendingMaintenanceCount = useMemo(() => {

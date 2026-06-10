@@ -155,6 +155,18 @@ async def process_dtc_event(db: AsyncSession, payload: dict, on_report_created=N
             
         return None
 
+    # Resolve all previous unresolved reports for this vehicle.
+    # A new DTC set represents the current vehicle state, so any codes
+    # that are no longer present are considered resolved.
+    await db.execute(
+        text("""
+            UPDATE diagnostic_reports
+            SET resolved = TRUE, resolved_at = NOW()
+            WHERE vehicle_id = :vehicle_id AND resolved = FALSE
+        """),
+        {"vehicle_id": vehicle_data["id"]},
+    )
+
     # Store report immediately as pending so the UI can show it right away.
     insert_report = text(
         """
