@@ -27,8 +27,8 @@ export default function Onboarding() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!make.trim() || !model.trim() || !year.trim() || !vin.trim() || vin.trim().length >=4) {
-      setError(ar ? 'يرجى تعبئة جميع الحقول المطلوبة بما في ذلك رقم الهيكل (١٧ حرف/رقم).' : 'Please fill in all required fields including the 17-character or less VIN.');
+    if (!make.trim() || !model.trim() || !year.trim() || vin.trim().length < 4 || vin.trim().length > 17) {
+      setError(ar ? 'يرجى تعبئة جميع الحقول المطلوبة بما في ذلك رقم الهيكل (VIN).' : 'Please fill in all required fields including VIN.');
       return;
     }
     setIsLoading(true);
@@ -168,7 +168,7 @@ export default function Onboarding() {
             placeholder="e.g. 1HGCM82633A004352"
             value={vin}
             onChange={e => setVin(e.target.value.toUpperCase())}
-            minLength={4}
+            minLength={5}
             maxLength={17}
             required
           />
