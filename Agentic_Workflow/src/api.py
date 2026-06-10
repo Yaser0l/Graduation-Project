@@ -20,6 +20,12 @@ from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 from openai import APITimeoutError, APIConnectionError, AuthenticationError, RateLimitError
 import config
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(name)s %(levelname)s %(message)s",
+    stream=sys.stdout,
+)
+
 app = FastAPI(title="CarBrain AI Backend")
 logger = logging.getLogger(__name__)
 
