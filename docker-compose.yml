@@ -149,6 +149,8 @@ services:
         RAG_PREWARM_STRICT: ${RAG_PREWARM_STRICT:-1}
       secrets:
         - hf_token
+      cache_from:
+        - type=registry,ref=abo3skr/sayyar-tech-agentic_workflow:buildcache
     image: abo3skr/sayyar-tech-agentic_workflow:latest
     container_name: sayyartech-llm
     environment:
