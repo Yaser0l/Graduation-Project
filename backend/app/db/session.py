@@ -1,7 +1,10 @@
+import logging
 from pathlib import Path
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 
@@ -51,4 +54,4 @@ async def init_db():
         for stmt in statements:
             await conn.execute(text(stmt))
 
-    print(f"[DB] Schema initialised — {len(statements)} statements executed.")
+    logger.info("[DB] Schema initialised — %d statements executed.", len(statements))

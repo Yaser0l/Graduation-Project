@@ -1,7 +1,10 @@
+import logging
 import aiosmtplib
 from uuid import UUID
 from email.message import EmailMessage
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 async def _send_email_message(message: EmailMessage):
@@ -49,13 +52,13 @@ async def send_email_alert(to_email: str, report: dict, vehicle: dict):
 
     try:
         if not settings.MAIL_USER or not settings.MAIL_PASSWORD:
-            print(f"[NOTIFY] no sender email")
+            logger.warning("[NOTIFY] no sender email")
             return
             
         await _send_email_message(message)
-        print(f"[NOTIFY] Email sent to {to_email}")
+        logger.info("[NOTIFY] Email sent to %s", to_email)
     except Exception as e:
-        print(f"[NOTIFY] Failed to send email: {e}")
+        logger.error("[NOTIFY] Failed to send email: %s", e)
 
 
 async def send_maintenance_alert(to_email: str, vehicle: dict, task: dict):
@@ -90,14 +93,14 @@ async def send_maintenance_alert(to_email: str, vehicle: dict, task: dict):
 
     try:
         if not settings.MAIL_USER or not settings.MAIL_PASSWORD:
-            print(f"[NOTIFY] no sender email")
+            logger.warning("[NOTIFY] no sender email")
             return True
 
         await _send_email_message(message)
-        print(f"[NOTIFY] email sent to {to_email}")
+        logger.info("[NOTIFY] email sent to %s", to_email)
         return True
     except Exception as e:
-        print(f"[NOTIFY] Failed to send maintenance email: {e}")
+        logger.error("[NOTIFY] Failed to send maintenance email: %s", e)
         return False
 
 
@@ -170,14 +173,14 @@ async def send_maintenance_digest(to_email: str, vehicle: dict, tasks: list[dict
 
         try:
                 if not settings.MAIL_USER or not settings.MAIL_PASSWORD:
-                        print(f"[NOTIFY] no sender email")
+                        logger.warning("[NOTIFY] no sender email")
                         return True
 
                 await _send_email_message(message)
-                print(f"[NOTIFY] maintenance digest sent to {to_email}")
+                logger.info("[NOTIFY] maintenance digest sent to %s", to_email)
                 return True
         except Exception as e:
-                print(f"[NOTIFY] Failed to send maintenance digest: {e}")
+                logger.error("[NOTIFY] Failed to send maintenance digest: %s", e)
                 return False
 
 async def notify_owner(db, vehicle_id: UUID, report: dict, vehicle: dict):
@@ -188,12 +191,12 @@ async def notify_owner(db, vehicle_id: UUID, report: dict, vehicle: dict):
         user = result.first()
         
         if not user:
-            print(f"[NOTIFY] No user found for vehicle {vehicle_id}")
+            logger.warning("[NOTIFY] No user found for vehicle %s", vehicle_id)
             return
             
         await send_email_alert(user.email, report, vehicle)
     except Exception as e:
-        print(f"[NOTIFY] notify_owner error: {e}")
+        logger.error("[NOTIFY] notify_owner error: %s", e)
 
 
 async def notify_maintenance_alerts(db, vehicle: dict, tasks: list[dict], oil_program_km: int = 10000):
@@ -204,7 +207,7 @@ async def notify_maintenance_alerts(db, vehicle: dict, tasks: list[dict], oil_pr
         result = await db.execute(query, {"id": vehicle.get("user_id")})
         user = result.first()
         if not user:
-            print(f"[NOTIFY] No user found for vehicle {vehicle.get('id')}")
+            logger.warning("[NOTIFY] No user found for vehicle %s", vehicle.get('id'))
             return
 
         insert_notification = text(
@@ -264,4 +267,4 @@ async def notify_maintenance_alerts(db, vehicle: dict, tasks: list[dict], oil_pr
 
         await db.commit()
     except Exception as e:
-        print(f"[NOTIFY] notify_maintenance_alerts error: {e}")
+        logger.error("[NOTIFY] notify_maintenance_alerts error: %s", e)

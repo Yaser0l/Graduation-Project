@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api"
     ENV: str = "development"
     PORT: int = 5000
+    LOG_LEVEL: str = "INFO"
 
     # JWT Settings
     JWT_SECRET: str

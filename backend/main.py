@@ -16,6 +16,13 @@ from app.core.mqtt import MqttService
 from app.core.sse import on_report_created, sse_service
 from app.db.session import init_db
 
+logging.basicConfig(
+    level=getattr(logging, settings.LOG_LEVEL, logging.INFO),
+    format="%(asctime)s.%(msecs)03dZ [%(levelname)-8s] %(name)s: %(message)s",
+    datefmt="%Y-%m-%dT%H:%M:%S",
+)
+logger = logging.getLogger(__name__)
+
 # For rate limiting
 RATE_LIMIT = 60
 RATE_WINDOW = 60
@@ -31,18 +38,18 @@ async def lifespan(app: FastAPI):
     app.state.mqtt_svc = mqtt_svc
     try:
         await mqtt_svc.connect()
-        print("[LIFESPAN] MQTT Connected")
+        logger.info("[LIFESPAN] MQTT Connected")
     except Exception as e:
-        print(f"[LIFESPAN] MQTT connection failed: {e}")
+        logger.error("[LIFESPAN] MQTT connection failed: %s", e)
 
     yield
 
     # Shutdown: Disconnect MQTT
     try:
         await mqtt_svc.disconnect()
-        print("[LIFESPAN] MQTT Disconnected")
+        logger.info("[LIFESPAN] MQTT Disconnected")
     except Exception as e:
-        print(f"[LIFESPAN] MQTT disconnect failed: {e}")
+        logger.error("[LIFESPAN] MQTT disconnect failed: %s", e)
 
 
 app = FastAPI(
