@@ -3,7 +3,7 @@ version: '3.8'
 services:
   postgres:
     image: postgres:15-alpine
-    container_name: carbrain-postgres
+    container_name: sayyartech-postgres
     environment:
       POSTGRES_USER: ${DB_USER:-postgres}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
@@ -21,7 +21,7 @@ services:
 
   mqtt:
     image: eclipse-mosquitto:2.0
-    container_name: carbrain-mqtt
+    container_name: sayyartech-mqtt
     ports:
       - "1883:1883"
     healthcheck:
@@ -39,7 +39,7 @@ services:
 
   sayyartech-iot-simulator:
     image: abo3skr/sayyar-tech-esp32s3simulator
-    container_name: carbrain-iot-simulator
+    container_name: sayyartech-iot-simulator
     tty: true
     stdin_open: true
     restart: unless-stopped
@@ -60,7 +60,7 @@ services:
 
   sayyartech-car_simulator:
     image: abo3skr/sayyar-tech-car_simulator
-    container_name: carbrain-car_simulator
+    container_name: sayyartech-car_simulator
     network_mode: "host"
     restart: unless-stopped
     healthcheck:
@@ -78,7 +78,7 @@ services:
   
   sayyartech-api:
     image: abo3skr/sayyar-tech-backend
-    container_name: carbrain-api
+    container_name: sayyartech-api
     environment:
       PROJECT_NAME: ${PROJECT_NAME:-CarBrain Backend}
       API_V1_STR: ${API_V1_STR:-/api}
@@ -131,7 +131,7 @@ services:
 
   sayyartech-llm:
     image: abo3skr/sayyar-tech-agentic_workflow
-    container_name: carbrain-llm
+    container_name: sayyartech-llm
     environment:
       PORT: ${AGENTIC_PORT:-8000}
       LLM_API_KEY: ${LLM_API_KEY:-}
@@ -151,17 +151,17 @@ services:
           "-c",
           "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"
         ]
-      interval: 30s
-      timeout: 20s
-      retries: 3
-      start_period: 40s
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 240s
     ports:
       - "${AGENTIC_PORT:-8000}:${AGENTIC_PORT:-8000}"
     restart: unless-stopped
   
   sayyartech-frontend:
     image: abo3skr/sayyar-tech-frontend
-    container_name: carbrain-frontend
+    container_name: sayyartech-frontend
     ports:
       - "5173:80"
     restart: unless-stopped

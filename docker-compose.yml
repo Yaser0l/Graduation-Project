@@ -3,7 +3,7 @@ version: '3.8'
 services:
   postgres:
     image: postgres:15-alpine
-    container_name: carbrain-postgres
+    container_name: sayyartech-postgres
     environment:
       POSTGRES_USER: ${DB_USER:-postgres}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
@@ -21,7 +21,7 @@ services:
 
   mqtt:
     image: eclipse-mosquitto:2.0
-    container_name: carbrain-mqtt
+    container_name: sayyartech-mqtt
     ports:
       - "1883:1883"
     healthcheck:
@@ -44,7 +44,7 @@ services:
       args:
         MQTT_HOST: 10.0.2.2
         MQTT_PORT: 1883    
-    container_name: carbrain-iot-simulator
+    container_name: sayyartech-iot-simulator
     tty: true
     stdin_open: true
     restart: no
@@ -67,7 +67,7 @@ services:
     build: 
       context: ./IoT/car_simulator
       dockerfile: Dockerfile
-    container_name: carbrain-car_simulator
+    container_name: sayyartech-car_simulator
     network_mode: "host"
     restart: no
     healthcheck:
@@ -87,7 +87,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: carbrain-api
+    container_name: sayyartech-api
     environment:
       PROJECT_NAME: ${PROJECT_NAME:-CarBrain Backend}
       API_V1_STR: ${API_V1_STR:-/api}
@@ -150,7 +150,7 @@ services:
       secrets:
         - hf_token
     image: abo3skr/sayyar-tech-agentic_workflow:latest
-    container_name: carbrain-llm
+    container_name: sayyartech-llm
     environment:
       PORT: ${AGENTIC_PORT:-8000}
       LLM_API_KEY: ${LLM_API_KEY:-}
@@ -182,7 +182,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: carbrain-frontend
+    container_name: sayyartech-frontend
     ports:
       - "5173:80"
     restart: "no"
