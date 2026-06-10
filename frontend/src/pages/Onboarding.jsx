@@ -27,7 +27,7 @@ export default function Onboarding() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!make.trim() || !model.trim() || !year.trim() || !vin.trim() || vin.trim().length > 17) {
+    if (!make.trim() || !model.trim() || !year.trim() || !vin.trim() || vin.trim().length >=4) {
       setError(ar ? 'يرجى تعبئة جميع الحقول المطلوبة بما في ذلك رقم الهيكل (١٧ حرف/رقم).' : 'Please fill in all required fields including the 17-character or less VIN.');
       return;
     }
