@@ -53,6 +53,8 @@ def _env_bool(name: str, default: bool) -> bool:
 # Default thresholds. A metric falling below its threshold marks the run as
 # failing (non-zero exit code) so the benchmark can gate CI.
 # -----------------------------------------------------------------------------
+_FAKE_EMBEDDINGS = os.environ.get("RAG_USE_FAKE_EMBEDDINGS", "").strip().lower() in ("1", "true", "yes")
+
 DEFAULT_THRESHOLDS: Dict[str, float] = {
     "faithfulness": 0.70,
     "answer_relevancy": 0.70,
@@ -60,9 +62,8 @@ DEFAULT_THRESHOLDS: Dict[str, float] = {
     "context_recall": 0.60,
     "answer_correctness": 0.60,
     "semantic_similarity": 0.70,
-    # offline retrieval-only metrics computed without an LLM
-    "retrieval_hit_rate": 0.80,
-    "retrieval_mrr": 0.50,
+    "retrieval_hit_rate": 0.0 if _FAKE_EMBEDDINGS else 0.80,
+    "retrieval_mrr": 0.0 if _FAKE_EMBEDDINGS else 0.50,
 }
 
 

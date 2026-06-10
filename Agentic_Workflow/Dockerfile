@@ -36,7 +36,6 @@ COPY config.py ./config.py
 COPY src/__init__.py ./src/__init__.py
 COPY src/rag ./src/rag
 
-ARG HF_TOKEN
 ARG HF_DATASET_REPO=aziz9788/automotive-rag-kb
 ARG RAG_PREWARM=0
 ARG RAG_PREWARM_STRICT=0
@@ -44,9 +43,7 @@ RUN --mount=type=secret,id=hf_token \
     --mount=type=cache,target=/root/.cache/huggingface \
     --mount=type=cache,target=/tmp/data-cache \
     if [ "$RAG_PREWARM" = "1" ]; then \
-        if [ -f /run/secrets/hf_token ]; then \
-            HF_TOKEN="$(cat /run/secrets/hf_token)"; \
-        fi; \
+        HF_TOKEN="$(cat /run/secrets/hf_token 2>/dev/null || echo '')"; \
         HF_TOKEN="$HF_TOKEN" HF_DATASET_REPO="$HF_DATASET_REPO" \
         RAG_PREWARM_STRICT="$RAG_PREWARM_STRICT" \
         HF_HOME=/app/data/hf_cache \

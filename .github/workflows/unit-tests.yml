@@ -1,14 +1,18 @@
-name: Unit Tests
+name: IoT Unit Tests
 
 on:
   push:
     branches:
       - main
       - "release/*"
+    paths:
+      - "IoT/Mechanic/**"
   pull_request:
+    paths:
+      - "IoT/Mechanic/**"
 
 jobs:
-  unit-tests:
+  iot-unit-tests:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
