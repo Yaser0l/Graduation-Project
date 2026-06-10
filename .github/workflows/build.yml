@@ -57,6 +57,11 @@ jobs:
             context: Agentic_Workflow
             dockerfile: Agentic_Workflow/Dockerfile
             image: sayyar-tech-agentic_workflow
+            build_args: |
+              RAG_PREWARM=1
+              RAG_PREWARM_STRICT=1
+            secrets: |
+              "hf_token=${{ secrets.HF_TOKEN }}"
 
           - name: esp32s3simulator
             context: IoT/Mechanic
@@ -123,5 +128,7 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: ${{ matrix.build_args }}
+          secrets: ${{ matrix.secrets }}
           cache-from: ${{ (matrix.name == 'agentic_workflow' || matrix.name == 'esp32s3simulator') && format('type=registry,ref={0}/{1}:buildcache', secrets.DOCKER_USERNAME, matrix.image) || format('type=gha,scope={0}', matrix.name) }}
           cache-to: ${{ (matrix.name == 'agentic_workflow' || matrix.name == 'esp32s3simulator') && format('type=registry,ref={0}/{1}:buildcache,mode=max', secrets.DOCKER_USERNAME, matrix.image) || format('type=gha,mode=max,scope={0}', matrix.name) }}
