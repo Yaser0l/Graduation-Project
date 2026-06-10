@@ -1,6 +1,7 @@
 import React, { useContext, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { LanguageContext, DiagnosticContext, VehicleContext } from '../store/AppContext';
+import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, Wrench, ShieldCheck, Activity, CarFront, PenLine, Check, X } from 'lucide-react';
 import styles from './Dashboard.module.css';
 
@@ -11,6 +12,7 @@ export default function Dashboard() {
   const [isEditingMileage, setIsEditingMileage] = useState(false);
   const [mileageInput, setMileageInput] = useState('');
   const [isSavingMileage, setIsSavingMileage] = useState(false);
+  const navigate = useNavigate();
 
   const healthData = useMemo(() => {
     if (!diagnostics || diagnostics.length === 0) {
@@ -198,7 +200,7 @@ export default function Dashboard() {
       </motion.div>
 
       <motion.div variants={itemVars} className={styles.issueGrid}>
-        <div className={`glass-panel ${styles.issueCard} ${styles.dtcCard}`}>
+        <div className={`glass-panel ${styles.issueCard} ${styles.dtcCard}`} onClick={() => navigate('/diagnostics')} style={{ cursor: 'pointer' }}>
           <div className={styles.issueCardHead}>
             <AlertTriangle size={18} />
             <h3>{language === 'ar' ? 'أعطال DTC النشطة' : 'Active DTC Issues'}</h3>
@@ -211,7 +213,7 @@ export default function Dashboard() {
           </p>
         </div>
 
-        <div className={`glass-panel ${styles.issueCard} ${styles.maintenanceCard}`}>
+        <div className={`glass-panel ${styles.issueCard} ${styles.maintenanceCard}`} onClick={() => navigate('/maintenance')} style={{ cursor: 'pointer' }}>
           <div className={styles.issueCardHead}>
             <Wrench size={18} />
             <h3>{language === 'ar' ? 'الصيانة الدورية المطلوبة' : 'Pending Maintenance Tasks'}</h3>
