@@ -126,13 +126,13 @@ def isotp_server(bus, stop_event):
                 stack.send(bytes([0x49, 0x02]) + vin)
                 print(f"Sent VIN response: {vin}")
                 
-            # UDS Service 19 02 FF (Read DTC by status)
-            elif len(req) >= 3 and req[0] == 0x19 and req[1] == 0x02 and req[2] == 0xFF:
-                # Response 59 02 FF + DTCs
-                # Each UDS DTC is 3 bytes code + 1 byte status
-                # Send 12 34 56 09
-                stack.send(bytes([0x59, 0x02, 0xFF, 0x12, 0x34, 0x56, 0x09]))
-                print("Sent UDS DTC response")
+            # UDS Service 19 02 FF (Read DTC by status) FOR FUTURE USE - NOT IMPLEMENTED on AGENT SIDE
+            # elif len(req) >= 3 and req[0] == 0x19 and req[1] == 0x02 and req[2] == 0xFF:
+            #     # Response 59 02 FF + DTCs
+            #     # Each UDS DTC is 3 bytes code + 1 byte status
+            #     # Send 12 34 56 09
+            #     stack.send(bytes([0x59, 0x02, 0xFF, 0x12, 0x34, 0x56, 0x09]))
+            #     print("Sent UDS DTC response")
                 
         sleep_time = stack.sleep_time()
         if sleep_time > ISOTP_POLL_MAX_SLEEP_S:
