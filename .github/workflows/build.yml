@@ -87,8 +87,9 @@ jobs:
         with:
           images: ${{ secrets.DOCKER_USERNAME }}/${{ matrix.image }}
           tags: |
-            # 1. Pushes to main get tagged as 'main'
+            # 1. Pushes to main get tagged as 'main' and 'latest'
             type=ref,event=branch
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
             # 2. PRs get tagged as 'pr-123'
             type=ref,event=pr
             # 4. Release tags (v1.0.0) get tagged as '1.0.0'
