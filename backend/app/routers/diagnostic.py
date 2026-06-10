@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+import asyncio
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
@@ -7,8 +8,10 @@ from uuid import UUID
 import json
 from app.db.session import get_db
 from app.core.deps import get_current_user
+from app.core.sse import on_report_created
 from app.schemas.auth import UserOut
 from app.schemas.diagnostic import DiagnosticReportOut, FullReportRequest
+from app.services.diagnostic import _finalize_dtc_report
 from app.services.llm import llm_service
 
 router = APIRouter(prefix="/api/diagnostics", tags=["diagnostics"])
@@ -108,6 +111,7 @@ async def resolve_diagnostic(
 async def generate_full_report(
     report_id: UUID,
     payload: FullReportRequest,
+    request: Request,
     stream_mode: str = Query(default="word"),
     stream_chunk_size: int = Query(default=3, ge=1, le=12),
     db: AsyncSession = Depends(get_db),
@@ -149,6 +153,8 @@ async def generate_full_report(
                 if "reportId" not in upstream_event:
                     upstream_event["reportId"] = str(report_id)
                 yield json.dumps(upstream_event, ensure_ascii=False) + "\n"
+                if await request.is_disconnected():
+                    break
         except Exception:
             yield json.dumps(
                 {
@@ -159,3 +165,58 @@ async def generate_full_report(
             , ensure_ascii=False) + "\n"
 
     return StreamingResponse(event_stream(), media_type="application/x-ndjson")
+
+
+@router.post("/{report_id}/retry-analysis", response_model=DiagnosticReportOut)
+async def retry_analysis(
+    report_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserOut = Depends(get_current_user),
+):
+    sql = """
+        SELECT dr.*, v.make, v.model, v.year, v.mileage, v.vin, v.user_id
+        FROM diagnostic_reports dr
+        JOIN vehicles v ON dr.vehicle_id = v.id
+        WHERE dr.id = :report_id AND v.user_id = :user_id
+    """
+    result = await db.execute(text(sql), {"report_id": report_id, "user_id": current_user.id})
+    report = result.first()
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+
+    explanation = (report.llm_explanation or "").lower()
+    if "unavailable" not in explanation:
+        raise HTTPException(status_code=400, detail="Report analysis is not in a failed state that can be retried")
+
+    dtc_codes = report.dtc_codes if report.dtc_codes else []
+    vehicle_data = {
+        "id": report.vehicle_id,
+        "make": report.make,
+        "model": report.model,
+        "year": report.year,
+        "mileage": report.mileage,
+        "user_id": report.user_id,
+    }
+
+    await db.execute(
+        text("UPDATE diagnostic_reports SET llm_explanation = NULL, urgency = 'pending' WHERE id = :report_id"),
+        {"report_id": report_id},
+    )
+    await db.commit()
+
+    updated = await db.execute(
+        text("""
+            SELECT dr.*, v.vin, v.make, v.model, v.year
+            FROM diagnostic_reports dr
+            JOIN vehicles v ON dr.vehicle_id = v.id
+            WHERE dr.id = :report_id
+        """),
+        {"report_id": report_id},
+    )
+    pending_report = updated.first()
+
+    asyncio.create_task(
+        _finalize_dtc_report(report_id, dtc_codes, vehicle_data, on_report_created)
+    )
+
+    return pending_report

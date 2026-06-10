@@ -2,14 +2,15 @@ import React, { useContext, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LanguageContext, DiagnosticContext } from '../store/AppContext';
 import { useNavigate } from 'react-router-dom';
-import { ChevronDown, MessageSquareText, Calendar, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { ChevronDown, MessageSquareText, Calendar, AlertCircle, CheckCircle2, RefreshCw } from 'lucide-react';
 import styles from './Diagnostics.module.css';
 
 export default function Diagnostics() {
-  const { diagnostics, resolveDiagnostic } = useContext(DiagnosticContext);
+  const { diagnostics, resolveDiagnostic, retryDiagnostic } = useContext(DiagnosticContext);
   const { language } = useContext(LanguageContext);
   const [expandedReport, setExpandedReport] = useState(diagnostics?.[0]?.id || null);
   const [resolvingReportId, setResolvingReportId] = useState(null);
+  const [retryingReportId, setRetryingReportId] = useState(null);
   const [showResolved, setShowResolved] = useState(false);
   const navigate = useNavigate();
 
@@ -23,6 +24,11 @@ export default function Diagnostics() {
     if (!report) return false;
     if (report.urgency && String(report.urgency).toLowerCase() === 'pending') return true;
     return !report.llm_explanation;
+  };
+
+  const isFailedReport = (report) => {
+    if (!report || !report.llm_explanation) return false;
+    return report.llm_explanation.toLowerCase().includes('unavailable');
   };
 
   const getExplanationText = (report) => {
@@ -72,6 +78,18 @@ export default function Diagnostics() {
       console.error('Failed to resolve diagnostic:', err);
     } finally {
       setResolvingReportId(null);
+    }
+  };
+
+  const handleRetry = async (reportId) => {
+    if (retryingReportId) return;
+    setRetryingReportId(reportId);
+    try {
+      await retryDiagnostic(reportId);
+    } catch (err) {
+      console.error('Failed to retry analysis:', err);
+    } finally {
+      setRetryingReportId(null);
     }
   };
 
@@ -139,6 +157,21 @@ export default function Diagnostics() {
                         {resolvingReportId === report.id
                           ? (language === 'ar' ? 'جارٍ الإغلاق...' : 'Resolving...')
                           : (language === 'ar' ? 'إغلاق المشكلة' : 'Resolve Issue')}
+                      </span>
+                    </button>
+                  )}
+                  {!report.resolved && isFailedReport(report) && (
+                    <button
+                      type="button"
+                      className={styles.retryBtn}
+                      onClick={() => handleRetry(report.id)}
+                      disabled={retryingReportId === report.id}
+                    >
+                      <RefreshCw size={16} className={retryingReportId === report.id ? styles.spinning : ''} />
+                      <span>
+                        {retryingReportId === report.id
+                          ? (language === 'ar' ? 'جارٍ إعادة المحاولة...' : 'Retrying...')
+                          : (language === 'ar' ? 'إعادة المحاولة' : 'Retry Analysis')}
                       </span>
                     </button>
                   )}

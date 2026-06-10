@@ -314,6 +314,16 @@ export const AppProvider = ({ children }) => {
     return resolved;
   };
 
+  const retryDiagnostic = async (reportId) => {
+    const pendingReport = await api.diagnostics.retryAnalysis(reportId);
+    setDiagnostics((prev) =>
+      prev.map((report) =>
+        report.id === reportId ? { ...report, ...pendingReport } : report
+      )
+    );
+    return pendingReport;
+  };
+
   const startScan = () => setIsScanning(true);
 
   // SSE logic
@@ -455,6 +465,7 @@ export const AppProvider = ({ children }) => {
               diagnostics,
               setDiagnostics,
               resolveDiagnostic,
+              retryDiagnostic,
               maintenance,
               maintenanceError,
               isMaintenanceLoading,

@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useLocation } from 'react-router-dom';
 import { LanguageContext } from '../store/AppContext';
 import { api } from '../services/api';
-import { Send, Zap, MessageCircle, FileText, Loader } from 'lucide-react';
+import { Send, Zap, MessageCircle, FileText, StopCircle } from 'lucide-react';
 import styles from './Chat.module.css';
 
 const MarkdownRenderer = ({ text }) => {
@@ -98,6 +98,7 @@ export default function Chat() {
   const streamMessageIdRef = useRef(null);
   const streamModeRef = useRef('word');
   const pendingFinalTextRef = useRef(null);
+  const abortControllerRef = useRef(null);
 
   const STREAM_DISPLAY_MODE = 'word'; // switch to 'char' for character-by-character reveal
 
@@ -117,6 +118,16 @@ export default function Chat() {
     streamBufferRef.current = [];
     streamMessageIdRef.current = null;
     pendingFinalTextRef.current = null;
+  };
+
+  const handleStopGeneration = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    stopStreamReveal();
+    setIsLoading(false);
+    setIsReporting(false);
   };
 
   const startStreamReveal = (messageId, mode = 'word') => {
@@ -270,20 +281,31 @@ export default function Chat() {
     setMessages(prev => [...prev, { id: aiMessageId, sender: 'ai', text: '' }]);
     startStreamReveal(aiMessageId, STREAM_DISPLAY_MODE);
 
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
     try {
       const response = await api.chat.send(reportId, text, {
         streamMode: 'word',
         streamChunkSize: 3,
         onToken: (chunk) => pushStreamChunk(chunk),
+        abortSignal: abortController.signal,
       });
       finalizeStreamMessage(response?.reply || '');
     } catch (err) {
-      console.error("Failed to send message:", err);
-      finalizeStreamMessage(language === 'ar'
-        ? 'عذراً، حدث خطأ أثناء الاتصال بالخادم.'
-        : 'Sorry, an error occurred while connecting to the engine.');
+      if (err.name === 'AbortError' || abortController.signal.aborted) {
+        finalizeStreamMessage('');
+      } else {
+        console.error("Failed to send message:", err);
+        finalizeStreamMessage(language === 'ar'
+          ? 'عذراً، حدث خطأ أثناء الاتصال بالخادم.'
+          : 'Sorry, an error occurred while connecting to the engine.');
+      }
     } finally {
       setIsLoading(false);
+      if (abortControllerRef.current === abortController) {
+        abortControllerRef.current = null;
+      }
     }
   };
 
@@ -297,19 +319,31 @@ export default function Chat() {
       text: ''
     }]);
     startStreamReveal(reportMessageId, STREAM_DISPLAY_MODE);
+
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
     try {
       const result = await api.diagnostics.fullReport(reportId, language, {
         streamMode: 'word',
         streamChunkSize: 4,
         onToken: (chunk) => pushStreamChunk(chunk),
+        abortSignal: abortController.signal,
       });
       finalizeStreamMessage(result?.explanation || (language === 'ar' ? 'لم يتم إنشاء التقرير.' : 'No report was generated.'));
     } catch (err) {
-      finalizeStreamMessage(language === 'ar'
-        ? 'فشل إنشاء التقرير الشامل. يرجى المحاولة مجدداً.'
-        : 'Failed to generate full report. Please try again.');
+      if (err.name === 'AbortError' || abortController.signal.aborted) {
+        finalizeStreamMessage('');
+      } else {
+        finalizeStreamMessage(language === 'ar'
+          ? 'فشل إنشاء التقرير الشامل. يرجى المحاولة مجدداً.'
+          : 'Failed to generate full report. Please try again.');
+      }
     } finally {
       setIsReporting(false);
+      if (abortControllerRef.current === abortController) {
+        abortControllerRef.current = null;
+      }
     }
   };
 
@@ -385,14 +419,14 @@ export default function Chat() {
           />
           <button 
             className={styles.reportBtn} 
-            onClick={handleFullReport} 
-            disabled={!reportId || isReporting || isLoading}
-            title={language === 'ar' ? 'تقرير شامل' : 'Full Report'}
+            onClick={isReporting ? handleStopGeneration : handleFullReport} 
+            disabled={!reportId || (!isReporting && isLoading)}
+            title={isReporting ? (language === 'ar' ? 'إيقاف التوليد' : 'Stop') : (language === 'ar' ? 'تقرير شامل' : 'Full Report')}
           >
-            {isReporting ? <Loader size={20} className={styles.spinIcon} /> : <FileText size={20} />}
+            {isReporting ? <StopCircle size={20} /> : <FileText size={20} />}
           </button>
-          <button className={styles.sendBtn} onClick={() => handleSend(inputVal)} disabled={!reportId || isLoading || isReporting}>
-            <Send size={20} />
+          <button className={styles.sendBtn} onClick={() => (isLoading ? handleStopGeneration() : handleSend(inputVal))} disabled={!reportId || (!isLoading && isReporting)}>
+            {isLoading ? <StopCircle size={20} /> : <Send size={20} />}
           </button>
         </div>
       </div>

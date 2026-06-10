@@ -64,7 +64,7 @@ const handleResponse = async (response) => {
   return response.json();
 };
 
-const parseNdjsonStream = async (response, handlers = {}) => {
+const parseNdjsonStream = async (response, handlers = {}, abortSignal = null) => {
   if (!response.ok) {
     let errorBody;
     try {
@@ -95,6 +95,12 @@ const parseNdjsonStream = async (response, handlers = {}) => {
   let buffer = "";
   let finalPayload = null;
 
+  if (abortSignal) {
+    abortSignal.addEventListener("abort", () => {
+      reader.cancel();
+    }, { once: true });
+  }
+
   const consumeLine = (line) => {
     if (!line.trim()) return;
     let eventPayload;
@@ -118,26 +124,38 @@ const parseNdjsonStream = async (response, handlers = {}) => {
     }
   };
 
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split("\n");
-    buffer = lines.pop() || "";
-    lines.forEach(consumeLine);
-  }
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+      lines.forEach(consumeLine);
+    }
 
-  buffer += decoder.decode();
-  if (buffer.trim()) consumeLine(buffer);
+    buffer += decoder.decode();
+    if (buffer.trim()) consumeLine(buffer);
+  } catch (err) {
+    if (abortSignal && abortSignal.aborted) {
+      return finalPayload;
+    }
+    throw err;
+  }
 
   return finalPayload;
 };
 
 const fetchWithTimeout = async (resource, options = {}) => {
-  const { timeout = 30000 } = options; // Default 30s timeout
+  const { timeout = 30000, abortSignal } = options;
 
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeout);
+
+  const onExternalAbort = () => controller.abort();
+  if (abortSignal) {
+    abortSignal.addEventListener("abort", onExternalAbort);
+  }
 
   try {
     const response = await fetch(resource, {
@@ -145,10 +163,15 @@ const fetchWithTimeout = async (resource, options = {}) => {
       signal: controller.signal,
     });
     clearTimeout(id);
+    if (abortSignal) abortSignal.removeEventListener("abort", onExternalAbort);
     return response;
   } catch (error) {
     clearTimeout(id);
+    if (abortSignal) abortSignal.removeEventListener("abort", onExternalAbort);
     if (error.name === "AbortError") {
+      if (abortSignal && abortSignal.aborted) {
+        throw new DOMException("The user aborted the request.", "AbortError");
+      }
       throw new Error(`Request timed out after ${timeout / 1000} seconds`);
     }
     throw new Error(`Network error: ${error.message}`);
@@ -262,6 +285,16 @@ export const api = {
       );
       return handleResponse(response);
     },
+    retryAnalysis: async (reportId) => {
+      const response = await fetchWithTimeout(
+        `${BASE_URL}/diagnostics/${reportId}/retry-analysis`,
+        {
+          method: "POST",
+          headers: getHeaders(),
+        },
+      );
+      return handleResponse(response);
+    },
     fullReport: async (reportId, language = "en", streamOptions = {}) => {
       const {
         onStart,
@@ -270,6 +303,7 @@ export const api = {
         onError,
         streamMode = "word",
         streamChunkSize = 3,
+        abortSignal,
       } = streamOptions;
       const query = new URLSearchParams({
         stream_mode: streamMode,
@@ -282,6 +316,7 @@ export const api = {
           headers: getHeaders(),
           body: JSON.stringify({ language }),
           timeout: 300000,
+          abortSignal,
         },
       );
       return parseNdjsonStream(response, {
@@ -328,6 +363,7 @@ export const api = {
         onError,
         streamMode = "word",
         streamChunkSize = 2,
+        abortSignal,
       } = streamOptions;
       const response = await fetchWithTimeout(`${BASE_URL}/chat/${reportId}`, {
         method: "POST",
@@ -338,8 +374,9 @@ export const api = {
           stream_chunk_size: streamChunkSize,
         }),
         timeout: 300000,
+        abortSignal,
       });
-      return parseNdjsonStream(response, { onStart, onToken, onDone, onError });
+      return parseNdjsonStream(response, { onStart, onToken, onDone, onError }, abortSignal);
     },
     history: async (reportId) => {
       const response = await fetchWithTimeout(

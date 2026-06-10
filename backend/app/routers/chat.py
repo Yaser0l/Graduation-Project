@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
@@ -23,6 +23,7 @@ class ChatMessageRequest(BaseModel):
 async def chat_with_mechanic(
     report_id: UUID,
     chat_req: ChatMessageRequest,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     current_user: UserOut = Depends(get_current_user),
 ):
@@ -94,6 +95,7 @@ async def chat_with_mechanic(
         assistant_reply_parts = []
         done_reply = None
         has_error = False
+        disconnected = False
         try:
             async for upstream_event in llm_service.chat_stream(
                 report=dict(report._mapping),
@@ -111,6 +113,9 @@ async def chat_with_mechanic(
                 elif event_type == "error":
                     has_error = True
                 yield json.dumps(upstream_event, ensure_ascii=False) + "\n"
+                if await request.is_disconnected():
+                    disconnected = True
+                    break
 
             assistant_reply = (done_reply or "".join(assistant_reply_parts)).strip()
             if assistant_reply and not has_error:
@@ -119,7 +124,7 @@ async def chat_with_mechanic(
                     {"session_id": session_id, "content": assistant_reply},
                 )
                 await db.commit()
-            elif not has_error:
+            elif not has_error and not disconnected:
                 fallback = "Sorry, the AI mechanic is temporarily unavailable. Please try again in a moment."
                 await db.execute(
                     text("INSERT INTO chat_messages (session_id, role, content) VALUES (:session_id, 'assistant', :content)"),
