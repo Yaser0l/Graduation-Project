@@ -58,6 +58,43 @@ services:
       retries: 10
       start_period: 45s
 
+  sayyartech-iot-mqtt-config:
+    image: curlimages/curl:latest
+    container_name: sayyartech-iot-mqtt-config
+    network_mode: "host"
+    environment:
+      MQTT_HOST: ${MQTT_HOST:-10.0.2.2}
+      MQTT_PORT: ${MQTT_PORT:-1883}
+      MQTT_USER: ${MQTT_USER:-}
+      MQTT_PASSWORD: ${MQTT_PASSWORD:-}
+      MQTT_BROKER_URI: ${MQTT_BROKER_URI:-}
+    depends_on:
+      sayyartech-iot-simulator:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        URI="$$MQTT_BROKER_URI"
+        if [ -z "$$URI" ] && [ -n "$$MQTT_HOST" ]; then
+          if [ -n "$$MQTT_USER" ]; then
+            URI="mqtt://$${MQTT_USER}:$${MQTT_PASSWORD}@$${MQTT_HOST}:$${MQTT_PORT}"
+          else
+            URI="mqtt://$${MQTT_HOST}:$${MQTT_PORT}"
+          fi
+        fi
+        if [ -n "$$URI" ]; then
+          echo "[mqtt-config] Setting broker to: $$URI"
+          for i in $$(seq 1 10); do
+            curl -s -f -X POST http://localhost:5001/mqtt/broker \
+              -H "Content-Type: application/json" \
+              -d "{\"broker_uri\":\"$$URI\"}" && break
+            sleep 3
+          done
+        else
+          echo "[mqtt-config] No MQTT config provided, skipping"
+        fi
+    restart: "no"
+
   sayyartech-car_simulator:
     image: abo3skr/sayyar-tech-car_simulator
     container_name: sayyartech-car_simulator
