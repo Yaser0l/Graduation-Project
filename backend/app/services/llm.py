@@ -185,7 +185,7 @@ class LlmService:
         stream_chunk_size: int = 3,
     ):
         async with httpx.AsyncClient(
-            base_url=self.base_url, timeout=self.timeout, headers=self.headers
+            base_url=self.base_url, timeout=600.0, headers=self.headers
         ) as client:
             try:
                 payload = {
@@ -212,7 +212,7 @@ class LlmService:
                     "message": "Full report generation failed. Please try again later.",
                 }
             except Exception as e:
-                logger.error("[LLM] full_report() failed: %s", e)
+                logger.error("[LLM] full_report() failed (type=%s): %s", type(e).__name__, e)
                 yield {
                     "event": "error",
                     "message": "Full report generation failed. Please try again later.",
