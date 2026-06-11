@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 class LlmService:
     def __init__(self):
         self.base_url = settings.LLM_BASE_URL
-        self.timeout = 240.0
+        self.timeout = httpx.Timeout(connect=60.0, read=480.0, write=60.0, pool=60.0)
         self.headers = {
             "Content-Type": "application/json",
             "X-Internal-Secret": settings.INTERNAL_API_SECRET,
@@ -100,7 +100,9 @@ class LlmService:
         stream_chunk_size: int = 3,
     ):
         async with httpx.AsyncClient(
-            base_url=self.base_url, timeout=self.timeout, headers=self.headers
+            base_url=self.base_url,
+            timeout=httpx.Timeout(connect=60.0, read=None, write=60.0, pool=60.0),
+            headers=self.headers,
         ) as client:
             try:
                 payload = {
@@ -185,7 +187,9 @@ class LlmService:
         stream_chunk_size: int = 3,
     ):
         async with httpx.AsyncClient(
-            base_url=self.base_url, timeout=600.0, headers=self.headers
+            base_url=self.base_url,
+            timeout=httpx.Timeout(connect=60.0, read=None, write=60.0, pool=60.0),
+            headers=self.headers,
         ) as client:
             try:
                 payload = {
